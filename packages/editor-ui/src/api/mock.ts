@@ -15,6 +15,7 @@ import {
   rewriteText,
   seoSuggest,
 } from "@pcms/engine";
+import type { ThemeBundle } from "@pcms/engine";
 import type {
   AccountView,
   DeployConfigView,
@@ -45,13 +46,6 @@ import secMenu from "../../../../themes/sample-cafe/sections/menu.html?raw";
 import secGallery from "../../../../themes/sample-cafe/sections/gallery.html?raw";
 import secText from "../../../../themes/sample-cafe/sections/text.html?raw";
 
-const SECTIONS: Record<string, string> = {
-  hero: secHero,
-  news: secNews,
-  menu: secMenu,
-  gallery: secGallery,
-  text: secText,
-};
 import themeJson from "../../../../themes/sample-cafe/theme.json";
 import previewCss from "../../../../themes/sample-cafe/assets/style.css?raw";
 
@@ -206,13 +200,7 @@ function outputCount(): number {
     settings: loadDraft() ?? defaultSettings,
     contentTypes: loadTypes(),
     content: loadContent(),
-    theme: {
-      config: themeJson,
-      layout,
-      templates: { index: indexTpl, page: pageTpl, post: postTpl, archive: archiveTpl },
-      sections: SECTIONS,
-      assets: ["assets/style.css"],
-    },
+    theme: buildTheme(),
     menus: loadMenus(),
     taxonomies: loadTaxonomies(),
   });
@@ -296,6 +284,44 @@ function themeFileKind(path: string): ThemeFileKind {
   return "other";
 }
 
+/** Theme originals overlaid with the code-editor working copy. */
+function mergedThemeFiles(): Record<string, string> {
+  return { ...THEME_FILES, ...themeWorkingCopy() };
+}
+
+/**
+ * Build the theme bundle from the merged files, so parts created or edited in
+ * the code editor (sections/*.html, templates, layout, assets) flow into the
+ * visual editor's section catalog and the preview.
+ */
+function buildTheme(): ThemeBundle {
+  const files = mergedThemeFiles();
+  const sections: Record<string, string> = {};
+  const templates: Record<string, string> = {};
+  for (const [path, content] of Object.entries(files)) {
+    const sec = /^sections\/(.+)\.html$/.exec(path);
+    if (sec?.[1]) {
+      sections[sec[1]] = content;
+      continue;
+    }
+    const tpl = /^templates\/(.+)\.html$/.exec(path);
+    if (tpl?.[1]) templates[tpl[1]] = content;
+  }
+  let config = themeJson as ThemeBundle["config"];
+  try {
+    config = JSON.parse(files["theme.json"] ?? "") as ThemeBundle["config"];
+  } catch {
+    /* keep the imported theme.json */
+  }
+  return {
+    config,
+    layout: files["layout.html"] ?? layout,
+    templates,
+    sections,
+    assets: ["assets/style.css"],
+  };
+}
+
 /** Browser mock of window.pcms used by the dev harness. */
 export function createMockApi(): PcmsApi {
   return {
@@ -307,18 +333,12 @@ export function createMockApi(): PcmsApi {
           permalink: "/:type/:slug/",
         },
         settings: loadDraft() ?? defaultSettings,
-        theme: {
-          config: themeJson,
-          layout,
-          templates: { index: indexTpl, page: pageTpl, post: postTpl, archive: archiveTpl },
-      sections: SECTIONS,
-          assets: ["assets/style.css"],
-        },
+        theme: buildTheme(),
         content: loadContent(),
         menus: loadMenus(),
         contentTypes: loadTypes(),
         taxonomies: loadTaxonomies(),
-        previewCss,
+        previewCss: mergedThemeFiles()["assets/style.css"] ?? previewCss,
       };
     },
     async saveDraft(settings: SiteSettings): Promise<void> {

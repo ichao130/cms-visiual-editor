@@ -37,6 +37,9 @@ export interface SiteWorkspace {
   dirty: boolean;
   setDirty: (value: boolean) => void;
   save: () => void;
+  /** Re-fetch the project (e.g. after editing theme files), refreshing the
+   *  section catalog and preview base without touching the editable document. */
+  reloadProject: () => void;
 }
 
 const Ctx = createContext<SiteWorkspace | null>(null);
@@ -74,6 +77,10 @@ export function SiteWorkspaceProvider({ api, siteId, children }: ProviderProps) 
     // siteId is in deps so switching sites reloads (the provider is also keyed).
   }, [api, siteId, reset]);
 
+  const reloadProject = useCallback(() => {
+    void api.loadProject().then(setProject);
+  }, [api]);
+
   const save = useCallback(() => {
     void Promise.all([
       api.saveDraft(doc.settings),
@@ -100,6 +107,7 @@ export function SiteWorkspaceProvider({ api, siteId, children }: ProviderProps) 
     dirty,
     setDirty,
     save,
+    reloadProject,
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

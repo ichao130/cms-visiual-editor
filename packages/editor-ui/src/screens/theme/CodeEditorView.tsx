@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { PcmsApi, ThemeFileNode } from "../../api/types.js";
+import { useSiteWorkspace } from "../../state/SiteWorkspace.js";
 import { CodeEditor } from "../../components/CodeEditor.js";
 import { t } from "../../i18n.js";
 
@@ -20,10 +21,12 @@ const NEW_PART_TEMPLATE = (name: string) =>
  * a reusable section under sections/.
  */
 export function CodeEditorView({ api }: Props) {
+  const { reloadProject } = useSiteWorkspace();
   const [files, setFiles] = useState<ThemeFileNode[]>([]);
   const [active, setActive] = useState<ThemeFileNode | null>(null);
   const [content, setContent] = useState("");
   const [dirty, setDirty] = useState(false);
+  const [newName, setNewName] = useState<string | null>(null);
 
   const refreshFiles = useCallback(async () => {
     const list = await api.listThemeFiles();
@@ -53,18 +56,26 @@ export function CodeEditorView({ api }: Props) {
 
   const onSave = () => {
     if (!active) return;
-    void api.writeThemeFile(active.path, content).then(() => setDirty(false));
+    void api.writeThemeFile(active.path, content).then(() => {
+      setDirty(false);
+      // Refresh the visual editor's section catalog + preview with the change.
+      reloadProject();
+    });
   };
 
-  const onNewPart = async () => {
-    const name = window.prompt(t("code.newPartPrompt"), "feature");
-    if (!name) return;
-    const safe = name.trim().replace(/[^a-z0-9-]/gi, "-").toLowerCase();
-    if (!safe) return;
+  const createPart = async () => {
+    const safe = (newName ?? "").trim().replace(/[^a-z0-9-]/gi, "-").toLowerCase();
+    if (!safe) {
+      setNewName(null);
+      return;
+    }
     const path = `sections/${safe}.html`;
     await api.writeThemeFile(path, NEW_PART_TEMPLATE(safe));
     const list = await refreshFiles();
     setActive(list.find((f) => f.path === path) ?? null);
+    setNewName(null);
+    // Make the new part available in the visual editor immediately.
+    reloadProject();
   };
 
   const grouped = groupByDir(files);
@@ -74,10 +85,32 @@ export function CodeEditorView({ api }: Props) {
       <aside className="pcms-filetree">
         <div className="pcms-filetree__head">
           <span>{t("code.files")}</span>
-          <button className="pcms-filetree__new" onClick={onNewPart} title={t("code.newPart")}>
+          <button
+            className="pcms-filetree__new"
+            onClick={() => setNewName((v) => (v == null ? "" : null))}
+            title={t("code.newPart")}
+          >
             ＋
           </button>
         </div>
+        {newName != null && (
+          <div className="pcms-filetree__newrow">
+            <input
+              autoFocus
+              className="pcms-filetree__newinput"
+              value={newName}
+              placeholder={t("code.newPartPlaceholder")}
+              onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void createPart();
+                else if (e.key === "Escape") setNewName(null);
+              }}
+            />
+            <button className="pcms-primary" onClick={() => void createPart()}>
+              {t("code.create")}
+            </button>
+          </div>
+        )}
         {grouped.map(([dir, nodes]) => (
           <div key={dir} className="pcms-filetree__group">
             {dir && <div className="pcms-filetree__dir">{dir}/</div>}

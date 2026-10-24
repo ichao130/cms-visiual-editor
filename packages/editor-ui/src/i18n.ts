@@ -191,7 +191,8 @@ const ja = {
   "themeEditor.code": "コード",
   "code.files": "ファイル",
   "code.newPart": "新しいパーツ",
-  "code.newPartPrompt": "パーツ名（半角英数）を入力してください",
+  "code.newPartPlaceholder": "パーツ名（半角英数）",
+  "code.create": "作成",
   "code.pickHint": "左のファイルを選ぶと、ここで編集できます。",
 } as const;
 
