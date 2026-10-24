@@ -78,7 +78,12 @@ export interface SiteSettings {
 export interface PageSettings {
   /** Template name to use; defaults to the page id, then "page". */
   template?: string;
-  /** Section order / visibility overrides, keyed by section id. */
+  /**
+   * Operator's section order, as a list of section ids. Sections not listed
+   * keep their template order after the listed ones. Absent = template order.
+   */
+  sectionOrder?: string[];
+  /** Section visibility / repeat overrides, keyed by section id. */
   sections?: SectionState[];
   /**
    * Field values set by the operator, keyed by the `data-field` path.

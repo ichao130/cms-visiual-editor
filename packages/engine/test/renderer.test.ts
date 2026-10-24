@@ -65,6 +65,17 @@ describe("renderTemplate", () => {
     expect(hidden).not.toContain("新着情報");
   });
 
+  it("reorders sections per the operator order", () => {
+    const scope = indexScope();
+    scope.page = { ...scope.page, sectionOrder: ["menu", "hero", "news"] };
+    const out = renderTemplate(theme.templates.index as string, scope);
+    const menuAt = out.indexOf('class="menu-list"');
+    const heroAt = out.indexOf('class="hero"');
+    const newsAt = out.indexOf('class="news"');
+    expect(menuAt).toBeLessThan(heroAt);
+    expect(heroAt).toBeLessThan(newsAt);
+  });
+
   it("injects the template into the layout slot", () => {
     const withLayout = renderTemplate(theme.templates.index as string, indexScope(), {
       layout: theme.layout,

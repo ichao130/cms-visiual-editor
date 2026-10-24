@@ -41,8 +41,41 @@ export function renderTemplate(
 
 function renderFragment(html: string, scope: RenderScope): string {
   const root = parse(html, { comment: false });
+  reorderSections(root, scope.page.sectionOrder);
   processTree(root, scope);
   return root.toString();
+}
+
+/**
+ * Reorder top-level `data-section` elements per the operator's order. Sections
+ * absent from the list keep their template order after the listed ones.
+ */
+function reorderSections(root: HTMLElement, order: string[] | undefined): void {
+  if (!order || order.length === 0) return;
+
+  const sections = root.childNodes.filter(
+    (n): n is HTMLElement =>
+      isElement(n) && n.getAttribute(ATTR.section) != null,
+  );
+  if (sections.length < 2) return;
+
+  const byId = new Map(sections.map((el) => [el.getAttribute(ATTR.section), el]));
+  const seen = new Set<string>();
+  const ordered: HTMLElement[] = [];
+  for (const id of order) {
+    const el = byId.get(id);
+    if (el && !seen.has(id)) {
+      ordered.push(el);
+      seen.add(id);
+    }
+  }
+  for (const el of sections) {
+    const id = el.getAttribute(ATTR.section) ?? "";
+    if (!seen.has(id)) ordered.push(el);
+  }
+
+  for (const el of sections) root.removeChild(el);
+  for (const el of ordered) root.appendChild(el);
 }
 
 function processTree(root: HTMLElement, scope: RenderScope): void {
