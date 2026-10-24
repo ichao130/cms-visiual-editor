@@ -15,8 +15,9 @@ import type {
   MediaItem,
   MenuItem,
   SiteSettings,
+  TaxonomyDef,
 } from "@pcms/shared";
-import { BUILTIN_CONTENT_TYPES } from "@pcms/shared";
+import { BUILTIN_CONTENT_TYPES, BUILTIN_TAXONOMIES } from "@pcms/shared";
 import { parseFrontMatter, renderMarkdown } from "@pcms/engine";
 import type { MediaUpload, ProjectData } from "@pcms/editor-ui";
 
@@ -60,6 +61,20 @@ function loadContentTypes(): ContentTypeDef[] {
     return JSON.parse(readFileSync(path, "utf8")) as ContentTypeDef[];
   } catch {
     return BUILTIN_CONTENT_TYPES;
+  }
+}
+
+function taxonomiesPath(): string {
+  return join(siteDir(), "taxonomies.json");
+}
+
+function loadTaxonomies(): TaxonomyDef[] {
+  const path = taxonomiesPath();
+  if (!existsSync(path)) return BUILTIN_TAXONOMIES;
+  try {
+    return JSON.parse(readFileSync(path, "utf8")) as TaxonomyDef[];
+  } catch {
+    return BUILTIN_TAXONOMIES;
   }
 }
 
@@ -226,6 +241,7 @@ export function loadProject(): ProjectData {
     content: loadContent(),
     menus: loadMenus(),
     contentTypes: loadContentTypes(),
+    taxonomies: loadTaxonomies(),
     previewCss: readTheme("assets/style.css"),
   };
 }
@@ -242,6 +258,10 @@ export function saveContentTypes(types: ContentTypeDef[]): void {
 
 export function saveMenus(menus: Record<string, MenuItem[]>): void {
   writeFileSync(menusPath(), JSON.stringify(menus, null, 2), "utf8");
+}
+
+export function saveTaxonomies(taxonomies: TaxonomyDef[]): void {
+  writeFileSync(taxonomiesPath(), JSON.stringify(taxonomies, null, 2), "utf8");
 }
 
 export function deleteContent(type: string, slug: string): void {

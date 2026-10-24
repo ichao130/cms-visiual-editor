@@ -5,6 +5,7 @@ import type {
   MenuItem,
   SiteConfig,
   SiteSettings,
+  TaxonomyDef,
 } from "@pcms/shared";
 import type { ThemeBundle } from "@pcms/engine";
 
@@ -20,6 +21,7 @@ export interface ProjectData {
   content: ContentItem[];
   menus: Record<string, MenuItem[]>;
   contentTypes: ContentTypeDef[];
+  taxonomies: TaxonomyDef[];
   /** Theme CSS concatenated for the sandboxed live preview. */
   previewCss: string;
 }
@@ -43,6 +45,8 @@ export interface PcmsApi {
   saveContentTypes(types: ContentTypeDef[]): Promise<void>;
   /** Persist navigation menus (menus.json). */
   saveMenus(menus: Record<string, MenuItem[]>): Promise<void>;
+  /** Persist taxonomy definitions (taxonomies.json). */
+  saveTaxonomies(taxonomies: TaxonomyDef[]): Promise<void>;
   /** Delete one content item (removes content/<type>/<slug>.md). */
   deleteContent(type: string, slug: string): Promise<void>;
 }

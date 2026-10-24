@@ -4,8 +4,9 @@ import type {
   MediaItem,
   MenuItem,
   SiteSettings,
+  TaxonomyDef,
 } from "@pcms/shared";
-import { BUILTIN_CONTENT_TYPES } from "@pcms/shared";
+import { BUILTIN_CONTENT_TYPES, BUILTIN_TAXONOMIES } from "@pcms/shared";
 import type { MediaUpload, PcmsApi, ProjectData } from "./types.js";
 
 // Read the sample-cafe theme at build time as raw strings (Vite ?raw). This
@@ -21,6 +22,7 @@ const DRAFT_KEY = "pcms.mock.draft";
 const CONTENT_KEY = "pcms.mock.content";
 const MEDIA_KEY = "pcms.mock.media";
 const TYPES_KEY = "pcms.mock.types";
+const TAX_KEY = "pcms.mock.taxonomies";
 const MENUS_KEY = "pcms.mock.menus";
 
 const defaultMenus: Record<string, MenuItem[]> = {
@@ -135,6 +137,15 @@ function loadMenus(): Record<string, MenuItem[]> {
   }
 }
 
+function loadTaxonomies(): TaxonomyDef[] {
+  try {
+    const raw = localStorage.getItem(TAX_KEY);
+    return raw ? (JSON.parse(raw) as TaxonomyDef[]) : BUILTIN_TAXONOMIES;
+  } catch {
+    return BUILTIN_TAXONOMIES;
+  }
+}
+
 function saveJson(key: string, value: unknown): void {
   try {
     localStorage.setItem(key, JSON.stringify(value));
@@ -163,6 +174,7 @@ export function createMockApi(): PcmsApi {
         content: loadContent(),
         menus: loadMenus(),
         contentTypes: loadTypes(),
+        taxonomies: loadTaxonomies(),
         previewCss,
       };
     },
@@ -181,6 +193,9 @@ export function createMockApi(): PcmsApi {
     },
     async saveMenus(menus: Record<string, MenuItem[]>): Promise<void> {
       saveJson(MENUS_KEY, menus);
+    },
+    async saveTaxonomies(taxonomies: TaxonomyDef[]): Promise<void> {
+      saveJson(TAX_KEY, taxonomies);
     },
     async deleteContent(type: string, slug: string): Promise<void> {
       const next = loadContent().filter((i) => !(i.type === type && i.slug === slug));

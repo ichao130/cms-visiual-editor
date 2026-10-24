@@ -5,6 +5,7 @@ import type {
   FieldValue,
   MenuItem,
   SiteSettings,
+  TaxonomyDef,
 } from "@pcms/shared";
 import type { ProjectData } from "../api/types.js";
 
@@ -17,6 +18,7 @@ export interface EditorState {
   content: ContentItem[];
   contentTypes: ContentTypeDef[];
   menus: Record<string, MenuItem[]>;
+  taxonomies: TaxonomyDef[];
 }
 
 export function initialState(project: ProjectData): EditorState {
@@ -25,7 +27,36 @@ export function initialState(project: ProjectData): EditorState {
     content: project.content,
     contentTypes: project.contentTypes,
     menus: project.menus,
+    taxonomies: project.taxonomies,
   };
+}
+
+/** Taxonomies that apply to a given content type. */
+export function taxonomiesFor(state: EditorState, type: string): TaxonomyDef[] {
+  return state.taxonomies.filter((tx) => tx.types.includes(type));
+}
+
+export function setTaxonomies(
+  state: EditorState,
+  taxonomies: TaxonomyDef[],
+): EditorState {
+  return { ...state, taxonomies };
+}
+
+/** Set the terms assigned to one content item for a taxonomy. */
+export function setContentTerms(
+  state: EditorState,
+  type: string,
+  slug: string,
+  taxonomy: string,
+  terms: string[],
+): EditorState {
+  const content = state.content.map((item) =>
+    item.type === type && item.slug === slug
+      ? { ...item, fields: { ...item.fields, [taxonomy]: terms } }
+      : item,
+  );
+  return { ...state, content };
 }
 
 export function setMenu(

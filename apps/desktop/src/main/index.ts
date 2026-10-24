@@ -5,6 +5,7 @@ import type {
   ContentTypeDef,
   MenuItem,
   SiteSettings,
+  TaxonomyDef,
 } from "@pcms/shared";
 import type { MediaUpload } from "@pcms/editor-ui";
 import {
@@ -13,6 +14,7 @@ import {
   saveContent,
   saveContentTypes,
   saveMenus,
+  saveTaxonomies,
   deleteContent,
   listMedia,
   saveMedia,
@@ -85,6 +87,9 @@ function registerIpc(): void {
   ipcMain.handle(
     "pcms:saveMenus",
     (_event, menus: Record<string, MenuItem[]>) => saveMenus(menus),
+  );
+  ipcMain.handle("pcms:saveTaxonomies", (_event, taxonomies: TaxonomyDef[]) =>
+    saveTaxonomies(taxonomies),
   );
   ipcMain.handle("pcms:deleteContent", (_event, type: string, slug: string) =>
     deleteContent(type, slug),

@@ -9,6 +9,7 @@ interface ToolbarProps {
   onNew: () => void;
   onManageTypes: () => void;
   onManageMenus: () => void;
+  onManageTax: () => void;
   onOpenMedia: () => void;
   canUndo: boolean;
   canRedo: boolean;
@@ -25,6 +26,7 @@ export function Toolbar({
   onNew,
   onManageTypes,
   onManageMenus,
+  onManageTax,
   onOpenMedia,
   canUndo,
   canRedo,
@@ -58,6 +60,9 @@ export function Toolbar({
       </button>
       <button type="button" onClick={onManageTypes}>
         {t("toolbar.types")}
+      </button>
+      <button type="button" onClick={onManageTax}>
+        {t("toolbar.tax")}
       </button>
       <button type="button" onClick={onOpenMedia}>
         {t("media.title")}

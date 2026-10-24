@@ -131,6 +131,33 @@ export interface FieldDef {
   fields?: FieldDef[];
 }
 
+// ---------------------------------------------------------------------------
+// Taxonomies (categories / tags / custom classifications)
+// ---------------------------------------------------------------------------
+
+export interface TaxonomyDef {
+  /** Machine name, used as the field key on content items (e.g. "category"). */
+  name: string;
+  label: string;
+  /** Content type names this taxonomy applies to. */
+  types: string[];
+  /** Predefined terms. Absent / empty means free-form (tag-like). */
+  terms?: string[];
+  /** Whether an item may have several terms. */
+  multiple?: boolean;
+}
+
+export const BUILTIN_TAXONOMIES: TaxonomyDef[] = [
+  {
+    name: "category",
+    label: "カテゴリ",
+    types: ["post"],
+    terms: ["お知らせ", "イベント", "メニュー"],
+    multiple: false,
+  },
+  { name: "tag", label: "タグ", types: ["post"], multiple: true },
+];
+
 /**
  * The content types every site starts with. They are ordinary type definitions
  * (not special-cased in the engine), so the operator can add custom fields to

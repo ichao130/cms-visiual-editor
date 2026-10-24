@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FieldValue, SectionSchema } from "@pcms/shared";
 import type { PcmsApi, ProjectData } from "../api/types.js";
 import { useEditorHistory } from "../state/history.js";
-import type { ContentTypeDef, MenuItem } from "@pcms/shared";
+import type { ContentTypeDef, MenuItem, TaxonomyDef } from "@pcms/shared";
 import {
   createContent,
   findItem,
@@ -10,9 +10,12 @@ import {
   listTargets,
   removeContent,
   setContentField,
+  setContentTerms,
   setMenu,
+  setTaxonomies,
   slugExists,
   targetKey,
+  taxonomiesFor,
   typeDef,
   type EditorState,
   type EditorTarget,
@@ -33,6 +36,7 @@ import { ContentForm } from "./ContentForm.js";
 import { NewContentModal } from "./NewContentModal.js";
 import { ContentTypeManager } from "./ContentTypeManager.js";
 import { MenuManager } from "./MenuManager.js";
+import { TaxonomyManager } from "./TaxonomyManager.js";
 import { t } from "../i18n.js";
 
 type Row = Record<string, FieldValue>;
@@ -42,6 +46,7 @@ const EMPTY_STATE: EditorState = {
   content: [],
   contentTypes: [],
   menus: {},
+  taxonomies: [],
 };
 
 interface AppProps {
@@ -56,6 +61,7 @@ export function App({ api }: AppProps) {
   const [newOpen, setNewOpen] = useState(false);
   const [typesOpen, setTypesOpen] = useState(false);
   const [menusOpen, setMenusOpen] = useState(false);
+  const [taxOpen, setTaxOpen] = useState(false);
   const { doc, commit, undo, redo, reset, canUndo, canRedo } =
     useEditorHistory<EditorState>(EMPTY_STATE);
   const mediaLib = useMediaLibrary(api);
@@ -217,6 +223,26 @@ export function App({ api }: AppProps) {
     [commit, doc],
   );
 
+  const onTaxCommit = useCallback(
+    (taxonomies: TaxonomyDef[]) => {
+      commit(setTaxonomies(doc, taxonomies));
+      setDirty(true);
+    },
+    [commit, doc],
+  );
+
+  const onTermsChange = useCallback(
+    (taxonomy: string, terms: string[]) => {
+      if (target?.kind !== "content") return;
+      commit(
+        setContentTerms(doc, target.type, target.slug, taxonomy, terms),
+        `terms:${target.type}/${target.slug}:${taxonomy}`,
+      );
+      setDirty(true);
+    },
+    [commit, doc, target],
+  );
+
   // --- Save + history ------------------------------------------------------
 
   const onSave = useCallback(() => {
@@ -225,6 +251,7 @@ export function App({ api }: AppProps) {
       api.saveContent(doc.content),
       api.saveContentTypes(doc.contentTypes),
       api.saveMenus(doc.menus),
+      api.saveTaxonomies(doc.taxonomies),
     ]).then(() => setDirty(false));
   }, [api, doc]);
 
@@ -271,6 +298,7 @@ export function App({ api }: AppProps) {
           onNew={() => setNewOpen(true)}
           onManageTypes={() => setTypesOpen(true)}
           onManageMenus={() => setMenusOpen(true)}
+          onManageTax={() => setTaxOpen(true)}
           onOpenMedia={mediaLib.value.openLibrary}
           canUndo={canUndo}
           canRedo={canRedo}
@@ -314,7 +342,9 @@ export function App({ api }: AppProps) {
           <ContentForm
             item={currentItem}
             def={typeDef(doc, target.type)}
+            taxonomies={taxonomiesFor(doc, target.type)}
             onChange={onContentChange}
+            onTermsChange={onTermsChange}
             onDelete={onDeleteContent}
           />
         ) : (
@@ -342,6 +372,14 @@ export function App({ api }: AppProps) {
           menus={doc.menus}
           onCommit={onMenuCommit}
           onClose={() => setMenusOpen(false)}
+        />
+      )}
+      {taxOpen && (
+        <TaxonomyManager
+          taxonomies={doc.taxonomies}
+          contentTypes={doc.contentTypes}
+          onCommit={onTaxCommit}
+          onClose={() => setTaxOpen(false)}
         />
       )}
     </MediaContext.Provider>

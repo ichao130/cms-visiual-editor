@@ -1,16 +1,38 @@
-import type { ContentItem, ContentTypeDef, FieldDef, FieldValue } from "@pcms/shared";
+import type {
+  ContentItem,
+  ContentTypeDef,
+  FieldDef,
+  FieldValue,
+  TaxonomyDef,
+} from "@pcms/shared";
 import { ContentField } from "./ContentField.js";
+import { TaxonomyInput } from "./TaxonomyInput.js";
 import { t } from "../i18n.js";
 
 interface ContentFormProps {
   item: ContentItem;
   def: ContentTypeDef | undefined;
+  taxonomies: TaxonomyDef[];
   onChange: (key: string, value: string) => void;
+  onTermsChange: (taxonomy: string, terms: string[]) => void;
   onDelete: () => void;
 }
 
+function toTerms(value: FieldValue | undefined): string[] {
+  if (Array.isArray(value)) return value.map(String);
+  if (value == null || value === "") return [];
+  return [String(value)];
+}
+
 /** Editing form for a content item, driven by its content-type definition. */
-export function ContentForm({ item, def, onChange, onDelete }: ContentFormProps) {
+export function ContentForm({
+  item,
+  def,
+  taxonomies,
+  onChange,
+  onTermsChange,
+  onDelete,
+}: ContentFormProps) {
   const fields = def?.fields ?? fallbackFields(item);
 
   function valueOf(name: string): FieldValue | undefined {
@@ -38,6 +60,20 @@ export function ContentForm({ item, def, onChange, onDelete }: ContentFormProps)
             onChange={(v) => onChange(f.name, v)}
           />
         ))}
+
+      {taxonomies.length > 0 && (
+        <div className="pcms-taxsection">
+          <h3 className="pcms-types__fieldshead">{t("tax.title")}</h3>
+          {taxonomies.map((tx) => (
+            <TaxonomyInput
+              key={tx.name}
+              tax={tx}
+              value={toTerms(item.fields[tx.name])}
+              onChange={(terms) => onTermsChange(tx.name, terms)}
+            />
+          ))}
+        </div>
+      )}
     </aside>
   );
 }

@@ -4,6 +4,7 @@ import type {
   ContentTypeDef,
   MenuItem,
   SiteSettings,
+  TaxonomyDef,
 } from "@pcms/shared";
 import type { MediaUpload, PcmsApi } from "@pcms/editor-ui";
 
@@ -23,6 +24,8 @@ const api: PcmsApi = {
     ipcRenderer.invoke("pcms:saveContentTypes", types),
   saveMenus: (menus: Record<string, MenuItem[]>) =>
     ipcRenderer.invoke("pcms:saveMenus", menus),
+  saveTaxonomies: (taxonomies: TaxonomyDef[]) =>
+    ipcRenderer.invoke("pcms:saveTaxonomies", taxonomies),
   deleteContent: (type: string, slug: string) =>
     ipcRenderer.invoke("pcms:deleteContent", type, slug),
   listMedia: () => ipcRenderer.invoke("pcms:listMedia"),
