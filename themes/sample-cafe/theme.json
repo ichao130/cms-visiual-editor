@@ -1,0 +1,16 @@
+{
+  "name": "Sample Cafe",
+  "colors": {
+    "primary": "#5a3e2b",
+    "accent": "#c98a3b",
+    "bg": "#faf6f0",
+    "text": "#2b2320"
+  },
+  "fonts": {
+    "heading": "'Hiragino Mincho ProN', serif",
+    "body": "'Hiragino Kaku Gothic ProN', sans-serif"
+  },
+  "spacing": {
+    "section": "4rem"
+  }
+}

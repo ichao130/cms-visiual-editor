@@ -1,0 +1,68 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`generateSite > matches the home page snapshot 1`] = `
+"<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" >
+    <meta name="viewport" content="width=device-width, initial-scale=1" >
+    <title>テスト珈琲店</title>
+    <link rel="stylesheet" href="/assets/style.css" >
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="logo" href="/">テスト珈琲店</a>
+      <nav class="site-nav">
+        <a href="/"><span>ホーム</span></a><a href="/news/"><span>お知らせ</span></a>
+      </nav>
+    </header>
+
+    <main><section class="hero">
+  <h1>朝の一杯を、ていねいに。</h1>
+  <p>テスト用のリード文です。</p>
+  <a class="btn" href="/page/about/">
+    <span>ドリンクを見る</span>
+  </a>
+</section>
+
+<section class="news">
+  <h2>新着情報</h2>
+  <ul class="post-list">
+    <li>
+      <a href="/post/hours/">
+        <span class="date">2026-02-10</span>
+        <span class="title">営業時間のお知らせ</span>
+      </a>
+    </li><li>
+      <a href="/post/open/">
+        <span class="date">2026-02-01</span>
+        <span class="title">開店しました</span>
+      </a>
+    </li>
+  </ul>
+</section>
+
+<section class="menu-list">
+  <h2>ドリンク</h2>
+  <div class="items">
+    <div class="item">
+      <h3>ブレンド</h3>
+      <p class="price">480円</p>
+      <p class="note">やさしい口当たり。</p>
+    </div><div class="item">
+      <h3>カフェラテ</h3>
+      <p class="price">550円</p>
+      
+    </div>
+  </div>
+</section>
+</main>
+
+    <footer class="site-footer">
+      <p>テスト珈琲店</p>
+      <p class="copyright">&copy; Sample Cafe</p>
+    </footer>
+  </body>
+</html>
+"
+`;

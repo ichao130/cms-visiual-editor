@@ -1,0 +1,211 @@
+import { parse, type HTMLElement, type Node } from "node-html-parser";
+import type { ContentItem, FieldValue, MenuItem } from "@pcms/shared";
+import { ATTR, EDITOR_ATTRS } from "./attributes.js";
+import { detectFieldType } from "./field-type.js";
+import { escapeHtml } from "./markdown.js";
+import {
+  isEmpty,
+  resolveField,
+  type RenderScope,
+} from "./context.js";
+
+export interface RenderOptions {
+  /** Optional layout.html whose `data-slot="content"` receives the template. */
+  layout?: string;
+}
+
+/**
+ * Render a theme template against a scope, producing clean HTML.
+ *
+ * Processing per element, in order: `data-if` (drop when empty) → `data-loop`
+ * / `data-repeat` (expand) → hidden `data-section` (drop) → `data-field`
+ * (bind value) → recurse → strip editor-only attributes.
+ *
+ * Pure and isomorphic: string in, string out, no I/O.
+ */
+export function renderTemplate(
+  html: string,
+  scope: RenderScope,
+  options: RenderOptions = {},
+): string {
+  const body = renderFragment(html, scope);
+
+  if (options.layout == null) return body;
+
+  const layoutRoot = parse(options.layout, { comment: false });
+  const slot = layoutRoot.querySelector(`[${ATTR.slot}]`);
+  if (slot) slot.set_content(body);
+  processTree(layoutRoot, scope);
+  return layoutRoot.toString();
+}
+
+function renderFragment(html: string, scope: RenderScope): string {
+  const root = parse(html, { comment: false });
+  processTree(root, scope);
+  return root.toString();
+}
+
+function processTree(root: HTMLElement, scope: RenderScope): void {
+  for (const child of [...root.childNodes]) {
+    if (isElement(child)) processElement(child, scope);
+  }
+}
+
+function processElement(el: HTMLElement, scope: RenderScope): void {
+  // 1. data-if — drop the element entirely when the value is empty.
+  const ifPath = el.getAttribute(ATTR.if);
+  if (ifPath != null && isEmpty(resolveField(ifPath, scope))) {
+    el.remove();
+    return;
+  }
+
+  // 2. data-loop — repeat for each item in a collection/menu.
+  if (el.getAttribute(ATTR.loop) != null) {
+    expandLoop(el, scope);
+    return;
+  }
+
+  // 3. data-repeat — repeat for each operator-added item.
+  if (el.getAttribute(ATTR.repeat) != null) {
+    expandRepeat(el, scope);
+    return;
+  }
+
+  // 4. hidden section — drop when the operator hid it.
+  const sectionId = el.getAttribute(ATTR.section);
+  if (sectionId != null && isSectionHidden(sectionId, scope)) {
+    el.remove();
+    return;
+  }
+
+  // 5. data-field — bind a value (keeps theme default when unset).
+  let replacedContent = false;
+  if (el.getAttribute(ATTR.field) != null) {
+    replacedContent = applyField(el, scope);
+  }
+
+  // 6. recurse into children (skip when we replaced the content wholesale).
+  if (!replacedContent) {
+    for (const child of [...el.childNodes]) {
+      if (isElement(child)) processElement(child, scope);
+    }
+  }
+
+  // 7. strip editor-only attributes from the published output.
+  stripEditorAttrs(el);
+}
+
+/** Returns true when the element's content was replaced (don't recurse). */
+function applyField(el: HTMLElement, scope: RenderScope): boolean {
+  const path = el.getAttribute(ATTR.field) ?? "";
+  const value = resolveField(path, scope);
+  if (value === undefined) return false; // keep theme default content
+
+  const type = detectFieldType(el);
+  switch (type) {
+    case "image":
+      el.setAttribute("src", stringify(value));
+      return false;
+    case "link":
+      el.setAttribute("href", stringify(value));
+      return false;
+    case "richtext":
+      el.set_content(stringify(value));
+      return true;
+    case "text":
+    case "color":
+    case "number":
+    case "select":
+    default:
+      el.set_content(escapeHtml(stringify(value)));
+      return true;
+  }
+}
+
+function expandLoop(el: HTMLElement, scope: RenderScope): void {
+  const source = el.getAttribute(ATTR.loop) ?? "";
+  const limitRaw = el.getAttribute(ATTR.limit);
+  const limit = limitRaw && !Number.isNaN(Number(limitRaw)) ? Number(limitRaw) : undefined;
+
+  const items = loopItems(source, scope);
+  const limited = limit != null ? items.slice(0, limit) : items;
+
+  const htmls = limited.map((item) => {
+    const clone = el.clone() as HTMLElement;
+    clone.removeAttribute(ATTR.loop);
+    clone.removeAttribute(ATTR.limit);
+    const childScope: RenderScope = { ...scope, item };
+    processElement(clone, childScope);
+    return clone.toString();
+  });
+
+  if (htmls.length) el.insertAdjacentHTML("afterend", htmls.join(""));
+  el.remove();
+}
+
+function expandRepeat(el: HTMLElement, scope: RenderScope): void {
+  const name = el.getAttribute(ATTR.repeat) ?? "";
+  const rows = repeatRows(name, scope);
+
+  const htmls = rows.map((row) => {
+    const clone = el.clone() as HTMLElement;
+    clone.removeAttribute(ATTR.repeat);
+    // A repeat row binds against an ad-hoc item whose fields are the row.
+    const item: ContentItem = { type: "item", slug: "", fields: row, body: "" };
+    const childScope: RenderScope = { ...scope, item };
+    processElement(clone, childScope);
+    return clone.toString();
+  });
+
+  if (htmls.length) el.insertAdjacentHTML("afterend", htmls.join(""));
+  el.remove();
+}
+
+function loopItems(source: string, scope: RenderScope): ContentItem[] {
+  if (scope.collections[source]) return scope.collections[source];
+  const menu = scope.menus[source];
+  if (menu) return menu.map(menuToItem);
+  return [];
+}
+
+function menuToItem(mi: MenuItem): ContentItem {
+  return {
+    type: "menu",
+    slug: "",
+    fields: { label: mi.label, url: mi.url },
+    body: "",
+  };
+}
+
+function repeatRows(
+  name: string,
+  scope: RenderScope,
+): Array<Record<string, FieldValue>> {
+  const sections = scope.page.sections ?? [];
+  for (const s of sections) {
+    const rows = s.repeats?.[name];
+    if (rows) return rows;
+  }
+  return [];
+}
+
+function isSectionHidden(id: string, scope: RenderScope): boolean {
+  const sections = scope.page.sections ?? [];
+  return sections.some((s) => s.id === id && s.hidden === true);
+}
+
+function stripEditorAttrs(el: HTMLElement): void {
+  for (const attr of EDITOR_ATTRS) {
+    if (el.getAttribute(attr) != null) el.removeAttribute(attr);
+  }
+}
+
+function isElement(node: Node): node is HTMLElement {
+  return (node as HTMLElement).tagName != null;
+}
+
+function stringify(value: FieldValue): string {
+  if (value == null) return "";
+  if (Array.isArray(value)) return value.map(stringify).join(", ");
+  return String(value);
+}
