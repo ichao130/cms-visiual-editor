@@ -6,6 +6,7 @@
  */
 const ja = {
   "app.title": "テーマエディタ",
+  "toolbar.page": "ページ",
   "toolbar.undo": "元に戻す",
   "toolbar.redo": "やり直す",
   "toolbar.save": "下書きを保存",
@@ -23,6 +24,12 @@ const ja = {
   "repeat.remove": "削除",
   "repeat.item": "項目",
   "preview.title": "プレビュー",
+  "content.title": "コンテンツ",
+  "content.field.title": "タイトル",
+  "content.field.date": "日付",
+  "content.field.body": "本文",
+  "content.outline": "このページ",
+  "content.outline.hint": "右の欄で内容を編集します。",
 } as const;
 
 export type MessageKey = keyof typeof ja;

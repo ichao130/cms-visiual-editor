@@ -30,8 +30,10 @@ export interface ProjectData {
  */
 export interface PcmsApi {
   loadProject(): Promise<ProjectData>;
-  /** Persist the operator's edits (settings.json). */
+  /** Persist the operator's page edits (settings.json). */
   saveDraft(settings: SiteSettings): Promise<void>;
+  /** Persist content items (content/<type>/<slug>.md). */
+  saveContent(content: ContentItem[]): Promise<void>;
 }
 
 declare global {

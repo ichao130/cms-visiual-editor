@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import { app, BrowserWindow, ipcMain, shell } from "electron";
-import type { SiteSettings } from "@pcms/shared";
-import { loadProject, saveDraft } from "./project.js";
+import type { ContentItem, SiteSettings } from "@pcms/shared";
+import { loadProject, saveDraft, saveContent } from "./project.js";
 
 function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
@@ -60,6 +60,9 @@ function registerIpc(): void {
   ipcMain.handle("pcms:loadProject", () => loadProject());
   ipcMain.handle("pcms:saveDraft", (_event, settings: SiteSettings) =>
     saveDraft(settings),
+  );
+  ipcMain.handle("pcms:saveContent", (_event, content: ContentItem[]) =>
+    saveContent(content),
   );
 }
 

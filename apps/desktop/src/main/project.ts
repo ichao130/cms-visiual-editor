@@ -1,7 +1,14 @@
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
+import {
+  readFileSync,
+  writeFileSync,
+  mkdirSync,
+  existsSync,
+  readdirSync,
+} from "node:fs";
 import { join, resolve } from "node:path";
 import { app } from "electron";
-import type { SiteSettings } from "@pcms/shared";
+import type { ContentItem, FieldValue, SiteSettings } from "@pcms/shared";
+import { parseFrontMatter } from "@pcms/engine";
 import type { ProjectData } from "@pcms/editor-ui";
 
 /**
@@ -27,6 +34,10 @@ function siteDir(): string {
 
 function settingsPath(): string {
   return join(siteDir(), "settings.json");
+}
+
+function contentDir(): string {
+  return join(siteDir(), "content");
 }
 
 const defaultSettings: SiteSettings = {
@@ -55,8 +66,58 @@ const defaultSettings: SiteSettings = {
   },
 };
 
+const defaultContent: ContentItem[] = [
+  { type: "post", slug: "open", fields: { title: "開店しました", date: "2026-02-01" }, body: "# ごあいさつ\n\n本日**開店**しました。ぜひお立ち寄りください。" },
+  { type: "post", slug: "hours", fields: { title: "営業時間のお知らせ", date: "2026-02-10" }, body: "平日は *9時* から営業します。\n\n- 月〜金 9:00-19:00\n- 土日 10:00-18:00" },
+  { type: "page", slug: "about", fields: { title: "お店について" }, body: "小さな自家焙煎の珈琲店です。" },
+];
+
 function readTheme(rel: string): string {
   return readFileSync(join(themeDir(), rel), "utf8");
+}
+
+/** Serialize a content item to a Markdown file with YAML front matter. */
+function serializeItem(item: ContentItem): string {
+  const lines = ["---"];
+  for (const [key, value] of Object.entries(item.fields)) {
+    if (key === "url") continue; // derived, never persisted
+    lines.push(`${key}: ${serializeScalar(value)}`);
+  }
+  lines.push("---", "", item.body.trimEnd(), "");
+  return lines.join("\n");
+}
+
+function serializeScalar(value: FieldValue): string {
+  if (value == null) return "";
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (Array.isArray(value)) return `[${value.map(serializeScalar).join(", ")}]`;
+  const s = String(value);
+  // Quote when the value could be misread as something other than a string.
+  return /^[\s0-9[-]|[:#]/.test(s) ? JSON.stringify(s) : s;
+}
+
+function loadContent(): ContentItem[] {
+  const dir = contentDir();
+  if (!existsSync(dir)) return defaultContent;
+  const items: ContentItem[] = [];
+  for (const type of readdirSync(dir)) {
+    const typeDir = join(dir, type);
+    for (const file of readdirSync(typeDir)) {
+      if (!file.endsWith(".md")) continue;
+      const slug = file.replace(/\.md$/, "");
+      const { data, body } = parseFrontMatter(readFileSync(join(typeDir, file), "utf8"));
+      items.push({ type, slug, fields: data, body });
+    }
+  }
+  return items.length > 0 ? items : defaultContent;
+}
+
+function saveContent(content: ContentItem[]): void {
+  for (const item of content) {
+    const typeDir = join(contentDir(), item.type);
+    if (!existsSync(typeDir)) mkdirSync(typeDir, { recursive: true });
+    writeFileSync(join(typeDir, `${item.slug}.md`), serializeItem(item), "utf8");
+  }
 }
 
 function loadSettings(): SiteSettings {
@@ -87,11 +148,7 @@ export function loadProject(): ProjectData {
       },
       assets: ["assets/style.css"],
     },
-    content: [
-      { type: "post", slug: "open", fields: { title: "開店しました", date: "2026-02-01" }, body: "" },
-      { type: "post", slug: "hours", fields: { title: "営業時間のお知らせ", date: "2026-02-10" }, body: "" },
-      { type: "page", slug: "about", fields: { title: "お店について" }, body: "" },
-    ],
+    content: loadContent(),
     menus: {
       menu: [
         { label: "ホーム", url: "/" },
@@ -106,3 +163,5 @@ export function loadProject(): ProjectData {
 export function saveDraft(settings: SiteSettings): void {
   writeFileSync(settingsPath(), JSON.stringify(settings, null, 2), "utf8");
 }
+
+export { saveContent };

@@ -1,6 +1,11 @@
+import type { EditorTarget } from "../state/editorState.js";
+import { targetKey } from "../state/editorState.js";
 import { t } from "../i18n.js";
 
 interface ToolbarProps {
+  targets: EditorTarget[];
+  currentKey: string;
+  onSelectTarget: (key: string) => void;
   canUndo: boolean;
   canRedo: boolean;
   dirty: boolean;
@@ -9,10 +14,33 @@ interface ToolbarProps {
   onSave: () => void;
 }
 
-export function Toolbar({ canUndo, canRedo, dirty, onUndo, onRedo, onSave }: ToolbarProps) {
+export function Toolbar({
+  targets,
+  currentKey,
+  onSelectTarget,
+  canUndo,
+  canRedo,
+  dirty,
+  onUndo,
+  onRedo,
+  onSave,
+}: ToolbarProps) {
   return (
     <header className="pcms-toolbar">
       <span className="pcms-toolbar__title">{t("app.title")}</span>
+      <label className="pcms-pageselect">
+        <span className="pcms-visually-hidden">{t("toolbar.page")}</span>
+        <select value={currentKey} onChange={(e) => onSelectTarget(e.target.value)}>
+          {targets.map((target) => {
+            const key = targetKey(target);
+            return (
+              <option key={key} value={key}>
+                {target.label}
+              </option>
+            );
+          })}
+        </select>
+      </label>
       <div className="pcms-toolbar__spacer" />
       <button type="button" onClick={onUndo} disabled={!canUndo}>
         {t("toolbar.undo")}

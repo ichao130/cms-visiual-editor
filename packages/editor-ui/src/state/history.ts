@@ -1,32 +1,31 @@
 import { useCallback, useMemo, useReducer } from "react";
-import type { SiteSettings } from "@pcms/shared";
 
-interface HistoryState {
-  past: SiteSettings[];
-  present: SiteSettings;
-  future: SiteSettings[];
+interface HistoryState<T> {
+  past: T[];
+  present: T;
+  future: T[];
   /** Coalescing key of the last commit, so rapid edits to one field merge. */
   lastKey: string | null;
 }
 
-type Action =
-  | { type: "reset"; settings: SiteSettings }
-  | { type: "commit"; settings: SiteSettings; key: string | null }
+type Action<T> =
+  | { type: "reset"; doc: T }
+  | { type: "commit"; doc: T; key: string | null }
   | { type: "undo" }
   | { type: "redo" };
 
-function reducer(state: HistoryState, action: Action): HistoryState {
+function reducer<T>(state: HistoryState<T>, action: Action<T>): HistoryState<T> {
   switch (action.type) {
     case "reset":
-      return { past: [], present: action.settings, future: [], lastKey: null };
+      return { past: [], present: action.doc, future: [], lastKey: null };
     case "commit": {
       // Merge consecutive edits with the same key into one undo step.
       if (action.key != null && action.key === state.lastKey) {
-        return { ...state, present: action.settings };
+        return { ...state, present: action.doc };
       }
       return {
         past: [...state.past, state.present],
-        present: action.settings,
+        present: action.doc,
         future: [],
         lastKey: action.key,
       };
@@ -54,19 +53,19 @@ function reducer(state: HistoryState, action: Action): HistoryState {
   }
 }
 
-export interface EditorHistory {
-  settings: SiteSettings;
+export interface EditorHistory<T> {
+  doc: T;
   canUndo: boolean;
   canRedo: boolean;
-  /** Replace settings, pushing an undo step (or coalescing when key repeats). */
-  commit: (settings: SiteSettings, key?: string) => void;
+  /** Replace the document, pushing an undo step (coalesced when key repeats). */
+  commit: (doc: T, key?: string) => void;
   undo: () => void;
   redo: () => void;
-  reset: (settings: SiteSettings) => void;
+  reset: (doc: T) => void;
 }
 
-export function useEditorHistory(initial: SiteSettings): EditorHistory {
-  const [state, dispatch] = useReducer(reducer, {
+export function useEditorHistory<T>(initial: T): EditorHistory<T> {
+  const [state, dispatch] = useReducer(reducer<T>, {
     past: [],
     present: initial,
     future: [],
@@ -74,20 +73,16 @@ export function useEditorHistory(initial: SiteSettings): EditorHistory {
   });
 
   const commit = useCallback(
-    (settings: SiteSettings, key?: string) =>
-      dispatch({ type: "commit", settings, key: key ?? null }),
+    (doc: T, key?: string) => dispatch({ type: "commit", doc, key: key ?? null }),
     [],
   );
   const undo = useCallback(() => dispatch({ type: "undo" }), []);
   const redo = useCallback(() => dispatch({ type: "redo" }), []);
-  const reset = useCallback(
-    (settings: SiteSettings) => dispatch({ type: "reset", settings }),
-    [],
-  );
+  const reset = useCallback((doc: T) => dispatch({ type: "reset", doc }), []);
 
   return useMemo(
     () => ({
-      settings: state.present,
+      doc: state.present,
       canUndo: state.past.length > 0,
       canRedo: state.future.length > 0,
       commit,

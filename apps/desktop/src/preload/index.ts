@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { SiteSettings } from "@pcms/shared";
+import type { ContentItem, SiteSettings } from "@pcms/shared";
 import type { PcmsApi } from "@pcms/editor-ui";
 
 /**
@@ -12,6 +12,8 @@ const api: PcmsApi = {
   loadProject: () => ipcRenderer.invoke("pcms:loadProject"),
   saveDraft: (settings: SiteSettings) =>
     ipcRenderer.invoke("pcms:saveDraft", settings),
+  saveContent: (content: ContentItem[]) =>
+    ipcRenderer.invoke("pcms:saveContent", content),
 };
 
 contextBridge.exposeInMainWorld("pcms", api);
