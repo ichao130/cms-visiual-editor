@@ -88,6 +88,9 @@ button.pcms-aibtn { background: #6b46c1; color: #fff; border-color: #6b46c1; }
   grid-template-columns: var(--pcms-col) 1fr var(--pcms-col);
   min-height: 0;
 }
+/* While the inline on-preview editor is open, collapse the right panel so the
+   preview gets its width. */
+.pcms-columns--inline { grid-template-columns: var(--pcms-col) 1fr 0; }
 .pcms-sections, .pcms-settings {
   background: var(--pcms-panel);
   overflow-y: auto;

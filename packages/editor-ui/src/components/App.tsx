@@ -213,6 +213,11 @@ export function App({ api }: AppProps) {
     ? schemaByType.get(selectedInstance.type) ?? null
     : null;
 
+  // The inline (on-preview) editor is showing — collapse the right panel.
+  const inlineActive = Boolean(
+    composed && selectedInstance && selectedInstanceSchema && anchor,
+  );
+
   const onToggleInstanceHidden = useCallback(
     (id: string) => {
       commit({ ...doc, settings: toggleInstanceHidden(doc.settings, pageId, id) });
@@ -538,7 +543,7 @@ export function App({ api }: AppProps) {
           }}
           onSave={onSave}
         />
-      <div className="pcms-columns">
+      <div className={`pcms-columns${inlineActive ? " pcms-columns--inline" : ""}`}>
         {target.kind !== "page" ? (
           <nav className="pcms-sections">
             <h2 className="pcms-col__title">{t("content.outline")}</h2>
@@ -583,7 +588,7 @@ export function App({ api }: AppProps) {
           }
         />
 
-        {target.kind === "page" && composed ? (
+        {inlineActive ? null : target.kind === "page" && composed ? (
           selectedInstance ? (
             <InstanceSettings
               schema={selectedInstanceSchema}
