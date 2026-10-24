@@ -4,7 +4,7 @@ import tsparser from "@typescript-eslint/parser";
 
 export default [
   {
-    ignores: ["**/dist/**", "**/node_modules/**", "**/*.html"],
+    ignores: ["**/dist/**", "**/out/**", "**/node_modules/**", "**/*.html"],
   },
   js.configs.recommended,
   {
