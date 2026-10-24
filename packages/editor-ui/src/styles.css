@@ -113,7 +113,7 @@ button.pcms-publishbtn { background: #1a7f37; color: #fff; border-color: #1a7f37
 .pcms-addsection select { flex: 1; min-width: 0; font: inherit; padding: 0.35rem 0.4rem; border: 1px solid var(--pcms-border); border-radius: 6px; }
 
 /* Preview */
-.pcms-preview { background: #d7dae0; display: flex; }
+.pcms-preview { background: #d7dae0; display: flex; justify-content: center; overflow: auto; }
 .pcms-preview__frame {
   flex: 1;
   width: 100%;
@@ -121,6 +121,20 @@ button.pcms-publishbtn { background: #1a7f37; color: #fff; border-color: #1a7f37
   border: none;
   background: #fff;
 }
+.pcms-preview--mobile { align-items: flex-start; padding: 12px 0; }
+.pcms-preview--mobile .pcms-preview__frame {
+  flex: none;
+  width: 390px;
+  max-width: 100%;
+  height: calc(100% - 24px);
+  border-radius: 16px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
+}
+
+/* Device toggle */
+.pcms-device { display: inline-flex; gap: 2px; border: 1px solid var(--pcms-border); border-radius: 6px; padding: 2px; }
+.pcms-device button { border: none; background: transparent; padding: 0.2rem 0.45rem; border-radius: 4px; font-size: 0.95rem; }
+.pcms-device button.is-active { background: var(--pcms-accent); }
 
 /* Settings panel */
 .pcms-empty, .pcms-note { color: var(--pcms-muted); font-size: 0.85rem; }

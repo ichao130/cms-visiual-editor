@@ -120,6 +120,30 @@ export function removeInstance(
   return withInstances(settings, pageId, (list) => list.filter((i) => i.id !== id));
 }
 
+/** Duplicate an instance, inserting the copy right after the original. */
+export function duplicateInstance(
+  settings: SiteSettings,
+  pageId: string,
+  id: string,
+): SiteSettings {
+  return withInstances(settings, pageId, (list) => {
+    const idx = list.findIndex((i) => i.id === id);
+    const src = list[idx];
+    if (idx < 0 || !src) return list;
+    const copy: SectionInstance = {
+      ...src,
+      id: newInstanceId(src.type),
+      fields: src.fields ? { ...src.fields } : undefined,
+      repeats: src.repeats
+        ? (JSON.parse(JSON.stringify(src.repeats)) as SectionInstance["repeats"])
+        : undefined,
+    };
+    const next = [...list];
+    next.splice(idx + 1, 0, copy);
+    return next;
+  });
+}
+
 export function moveInstance(
   settings: SiteSettings,
   pageId: string,

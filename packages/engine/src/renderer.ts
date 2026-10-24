@@ -159,6 +159,7 @@ function sectionTools(id: string): string {
     `<span class="pcms-sec-handle" draggable="true" data-pcms-drag="${id}" title="ドラッグで並べ替え">⠿</span>` +
     `<button type="button" class="pcms-sec-op" data-pcms-op="up" data-pcms-id="${id}" title="上へ">↑</button>` +
     `<button type="button" class="pcms-sec-op" data-pcms-op="down" data-pcms-id="${id}" title="下へ">↓</button>` +
+    `<button type="button" class="pcms-sec-op" data-pcms-op="dup" data-pcms-id="${id}" title="複製">⧉</button>` +
     `<button type="button" class="pcms-sec-op" data-pcms-op="del" data-pcms-id="${id}" title="削除">×</button>` +
     `</div>`
   );

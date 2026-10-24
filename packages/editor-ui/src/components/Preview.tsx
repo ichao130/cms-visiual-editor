@@ -5,6 +5,8 @@ interface PreviewProps {
   html: string;
   /** The currently selected section id, mirrored into the preview. */
   selectedSection?: string | null;
+  /** Preview device width. */
+  device?: "desktop" | "mobile";
 }
 
 /**
@@ -13,7 +15,7 @@ interface PreviewProps {
  * only our editor runtime runs (sandbox="allow-scripts"). It talks to the
  * editor via postMessage (CLAUDE.md: プレビューは信頼しないコンテンツ).
  */
-export function Preview({ html, selectedSection }: PreviewProps) {
+export function Preview({ html, selectedSection, device = "desktop" }: PreviewProps) {
   const ref = useRef<HTMLIFrameElement>(null);
 
   const syncSelection = () => {
@@ -27,7 +29,7 @@ export function Preview({ html, selectedSection }: PreviewProps) {
   useEffect(syncSelection, [selectedSection]);
 
   return (
-    <section className="pcms-preview" aria-label={t("preview.title")}>
+    <section className={`pcms-preview pcms-preview--${device}`} aria-label={t("preview.title")}>
       <iframe
         ref={ref}
         className="pcms-preview__frame"

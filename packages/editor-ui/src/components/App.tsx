@@ -22,6 +22,7 @@ import {
 } from "../state/editorState.js";
 import {
   addInstance,
+  duplicateInstance,
   moveInstance,
   removeInstance,
   setField,
@@ -76,6 +77,7 @@ export function App({ api }: AppProps) {
   const [publishOpen, setPublishOpen] = useState(false);
   const [insertAt, setInsertAt] = useState<number | null>(null);
   const [focusTarget, setFocusTarget] = useState<string | null>(null);
+  const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
   const { doc, commit, undo, redo, reset, canUndo, canRedo } =
     useEditorHistory<EditorState>(EMPTY_STATE);
   const mediaLib = useMediaLibrary(api);
@@ -268,6 +270,30 @@ export function App({ api }: AppProps) {
     [commit, doc, pageId, selectedId],
   );
 
+  const onDuplicateInstance = useCallback(
+    (id: string) => {
+      commit({ ...doc, settings: duplicateInstance(doc.settings, pageId, id) });
+      setDirty(true);
+    },
+    [commit, doc, pageId],
+  );
+
+  /** Apply a value to a field (composed instance or fixed page). */
+  const applyFieldEdit = useCallback(
+    (section: string | null | undefined, field: string, value: string, key?: string) => {
+      if (composed && section) {
+        commit(
+          { ...doc, settings: setInstanceField(doc.settings, pageId, section, field, value) },
+          key,
+        );
+      } else if (!composed) {
+        commit({ ...doc, settings: setField(doc.settings, pageId, field, value) }, key);
+      }
+      setDirty(true);
+    },
+    [commit, doc, pageId, composed],
+  );
+
   // --- Content-target editing ----------------------------------------------
 
   const onContentChange = useCallback(
@@ -392,19 +418,15 @@ export function App({ api }: AppProps) {
         return;
       }
       if (d.type === "edit" && d.field) {
-        const value = d.value ?? "";
-        if (composed && d.section) {
-          commit(
-            { ...doc, settings: setInstanceField(doc.settings, pageId, d.section, d.field, value) },
-            `edit:${d.section}:${d.field}`,
-          );
-        } else if (!composed) {
-          commit(
-            { ...doc, settings: setField(doc.settings, pageId, d.field, value) },
-            `edit:${pageId}:${d.field}`,
-          );
-        }
-        setDirty(true);
+        applyFieldEdit(d.section, d.field, d.value ?? "", `edit:${d.section}:${d.field}`);
+        return;
+      }
+      if (d.type === "pickimage" && d.field) {
+        const section = d.section;
+        const field = d.field;
+        void mediaLib.value.pickImage().then((path) => {
+          if (path) applyFieldEdit(section, field, path);
+        });
         return;
       }
       if (!composed) return;
@@ -412,6 +434,7 @@ export function App({ api }: AppProps) {
       if (d.type === "op" && from >= 0) {
         if (d.op === "up") onMoveInstance(from, from - 1);
         else if (d.op === "down") onMoveInstance(from, from + 1);
+        else if (d.op === "dup" && d.id) onDuplicateInstance(d.id);
         else if (d.op === "del" && d.id) onDeleteInstance(d.id);
       } else if (d.type === "move" && from >= 0 && d.toIndex != null) {
         const to = d.toIndex > from ? d.toIndex - 1 : d.toIndex;
@@ -422,7 +445,15 @@ export function App({ api }: AppProps) {
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [composed, instances, onMoveInstance, onDeleteInstance, commit, doc, pageId]);
+  }, [
+    composed,
+    instances,
+    onMoveInstance,
+    onDeleteInstance,
+    onDuplicateInstance,
+    applyFieldEdit,
+    mediaLib.value,
+  ]);
 
   // Focus a field in the right panel after a field click in the preview.
   useEffect(() => {
@@ -470,6 +501,8 @@ export function App({ api }: AppProps) {
           targets={targets}
           currentKey={targetKey(target)}
           onSelectTarget={onSelectTarget}
+          device={device}
+          onDevice={setDevice}
           onNew={() => setNewOpen(true)}
           onManageTypes={() => setTypesOpen(true)}
           onManageMenus={() => setMenusOpen(true)}
@@ -516,7 +549,7 @@ export function App({ api }: AppProps) {
           />
         )}
 
-        <Preview html={previewHtml} selectedSection={selectedId} />
+        <Preview html={previewHtml} selectedSection={selectedId} device={device} />
 
         {target.kind === "page" && composed ? (
           selectedInstance ? (

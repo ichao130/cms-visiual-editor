@@ -6,6 +6,8 @@ interface ToolbarProps {
   targets: EditorTarget[];
   currentKey: string;
   onSelectTarget: (key: string) => void;
+  device: "desktop" | "mobile";
+  onDevice: (device: "desktop" | "mobile") => void;
   onNew: () => void;
   onManageTypes: () => void;
   onManageMenus: () => void;
@@ -24,6 +26,8 @@ export function Toolbar({
   targets,
   currentKey,
   onSelectTarget,
+  device,
+  onDevice,
   onNew,
   onManageTypes,
   onManageMenus,
@@ -56,6 +60,24 @@ export function Toolbar({
       <button type="button" onClick={onNew}>
         {t("toolbar.new")}
       </button>
+      <div className="pcms-device" role="group" aria-label={t("toolbar.device")}>
+        <button
+          type="button"
+          className={device === "desktop" ? "is-active" : ""}
+          onClick={() => onDevice("desktop")}
+          title={t("device.pc")}
+        >
+          🖥
+        </button>
+        <button
+          type="button"
+          className={device === "mobile" ? "is-active" : ""}
+          onClick={() => onDevice("mobile")}
+          title={t("device.mobile")}
+        >
+          📱
+        </button>
+      </div>
       <div className="pcms-toolbar__spacer" />
       <button type="button" onClick={onManageMenus}>
         {t("toolbar.menus")}

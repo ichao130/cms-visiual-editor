@@ -109,11 +109,15 @@ export const EDITOR_RUNTIME = `
     var fieldEl=e.target.closest ? e.target.closest('[data-pcms-field]') : null;
     var section = sectionEl?sectionEl.getAttribute('data-pcms-section'):null;
     var field = fieldEl?fieldEl.getAttribute('data-pcms-field'):null;
+    var ftype = fieldEl?fieldEl.getAttribute('data-pcms-fieldtype'):null;
     setSelected(sectionEl || el);
     post({type:'select', section:section, field:null});
-    // Focus the panel field after a delay, so a double-click (inline edit)
-    // can cancel it instead of stealing focus from the contenteditable.
-    if(field){
+    if(field && ftype==='image'){
+      // Clicking an image opens the media picker to replace it.
+      post({type:'pickimage', section:section, field:field});
+    } else if(field){
+      // Focus the panel field after a delay, so a double-click (inline edit)
+      // can cancel it instead of stealing focus from the contenteditable.
       if(clickTimer) clearTimeout(clickTimer);
       clickTimer=setTimeout(function(){ clickTimer=null; post({type:'focusfield', section:section, field:field}); }, 220);
     }
