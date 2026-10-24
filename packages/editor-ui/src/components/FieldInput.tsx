@@ -1,4 +1,6 @@
 import type { FieldValue, InlineFieldType } from "@pcms/shared";
+import { useMedia } from "../media/MediaContext.js";
+import { t } from "../i18n.js";
 
 interface FieldInputProps {
   id: string;
@@ -9,9 +11,8 @@ interface FieldInputProps {
 }
 
 /**
- * One editable field. Types we don't fully build yet (richtext, image, select)
- * fall back to a sensible text control for the MVP; a rich-text editor and a
- * media picker come later (CLAUDE.md: 記事本文のエディタは未定, 導入前に相談).
+ * One editable field. Image fields use the media library picker; richtext is a
+ * markdown textarea for now (a rich-text editor comes later — CLAUDE.md 要相談).
  */
 export function FieldInput({ id, label, type, value, onChange }: FieldInputProps) {
   const str = value == null ? "" : String(value);
@@ -22,8 +23,52 @@ export function FieldInput({ id, label, type, value, onChange }: FieldInputProps
         {label}
         <em className="pcms-field__type">{type}</em>
       </span>
-      {renderControl(id, type, str, onChange)}
+      {type === "image" ? (
+        <ImageField id={id} value={str} onChange={onChange} />
+      ) : (
+        renderControl(id, type, str, onChange)
+      )}
     </label>
+  );
+}
+
+function ImageField({
+  id,
+  value,
+  onChange,
+}: {
+  id: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const { pickImage, resolveUrl } = useMedia();
+  const thumb = resolveUrl(value);
+
+  const pick = async () => {
+    const path = await pickImage();
+    if (path != null) onChange(path);
+  };
+
+  return (
+    <div className="pcms-imagefield" id={id}>
+      <button type="button" className="pcms-imagefield__thumb" onClick={pick}>
+        {thumb ? (
+          <img src={thumb} alt="" />
+        ) : (
+          <span className="pcms-imagefield__placeholder">{t("media.pick")}</span>
+        )}
+      </button>
+      <div className="pcms-imagefield__actions">
+        <button type="button" onClick={pick}>
+          {value ? t("media.change") : t("media.pick")}
+        </button>
+        {value && (
+          <button type="button" onClick={() => onChange("")}>
+            {t("media.clear")}
+          </button>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -45,12 +90,7 @@ function renderControl(
       );
     case "number":
       return (
-        <input
-          id={id}
-          type="number"
-          value={str}
-          onChange={(e) => onChange(e.target.value)}
-        />
+        <input id={id} type="number" value={str} onChange={(e) => onChange(e.target.value)} />
       );
     case "color":
       return (
@@ -62,17 +102,11 @@ function renderControl(
         />
       );
     case "link":
-    case "image":
     case "select":
     case "text":
     default:
       return (
-        <input
-          id={id}
-          type="text"
-          value={str}
-          onChange={(e) => onChange(e.target.value)}
-        />
+        <input id={id} type="text" value={str} onChange={(e) => onChange(e.target.value)} />
       );
   }
 }

@@ -147,6 +147,28 @@ export interface ContentItem {
 }
 
 // ---------------------------------------------------------------------------
+// Media
+// ---------------------------------------------------------------------------
+
+export interface MediaItem {
+  /** Stable id (the file's stem). */
+  id: string;
+  /** File name within the media directory, e.g. "photo.webp". */
+  fileName: string;
+  /** Site-relative path used in output HTML, e.g. "media/photo.webp". */
+  path: string;
+  width?: number;
+  height?: number;
+  /** Byte size of the stored file. */
+  size?: number;
+  /**
+   * Data URL for display inside the editor only (thumbnails, preview). Never
+   * written to the site — the published HTML references `path`.
+   */
+  dataUrl?: string;
+}
+
+// ---------------------------------------------------------------------------
 // Menus
 // ---------------------------------------------------------------------------
 

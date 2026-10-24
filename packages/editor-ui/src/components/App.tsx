@@ -18,6 +18,7 @@ import {
   toggleSectionHidden,
 } from "../state/mutations.js";
 import { renderPreview, schemaForPage } from "../preview/render.js";
+import { MediaContext, useMediaLibrary } from "../media/MediaContext.js";
 import { Toolbar } from "./Toolbar.js";
 import { SectionList, type SectionRow } from "./SectionList.js";
 import { Preview } from "./Preview.js";
@@ -40,6 +41,7 @@ export function App({ api }: AppProps) {
   const [dirty, setDirty] = useState(false);
   const { doc, commit, undo, redo, reset, canUndo, canRedo } =
     useEditorHistory<EditorState>(EMPTY_STATE);
+  const mediaLib = useMediaLibrary(api);
 
   useEffect(() => {
     let active = true;
@@ -62,8 +64,11 @@ export function App({ api }: AppProps) {
     targets.find((tg) => targetKey(tg) === currentKey) ?? targets[0];
 
   const previewHtml = useMemo(
-    () => (project && target ? renderPreview(project, doc, target) : ""),
-    [project, doc, target],
+    () =>
+      project && target
+        ? renderPreview(project, doc, target, mediaLib.value.media)
+        : "",
+    [project, doc, target, mediaLib.value.media],
   );
 
   // --- Page-target editing -------------------------------------------------
@@ -194,24 +199,26 @@ export function App({ api }: AppProps) {
       : undefined;
 
   return (
-    <div className="pcms-app">
-      <Toolbar
-        targets={targets}
-        currentKey={targetKey(target)}
-        onSelectTarget={onSelectTarget}
-        canUndo={canUndo}
-        canRedo={canRedo}
-        dirty={dirty}
-        onUndo={() => {
-          undo();
-          setDirty(true);
-        }}
-        onRedo={() => {
-          redo();
-          setDirty(true);
-        }}
-        onSave={onSave}
-      />
+    <MediaContext.Provider value={mediaLib.value}>
+      <div className="pcms-app">
+        <Toolbar
+          targets={targets}
+          currentKey={targetKey(target)}
+          onSelectTarget={onSelectTarget}
+          onOpenMedia={mediaLib.value.openLibrary}
+          canUndo={canUndo}
+          canRedo={canRedo}
+          dirty={dirty}
+          onUndo={() => {
+            undo();
+            setDirty(true);
+          }}
+          onRedo={() => {
+            redo();
+            setDirty(true);
+          }}
+          onSave={onSave}
+        />
       <div className="pcms-columns">
         {target.kind === "page" ? (
           <SectionList
@@ -242,8 +249,10 @@ export function App({ api }: AppProps) {
         ) : (
           <aside className="pcms-settings" />
         )}
+        </div>
       </div>
-    </div>
+      {mediaLib.modal}
+    </MediaContext.Provider>
   );
 }
 

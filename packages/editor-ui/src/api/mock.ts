@@ -1,5 +1,5 @@
-import type { ContentItem, SiteSettings } from "@pcms/shared";
-import type { PcmsApi, ProjectData } from "./types.js";
+import type { ContentItem, MediaItem, SiteSettings } from "@pcms/shared";
+import type { MediaUpload, PcmsApi, ProjectData } from "./types.js";
 
 // Read the sample-cafe theme at build time as raw strings (Vite ?raw). This
 // keeps the dev harness free of any filesystem access at runtime.
@@ -12,6 +12,23 @@ import previewCss from "../../../../themes/sample-cafe/assets/style.css?raw";
 
 const DRAFT_KEY = "pcms.mock.draft";
 const CONTENT_KEY = "pcms.mock.content";
+const MEDIA_KEY = "pcms.mock.media";
+
+function svgDataUrl(label: string, color: string): string {
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='320' height='200'><rect width='320' height='200' fill='${color}'/><text x='160' y='108' font-size='24' text-anchor='middle' fill='#fff' font-family='sans-serif'>${label}</text></svg>`;
+  return `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`;
+}
+
+const defaultMedia: MediaItem[] = [
+  { id: "sample-beans", fileName: "sample-beans.svg", path: "media/sample-beans.svg", width: 320, height: 200, dataUrl: svgDataUrl("サンプル：豆", "#5a3e2b") },
+  { id: "sample-cup", fileName: "sample-cup.svg", path: "media/sample-cup.svg", width: 320, height: 200, dataUrl: svgDataUrl("サンプル：カップ", "#c98a3b") },
+];
+
+function bytesToWebpDataUrl(bytes: Uint8Array): string {
+  let binary = "";
+  for (const b of bytes) binary += String.fromCharCode(b);
+  return `data:image/webp;base64,${btoa(binary)}`;
+}
 
 const defaultContent: ContentItem[] = [
   { type: "post", slug: "open", fields: { title: "開店しました", date: "2026-02-01" }, body: "# ごあいさつ\n\n本日**開店**しました。ぜひお立ち寄りください。" },
@@ -23,12 +40,14 @@ const defaultSettings: SiteSettings = {
   pages: {
     index: {
       fields: {
+        "hero.image": "media/sample-beans.svg",
         "hero.heading": "朝の一杯を、ていねいに。",
         "hero.lead": "駅前の小さな自家焙煎珈琲店です。",
         "hero.cta_label": "メニューを見る",
         "hero.cta_url": "/page/about/",
         "news.title": "お知らせ",
         "menu.title": "ドリンク",
+        "gallery.title": "店内のようす",
       },
       sections: [
         {
@@ -38,6 +57,15 @@ const defaultSettings: SiteSettings = {
               { name: "ブレンドコーヒー", price: "480円", note: "やさしい口当たり。" },
               { name: "カフェラテ", price: "550円", note: "" },
               { name: "本日のケーキ", price: "420円", note: "日替わりです。" },
+            ],
+          },
+        },
+        {
+          id: "gallery",
+          repeats: {
+            photos: [
+              { image: "media/sample-beans.svg" },
+              { image: "media/sample-cup.svg" },
             ],
           },
         },
@@ -61,6 +89,15 @@ function loadContent(): ContentItem[] {
     return raw ? (JSON.parse(raw) as ContentItem[]) : defaultContent;
   } catch {
     return defaultContent;
+  }
+}
+
+function loadMedia(): MediaItem[] {
+  try {
+    const raw = localStorage.getItem(MEDIA_KEY);
+    return raw ? (JSON.parse(raw) as MediaItem[]) : defaultMedia;
+  } catch {
+    return defaultMedia;
   }
 }
 
@@ -105,6 +142,28 @@ export function createMockApi(): PcmsApi {
       } catch {
         /* ignore storage failures in the mock */
       }
+    },
+    async listMedia(): Promise<MediaItem[]> {
+      return loadMedia();
+    },
+    async saveMedia(files: MediaUpload[]): Promise<MediaItem[]> {
+      const saved: MediaItem[] = files.map((f) => ({
+        id: f.fileName.replace(/\.[^.]+$/, ""),
+        fileName: f.fileName,
+        path: `media/${f.fileName}`,
+        width: f.width,
+        height: f.height,
+        size: f.bytes.length,
+        dataUrl: bytesToWebpDataUrl(f.bytes),
+      }));
+      const byPath = new Map(loadMedia().map((m) => [m.path, m]));
+      for (const m of saved) byPath.set(m.path, m);
+      try {
+        localStorage.setItem(MEDIA_KEY, JSON.stringify([...byPath.values()]));
+      } catch {
+        /* ignore storage failures in the mock */
+      }
+      return saved;
     },
   };
 }

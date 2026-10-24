@@ -6,20 +6,34 @@ describe("parseTemplate", () => {
   const schema = parseTemplate("index", sampleTheme().templates.index as string);
 
   it("finds every section", () => {
-    expect(schema.sections.map((s) => s.id)).toEqual(["hero", "news", "menu"]);
+    expect(schema.sections.map((s) => s.id)).toEqual([
+      "hero",
+      "news",
+      "menu",
+      "gallery",
+    ]);
   });
 
   it("detects a section's editable fields with labels and types", () => {
     const hero = schema.sections.find((s) => s.id === "hero")!;
     expect(hero.fields.map((f) => f.path)).toEqual([
+      "hero.image",
       "hero.heading",
       "hero.lead",
       "hero.cta_url",
       "hero.cta_label",
     ]);
+    expect(hero.fields.find((f) => f.path === "hero.image")!.type).toBe("image");
     const cta = hero.fields.find((f) => f.path === "hero.cta_url")!;
     expect(cta.type).toBe("link");
     expect(cta.label).toBe("ボタンのリンク");
+  });
+
+  it("describes an image repeat in the gallery section", () => {
+    const gallery = schema.sections.find((s) => s.id === "gallery")!;
+    expect(gallery.repeats).toHaveLength(1);
+    expect(gallery.repeats[0]!.name).toBe("photos");
+    expect(gallery.repeats[0]!.fields[0]!.type).toBe("image");
   });
 
   it("describes a loop and does not leak its inner fields", () => {

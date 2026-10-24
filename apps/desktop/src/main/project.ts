@@ -7,9 +7,14 @@ import {
 } from "node:fs";
 import { join, resolve } from "node:path";
 import { app } from "electron";
-import type { ContentItem, FieldValue, SiteSettings } from "@pcms/shared";
+import type {
+  ContentItem,
+  FieldValue,
+  MediaItem,
+  SiteSettings,
+} from "@pcms/shared";
 import { parseFrontMatter } from "@pcms/engine";
-import type { ProjectData } from "@pcms/editor-ui";
+import type { MediaUpload, ProjectData } from "@pcms/editor-ui";
 
 /**
  * Filesystem-backed project data for the desktop app. This is the ONLY place
@@ -38,6 +43,34 @@ function settingsPath(): string {
 
 function contentDir(): string {
   return join(siteDir(), "content");
+}
+
+function mediaDir(): string {
+  const dir = join(siteDir(), "media");
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+const MIME_BY_EXT: Record<string, string> = {
+  webp: "image/webp",
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  gif: "image/gif",
+  svg: "image/svg+xml",
+};
+
+function mediaItemFromBytes(fileName: string, bytes: Uint8Array): MediaItem {
+  const ext = fileName.split(".").pop()?.toLowerCase() ?? "";
+  const mime = MIME_BY_EXT[ext] ?? "application/octet-stream";
+  const base64 = Buffer.from(bytes).toString("base64");
+  return {
+    id: fileName.replace(/\.[^.]+$/, ""),
+    fileName,
+    path: `media/${fileName}`,
+    size: bytes.length,
+    dataUrl: `data:${mime};base64,${base64}`,
+  };
 }
 
 const defaultSettings: SiteSettings = {
@@ -165,3 +198,23 @@ export function saveDraft(settings: SiteSettings): void {
 }
 
 export { saveContent };
+
+export function listMedia(): MediaItem[] {
+  const dir = mediaDir();
+  const items: MediaItem[] = [];
+  for (const file of readdirSync(dir)) {
+    if (file.startsWith(".")) continue;
+    items.push(mediaItemFromBytes(file, readFileSync(join(dir, file))));
+  }
+  return items;
+}
+
+export function saveMedia(files: MediaUpload[]): MediaItem[] {
+  const dir = mediaDir();
+  return files.map((f) => {
+    const bytes = f.bytes instanceof Uint8Array ? f.bytes : new Uint8Array(f.bytes);
+    writeFileSync(join(dir, f.fileName), bytes);
+    const item = mediaItemFromBytes(f.fileName, bytes);
+    return { ...item, width: f.width, height: f.height };
+  });
+}

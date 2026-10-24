@@ -6,6 +6,7 @@ interface ToolbarProps {
   targets: EditorTarget[];
   currentKey: string;
   onSelectTarget: (key: string) => void;
+  onOpenMedia: () => void;
   canUndo: boolean;
   canRedo: boolean;
   dirty: boolean;
@@ -18,6 +19,7 @@ export function Toolbar({
   targets,
   currentKey,
   onSelectTarget,
+  onOpenMedia,
   canUndo,
   canRedo,
   dirty,
@@ -42,6 +44,9 @@ export function Toolbar({
         </select>
       </label>
       <div className="pcms-toolbar__spacer" />
+      <button type="button" onClick={onOpenMedia}>
+        {t("media.title")}
+      </button>
       <button type="button" onClick={onUndo} disabled={!canUndo}>
         {t("toolbar.undo")}
       </button>

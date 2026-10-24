@@ -30,6 +30,14 @@ const ja = {
   "content.field.body": "本文",
   "content.outline": "このページ",
   "content.outline.hint": "右の欄で内容を編集します。",
+  "media.title": "メディア",
+  "media.import": "画像を取り込む",
+  "media.importing": "取り込み中…",
+  "media.empty": "まだ画像がありません。「画像を取り込む」から追加してください。",
+  "media.close": "閉じる",
+  "media.pick": "画像を選択",
+  "media.change": "画像を変更",
+  "media.clear": "クリア",
 } as const;
 
 export type MessageKey = keyof typeof ja;

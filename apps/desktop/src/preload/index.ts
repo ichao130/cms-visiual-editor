@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from "electron";
 import type { ContentItem, SiteSettings } from "@pcms/shared";
-import type { PcmsApi } from "@pcms/editor-ui";
+import type { MediaUpload, PcmsApi } from "@pcms/editor-ui";
 
 /**
  * The preload exposes a minimal, explicit API over IPC — no generic
@@ -14,6 +14,8 @@ const api: PcmsApi = {
     ipcRenderer.invoke("pcms:saveDraft", settings),
   saveContent: (content: ContentItem[]) =>
     ipcRenderer.invoke("pcms:saveContent", content),
+  listMedia: () => ipcRenderer.invoke("pcms:listMedia"),
+  saveMedia: (files: MediaUpload[]) => ipcRenderer.invoke("pcms:saveMedia", files),
 };
 
 contextBridge.exposeInMainWorld("pcms", api);

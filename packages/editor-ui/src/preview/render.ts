@@ -6,6 +6,7 @@ import {
 } from "@pcms/engine";
 import type {
   ContentItem,
+  MediaItem,
   SiteConfig,
   ThemeTemplateSchema,
 } from "@pcms/shared";
@@ -75,6 +76,7 @@ export function renderPreview(
   project: ProjectData,
   state: EditorState,
   target: EditorTarget,
+  media: MediaItem[] = [],
 ): string {
   const site = project.site;
   const theme = state.settings.theme ?? project.theme.config;
@@ -110,7 +112,21 @@ export function renderPreview(
   }
 
   const style = `<style>\n${project.previewCss}\n</style>`;
-  return html.includes("</head>")
+  const withStyle = html.includes("</head>")
     ? html.replace("</head>", `${style}</head>`)
     : `${style}${html}`;
+
+  // The sandboxed iframe can't load site-relative `media/...` paths, so swap
+  // media references to their data URLs for display.
+  return inlineMedia(withStyle, media);
+}
+
+function inlineMedia(html: string, media: MediaItem[]): string {
+  let out = html;
+  for (const m of media) {
+    if (!m.dataUrl) continue;
+    out = out.split(`"${m.path}"`).join(`"${m.dataUrl}"`);
+    out = out.split(`"/${m.path}"`).join(`"${m.dataUrl}"`);
+  }
+  return out;
 }

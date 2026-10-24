@@ -1,6 +1,7 @@
 import type {
   ContentItem,
   ContentTypeDef,
+  MediaItem,
   MenuItem,
   SiteConfig,
   SiteSettings,
@@ -34,6 +35,18 @@ export interface PcmsApi {
   saveDraft(settings: SiteSettings): Promise<void>;
   /** Persist content items (content/<type>/<slug>.md). */
   saveContent(content: ContentItem[]): Promise<void>;
+  /** List media already stored for the site (with data URLs for display). */
+  listMedia(): Promise<MediaItem[]>;
+  /** Persist imported, already-processed (WebP) images; returns their records. */
+  saveMedia(files: MediaUpload[]): Promise<MediaItem[]>;
+}
+
+/** A processed image ready to persist. Bytes are the final WebP file. */
+export interface MediaUpload {
+  fileName: string;
+  bytes: Uint8Array;
+  width?: number;
+  height?: number;
 }
 
 declare global {

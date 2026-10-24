@@ -1,7 +1,14 @@
 import { join } from "node:path";
 import { app, BrowserWindow, ipcMain, shell } from "electron";
 import type { ContentItem, SiteSettings } from "@pcms/shared";
-import { loadProject, saveDraft, saveContent } from "./project.js";
+import type { MediaUpload } from "@pcms/editor-ui";
+import {
+  loadProject,
+  saveDraft,
+  saveContent,
+  listMedia,
+  saveMedia,
+} from "./project.js";
 
 function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
@@ -63,6 +70,10 @@ function registerIpc(): void {
   );
   ipcMain.handle("pcms:saveContent", (_event, content: ContentItem[]) =>
     saveContent(content),
+  );
+  ipcMain.handle("pcms:listMedia", () => listMedia());
+  ipcMain.handle("pcms:saveMedia", (_event, files: MediaUpload[]) =>
+    saveMedia(files),
   );
 }
 

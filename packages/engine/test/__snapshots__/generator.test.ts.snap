@@ -18,6 +18,7 @@ exports[`generateSite > matches the home page snapshot 1`] = `
     </header>
 
     <main><section class="hero">
+  
   <h1>朝の一杯を、ていねいに。</h1>
   <p>テスト用のリード文です。</p>
   <a class="btn" href="/page/about/">
@@ -54,6 +55,13 @@ exports[`generateSite > matches the home page snapshot 1`] = `
       <p class="price">550円</p>
       
     </div>
+  </div>
+</section>
+
+<section class="gallery">
+  <h2>店内のようす</h2>
+  <div class="gallery-grid">
+    
   </div>
 </section>
 </main>
