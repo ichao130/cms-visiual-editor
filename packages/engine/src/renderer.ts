@@ -73,9 +73,13 @@ export function renderComposedPage(
   scope: ComposedScope,
   options: RenderOptions = {},
 ): string {
+  const editable = options.markEditable === true;
   const parts: string[] = [];
-  for (const inst of instances) {
-    if (inst.hidden) continue;
+  for (let i = 0; i < instances.length; i++) {
+    const inst = instances[i] as SectionInstance;
+    // In the editor, hidden sections are still shown (dimmed) so indices line
+    // up and they can be re-enabled. Published output omits them.
+    if (inst.hidden && !editable) continue;
     const tpl = sections[inst.type];
     if (tpl == null) continue;
     const instScope: RenderScope = {
@@ -84,14 +88,22 @@ export function renderComposedPage(
         fields: inst.fields,
         sections: inst.repeats ? [{ id: inst.id, repeats: inst.repeats }] : [],
       },
-      editable: options.markEditable ? true : undefined,
+      editable: editable ? true : undefined,
     };
     const inner = renderFragment(tpl, instScope);
-    const attrs = options.markEditable ? ` data-pcms-section="${inst.id}"` : "";
-    parts.push(
-      `<div class="pcms-section pcms-section--${inst.type}"${attrs}>${inner}</div>`,
-    );
+    if (editable) {
+      parts.push(insertMarker(i));
+      const hiddenCls = inst.hidden ? " pcms-section--hidden" : "";
+      parts.push(
+        `<div class="pcms-section pcms-section--${inst.type}${hiddenCls}" data-pcms-section="${inst.id}">${sectionTools(inst.id)}${inner}</div>`,
+      );
+    } else {
+      parts.push(
+        `<div class="pcms-section pcms-section--${inst.type}">${inner}</div>`,
+      );
+    }
   }
+  if (editable) parts.push(insertMarker(instances.length));
   const body = parts.join("\n");
 
   if (options.layout == null) return body;
@@ -133,6 +145,23 @@ function reorderSections(root: HTMLElement, order: string[] | undefined): void {
 
   for (const el of sections) root.removeChild(el);
   for (const el of ordered) root.appendChild(el);
+}
+
+/** Editor-only "+" marker inserted at a gap between composed sections. */
+function insertMarker(index: number): string {
+  return `<div class="pcms-insert" data-pcms-insert="${index}"><button type="button" class="pcms-insert__btn" title="ここにセクションを追加">＋</button></div>`;
+}
+
+/** Editor-only per-section toolbar (drag handle + up/down/delete). */
+function sectionTools(id: string): string {
+  return (
+    `<div class="pcms-sec-tools" contenteditable="false">` +
+    `<span class="pcms-sec-handle" draggable="true" data-pcms-drag="${id}" title="ドラッグで並べ替え">⠿</span>` +
+    `<button type="button" class="pcms-sec-op" data-pcms-op="up" data-pcms-id="${id}" title="上へ">↑</button>` +
+    `<button type="button" class="pcms-sec-op" data-pcms-op="down" data-pcms-id="${id}" title="下へ">↓</button>` +
+    `<button type="button" class="pcms-sec-op" data-pcms-op="del" data-pcms-id="${id}" title="削除">×</button>` +
+    `</div>`
+  );
 }
 
 function processTree(root: HTMLElement, scope: RenderScope): void {

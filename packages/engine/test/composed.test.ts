@@ -58,14 +58,23 @@ describe("renderComposedPage", () => {
     expect(home).not.toContain("data-pcms-section");
   });
 
-  it("marks instances for the editor in editable mode", () => {
+  it("marks instances and injects tools / insert markers in editable mode", () => {
     const html = renderComposedPage(
-      [{ id: "i1", type: "hero", fields: { heading: "X" } }],
+      [
+        { id: "i1", type: "hero", fields: { heading: "X" } },
+        { id: "i2", type: "text", hidden: true, fields: {} },
+      ],
       sections,
       { site: { name: "店" }, theme: {}, menus: {}, collections: {} },
       { layout, markEditable: true },
     );
     expect(html).toContain('data-pcms-section="i1"');
+    expect(html).toContain('data-pcms-drag="i1"'); // drag handle
+    expect(html).toContain('data-pcms-op="del"'); // per-section tools
+    expect(html).toContain('data-pcms-insert="0"'); // gap before first
+    expect(html).toContain('data-pcms-insert="2"'); // gap after last
+    // hidden instance is still rendered (dimmed) in editable mode
+    expect(html).toContain("pcms-section--hidden");
   });
 
   it("lets two instances of the same type coexist independently", () => {

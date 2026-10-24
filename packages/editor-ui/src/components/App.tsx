@@ -41,6 +41,7 @@ import { Preview } from "./Preview.js";
 import { SettingsPanel } from "./SettingsPanel.js";
 import { SectionCanvas, type InstanceRow } from "./SectionCanvas.js";
 import { InstanceSettings } from "./InstanceSettings.js";
+import { AddSectionModal } from "./AddSectionModal.js";
 import { ContentForm } from "./ContentForm.js";
 import { NewContentModal } from "./NewContentModal.js";
 import { ContentTypeManager } from "./ContentTypeManager.js";
@@ -73,6 +74,7 @@ export function App({ api }: AppProps) {
   const [menusOpen, setMenusOpen] = useState(false);
   const [taxOpen, setTaxOpen] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
+  const [insertAt, setInsertAt] = useState<number | null>(null);
   const { doc, commit, undo, redo, reset, canUndo, canRedo } =
     useEditorHistory<EditorState>(EMPTY_STATE);
   const mediaLib = useMediaLibrary(api);
@@ -230,11 +232,11 @@ export function App({ api }: AppProps) {
   );
 
   const onAddInstance = useCallback(
-    (type: string) => {
-      const settings = addInstance(doc.settings, pageId, type);
+    (type: string, at?: number) => {
+      const settings = addInstance(doc.settings, pageId, type, at);
       commit({ ...doc, settings });
       const list = settings.pages[pageId]?.instances ?? [];
-      const added = list[list.length - 1];
+      const added = list[at ?? list.length - 1];
       if (added) setSelectedId(added.id);
       setDirty(true);
     },
@@ -360,18 +362,42 @@ export function App({ api }: AppProps) {
     setSelectedId(null);
   }, []);
 
-  // Clicks in the preview (its injected runtime) select the matching section.
+  // Messages from the preview runtime: select, reorder (op/move), insert.
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
       const d = e.data as
-        | { source?: string; type?: string; section?: string | null }
+        | {
+            source?: string;
+            type?: string;
+            section?: string | null;
+            op?: string;
+            id?: string;
+            toIndex?: number;
+            index?: number;
+          }
         | null;
-      if (!d || d.source !== "pcms-preview" || d.type !== "select") return;
-      if (d.section) setSelectedId(d.section);
+      if (!d || d.source !== "pcms-preview") return;
+
+      if (d.type === "select") {
+        if (d.section) setSelectedId(d.section);
+        return;
+      }
+      if (!composed) return;
+      const from = d.id ? instances.findIndex((i) => i.id === d.id) : -1;
+      if (d.type === "op" && from >= 0) {
+        if (d.op === "up") onMoveInstance(from, from - 1);
+        else if (d.op === "down") onMoveInstance(from, from + 1);
+        else if (d.op === "del" && d.id) onDeleteInstance(d.id);
+      } else if (d.type === "move" && from >= 0 && d.toIndex != null) {
+        const to = d.toIndex > from ? d.toIndex - 1 : d.toIndex;
+        if (to !== from) onMoveInstance(from, to);
+      } else if (d.type === "insert" && d.index != null) {
+        setInsertAt(d.index);
+      }
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, []);
+  }, [composed, instances, onMoveInstance, onDeleteInstance]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -522,6 +548,16 @@ export function App({ api }: AppProps) {
         />
       )}
       {publishOpen && <PublishPanel api={api} onClose={() => setPublishOpen(false)} />}
+      {insertAt != null && (
+        <AddSectionModal
+          catalog={catalog.map((c) => ({ type: c.id, label: c.label ?? c.id }))}
+          onPick={(type) => {
+            onAddInstance(type, insertAt);
+            setInsertAt(null);
+          }}
+          onClose={() => setInsertAt(null)}
+        />
+      )}
     </MediaContext.Provider>
   );
 }

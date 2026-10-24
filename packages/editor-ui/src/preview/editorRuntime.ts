@@ -1,23 +1,37 @@
 /**
  * The editor runtime injected into the preview iframe. It is the only script
  * that runs there — theme scripts are stripped and the iframe is
- * sandbox="allow-scripts" (no same-origin), so this cannot reach the parent
- * except via postMessage.
+ * sandbox="allow-scripts" (no same-origin), so it talks to the editor only via
+ * postMessage.
  *
- * It maps hovers/clicks on `data-pcms-section` / `data-pcms-field` elements to
- * the parent editor, and accepts a selection from the parent to highlight.
- * Section ids are controlled slugs, so attribute selectors need no escaping.
+ * It maps hover/click on `data-pcms-section` / `data-pcms-field` to a selection,
+ * drives the per-section tools (up/down/delete), the "+" insert markers and
+ * drag-to-reorder, and accepts a selection from the editor to highlight.
  */
 export const EDITOR_OVERLAY_CSS = `
 [data-pcms-hover]{outline:2px solid #2f6feb!important;outline-offset:-2px!important;cursor:pointer;}
 [data-pcms-selected]{outline:2px solid #1a7f37!important;outline-offset:-2px!important;}
+.pcms-section{position:relative;}
+.pcms-section--hidden{opacity:.4;}
+.pcms-sec-tools{position:absolute;top:4px;right:4px;z-index:10;display:flex;gap:2px;background:rgba(255,255,255,.96);border:1px solid #d0d7de;border-radius:6px;padding:2px;opacity:0;transition:opacity .1s;box-shadow:0 1px 4px rgba(0,0,0,.15);}
+.pcms-section:hover>.pcms-sec-tools{opacity:1;}
+.pcms-sec-tools button,.pcms-sec-handle{font:inherit;font-size:13px;line-height:1;border:none;background:transparent;cursor:pointer;padding:3px 5px;border-radius:4px;color:#333;}
+.pcms-sec-handle{cursor:grab;}
+.pcms-sec-tools button:hover{background:#eef0f2;}
+.pcms-insert{position:relative;height:6px;display:flex;align-items:center;justify-content:center;margin:0;}
+.pcms-insert__btn{width:24px;height:24px;border-radius:50%;border:1px solid #2f6feb;background:#fff;color:#2f6feb;font-size:14px;line-height:1;cursor:pointer;opacity:0;transition:opacity .1s;z-index:9;padding:0;}
+.pcms-insert:hover .pcms-insert__btn,body.pcms-dragging .pcms-insert__btn{opacity:1;}
+body.pcms-dragging .pcms-insert{height:18px;outline:1px dashed #9db6ef;}
+.pcms-insert--over{background:#eaf1ff;}
+.pcms-insert--over .pcms-insert__btn{opacity:1;background:#2f6feb;color:#fff;}
 `;
 
 export const EDITOR_RUNTIME = `
 (function(){
   var SEL='[data-pcms-section],[data-pcms-field]';
-  var hovered=null, selected=null;
+  var hovered=null, selected=null, dragId=null;
   function closestEditable(t){ return (t && t.closest) ? t.closest(SEL) : null; }
+  function post(o){ o.source='pcms-preview'; parent.postMessage(o,'*'); }
   function setHover(el){
     if(hovered===el) return;
     if(hovered) hovered.removeAttribute('data-pcms-hover');
@@ -29,23 +43,56 @@ export const EDITOR_RUNTIME = `
     selected=el;
     if(selected) selected.setAttribute('data-pcms-selected','');
   }
-  document.addEventListener('mousemove', function(e){ setHover(closestEditable(e.target)); }, true);
+  function clearDrop(){ var e=document.querySelector('.pcms-insert--over'); if(e) e.classList.remove('pcms-insert--over'); }
+
+  document.addEventListener('mousemove', function(e){
+    if(dragId) return;
+    setHover(closestEditable(e.target));
+  }, true);
   document.addEventListener('mouseleave', function(){ setHover(null); }, true);
+
   document.addEventListener('click', function(e){
+    var op = e.target.closest ? e.target.closest('[data-pcms-op]') : null;
+    if(op){ e.preventDefault(); e.stopPropagation();
+      post({type:'op', op: op.getAttribute('data-pcms-op'), id: op.getAttribute('data-pcms-id')}); return; }
+    var ins = e.target.closest ? e.target.closest('[data-pcms-insert]') : null;
+    if(ins){ e.preventDefault(); e.stopPropagation();
+      post({type:'insert', index: Number(ins.getAttribute('data-pcms-insert'))}); return; }
     var a = e.target.closest ? e.target.closest('a') : null;
     if(a) e.preventDefault();
+    if(e.target.closest && e.target.closest('.pcms-sec-tools')) return;
     var el = closestEditable(e.target);
     if(!el) return;
     e.preventDefault(); e.stopPropagation();
     var sectionEl = el.closest('[data-pcms-section]');
     var fieldEl = e.target.closest ? e.target.closest('[data-pcms-field]') : null;
     setSelected(sectionEl || el);
-    parent.postMessage({
-      source:'pcms-preview', type:'select',
+    post({type:'select',
       section: sectionEl ? sectionEl.getAttribute('data-pcms-section') : null,
-      field: fieldEl ? fieldEl.getAttribute('data-pcms-field') : null
-    }, '*');
+      field: fieldEl ? fieldEl.getAttribute('data-pcms-field') : null});
   }, true);
+
+  document.addEventListener('dragstart', function(e){
+    var h = e.target.closest ? e.target.closest('[data-pcms-drag]') : null;
+    if(!h) return;
+    dragId = h.getAttribute('data-pcms-drag');
+    try{ e.dataTransfer.setData('text/plain', dragId); e.dataTransfer.effectAllowed='move'; }catch(_){}
+    document.body.classList.add('pcms-dragging');
+  }, true);
+  document.addEventListener('dragend', function(){ dragId=null; document.body.classList.remove('pcms-dragging'); clearDrop(); }, true);
+  document.addEventListener('dragover', function(e){
+    if(!dragId) return;
+    var ins = e.target.closest ? e.target.closest('[data-pcms-insert]') : null;
+    if(ins){ e.preventDefault(); clearDrop(); ins.classList.add('pcms-insert--over'); }
+  }, true);
+  document.addEventListener('drop', function(e){
+    if(dragId){
+      var ins = e.target.closest ? e.target.closest('[data-pcms-insert]') : null;
+      if(ins){ e.preventDefault(); post({type:'move', id: dragId, toIndex: Number(ins.getAttribute('data-pcms-insert'))}); }
+    }
+    dragId=null; document.body.classList.remove('pcms-dragging'); clearDrop();
+  }, true);
+
   window.addEventListener('message', function(e){
     var d = e.data || {};
     if(d.source!=='pcms-editor' || d.type!=='select') return;

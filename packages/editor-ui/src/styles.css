@@ -106,6 +106,9 @@ button.pcms-publishbtn { background: #1a7f37; color: #fff; border-color: #1a7f37
 .pcms-section-row.is-dragging { opacity: 0.5; }
 .pcms-drag { cursor: grab; color: var(--pcms-muted); font-size: 0.9rem; user-select: none; padding: 0 0.1rem; }
 
+.pcms-sectionpalette { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.pcms-sectionpalette button { padding: 0.5rem 1rem; }
+
 .pcms-addsection { display: flex; gap: 0.3rem; margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--pcms-border); }
 .pcms-addsection select { flex: 1; min-width: 0; font: inherit; padding: 0.35rem 0.4rem; border: 1px solid var(--pcms-border); border-radius: 6px; }
 
