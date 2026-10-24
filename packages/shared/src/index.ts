@@ -219,6 +219,12 @@ export interface ContentItem {
   body: string;
   /** Body rendered to HTML (filled by the engine). */
   bodyHtml?: string;
+  /**
+   * Parent item's slug, for hierarchical pages (固定ページの階層). Absent = top
+   * level. Added in schema v2; items without it stay top-level (backward
+   * compatible), so no migration of existing content/*.md is required.
+   */
+  parent?: string;
 }
 
 // ---------------------------------------------------------------------------

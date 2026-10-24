@@ -36,6 +36,16 @@ import {
   rollbackPublish,
   type DeployConfigInput,
 } from "./publish.js";
+import {
+  loadAccount,
+  listProjects,
+  listSites,
+  loadSiteStats,
+  listThemes,
+  listThemeFiles,
+  readThemeFile,
+  writeThemeFile,
+} from "./shell.js";
 
 function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
@@ -79,17 +89,18 @@ function runSmokeCheck(win: BrowserWindow): void {
       try {
         const result = (await win.webContents.executeJavaScript(
           `(async () => {
-            const sections = document.querySelectorAll('.pcms-section-row').length;
+            // The app opens on the dashboard (project cards).
+            const cards = document.querySelectorAll('.pcms-card').length;
             const hasPcms = !!window.pcms;
             let upload = -1;
             try { upload = (await window.pcms.previewPublish()).upload; }
             catch (e) { upload = 'ERR:' + (e && e.message); }
-            return JSON.stringify({ sections, hasPcms, upload });
+            return JSON.stringify({ cards, hasPcms, upload });
           })()`,
         )) as string;
         console.log(`PCMS_SMOKE_RESULT ${result}`);
-        const parsed = JSON.parse(result) as { sections: number; hasPcms: boolean; upload: number };
-        const ok = parsed.hasPcms && parsed.sections > 0 && typeof parsed.upload === "number" && parsed.upload > 0;
+        const parsed = JSON.parse(result) as { cards: number; hasPcms: boolean; upload: number };
+        const ok = parsed.hasPcms && parsed.cards > 0 && typeof parsed.upload === "number" && parsed.upload > 0;
         app.exit(ok ? 0 : 2);
       } catch (err) {
         console.log(`PCMS_SMOKE_ERROR ${String(err)}`);
@@ -148,6 +159,18 @@ function registerIpc(): void {
   );
   ipcMain.handle("pcms:aiSeo", (_event, title: string, bodyHtml: string) =>
     seoSuggest(title, bodyHtml),
+  );
+
+  // App shell (local single-project view; cloud account/analytics wired later).
+  ipcMain.handle("pcms:loadAccount", () => loadAccount());
+  ipcMain.handle("pcms:listProjects", () => listProjects());
+  ipcMain.handle("pcms:listSites", (_event, _projectId: string) => listSites());
+  ipcMain.handle("pcms:loadSiteStats", (_event, _siteId: string) => loadSiteStats());
+  ipcMain.handle("pcms:listThemes", () => listThemes());
+  ipcMain.handle("pcms:listThemeFiles", () => listThemeFiles());
+  ipcMain.handle("pcms:readThemeFile", (_event, path: string) => readThemeFile(path));
+  ipcMain.handle("pcms:writeThemeFile", (_event, path: string, content: string) =>
+    writeThemeFile(path, content),
   );
 }
 

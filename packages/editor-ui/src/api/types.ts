@@ -67,6 +67,79 @@ export interface PcmsApi {
   aiDraft(prompt: string): Promise<string>;
   aiRewrite(text: string, instruction: string): Promise<string>;
   aiSeo(title: string, bodyHtml: string): Promise<AiSeoResult>;
+
+  // App shell (dashboard / projects / sites). Mock-backed in the evaluation
+  // build; the real data would come from the cloud account + each site's files.
+  loadAccount(): Promise<AccountView>;
+  listProjects(): Promise<ProjectSummary[]>;
+  listSites(projectId: string): Promise<SiteSummary[]>;
+  loadSiteStats(siteId: string): Promise<SiteStats>;
+  listThemes(): Promise<ThemeSummary[]>;
+
+  // Theme source files — for theme development / part authoring in the code
+  // editor. Distinct from operator content editing; writes target a theme
+  // working copy, never the original theme files on disk (CLAUDE.md).
+  listThemeFiles(): Promise<ThemeFileNode[]>;
+  readThemeFile(path: string): Promise<string>;
+  writeThemeFile(path: string, content: string): Promise<void>;
+}
+
+// ---------------------------------------------------------------------------
+// App shell views
+// ---------------------------------------------------------------------------
+
+export interface AccountView {
+  name: string;
+  email: string;
+  plan: string;
+  /** AI usage this period (CLAUDE.md: ユーザーごとの利用量を記録). */
+  ai: { used: number; limit: number };
+}
+
+export interface ProjectSummary {
+  id: string;
+  name: string;
+  siteCount: number;
+}
+
+export interface SiteSummary {
+  id: string;
+  name: string;
+  domain: string;
+  published: boolean;
+  stats: { visits: number; inquiries: number };
+}
+
+export interface InquiryRow {
+  id: string;
+  name: string;
+  email: string;
+  message: string;
+  receivedAt: string;
+}
+
+export interface SiteStats {
+  visits: number;
+  inquiries: number;
+  pages: number;
+  /** Daily visit counts for a small chart (most recent last). */
+  visitSeries: number[];
+  recentInquiries: InquiryRow[];
+}
+
+export interface ThemeSummary {
+  id: string;
+  name: string;
+  description: string;
+  current: boolean;
+}
+
+export type ThemeFileKind = "html" | "css" | "js" | "json" | "other";
+
+export interface ThemeFileNode {
+  /** Theme-relative path, e.g. "sections/hero.html". */
+  path: string;
+  kind: ThemeFileKind;
 }
 
 export interface AiThemeifyResult {

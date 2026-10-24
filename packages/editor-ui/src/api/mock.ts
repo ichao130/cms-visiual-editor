@@ -16,13 +16,20 @@ import {
   seoSuggest,
 } from "@pcms/engine";
 import type {
+  AccountView,
   DeployConfigView,
   MediaUpload,
   PcmsApi,
   ProjectData,
+  ProjectSummary,
   PublishHistoryEntry,
   PublishPreview,
   PublishReport,
+  SiteStats,
+  SiteSummary,
+  ThemeFileKind,
+  ThemeFileNode,
+  ThemeSummary,
 } from "./types.js";
 
 // Read the sample-cafe theme at build time as raw strings (Vite ?raw). This
@@ -212,6 +219,83 @@ function outputCount(): number {
   return Object.keys(generated.files).length;
 }
 
+// ---------------------------------------------------------------------------
+// App-shell mock data (dashboard / projects / sites / themes)
+// ---------------------------------------------------------------------------
+
+const mockAccount: AccountView = {
+  name: "珈琲店オーナー",
+  email: "owner@example.test",
+  plan: "スタンダード",
+  ai: { used: 23, limit: 100 },
+};
+
+const mockProjects: ProjectSummary[] = [
+  { id: "proj-cafe", name: "珈琲店サイト運用", siteCount: 2 },
+  { id: "proj-clinic", name: "クリニック（準備中）", siteCount: 1 },
+];
+
+const mockSites: Record<string, SiteSummary[]> = {
+  "proj-cafe": [
+    { id: "site-cafe", name: "テスト珈琲店", domain: "example.test", published: true, stats: { visits: 1240, inquiries: 8 } },
+    { id: "site-cafe-lp", name: "季節のキャンペーンLP", domain: "campaign.example.test", published: false, stats: { visits: 0, inquiries: 0 } },
+  ],
+  "proj-clinic": [
+    { id: "site-clinic", name: "〇〇クリニック", domain: "clinic.example.test", published: false, stats: { visits: 0, inquiries: 0 } },
+  ],
+};
+
+/** The site that the theme editor actually loads/edits (loadProject). */
+const ACTIVE_SITE_ID = "site-cafe";
+
+const mockInquiries = [
+  { id: "inq-1", name: "田中 花子", email: "tanaka@example.com", message: "テイクアウトは可能ですか？", receivedAt: "2026-10-22T10:12:00Z" },
+  { id: "inq-2", name: "佐藤 健", email: "sato@example.com", message: "豆の卸売についてご相談したいです。", receivedAt: "2026-10-21T15:40:00Z" },
+  { id: "inq-3", name: "鈴木 一郎", email: "suzuki@example.com", message: "店内でイベントはできますか？", receivedAt: "2026-10-20T09:05:00Z" },
+];
+
+const mockThemes: ThemeSummary[] = [
+  { id: "sample-cafe", name: "Sample Cafe", description: "カフェ・小規模店舗向けのサンプルテーマ。", current: true },
+  { id: "minimal", name: "Minimal", description: "シンプルなブログ／コーポレート向け。", current: false },
+  { id: "shop-starter", name: "Shop Starter", description: "商品一覧に強いスターターテーマ。", current: false },
+];
+
+// Theme source files, exposed to the code editor. Writes go to a localStorage
+// working copy overlaid on these originals — the sample-cafe files are never
+// modified (CLAUDE.md: テーマのファイルは改変しない).
+const THEME_KEY = "pcms.mock.themeFiles";
+const THEME_FILES: Record<string, string> = {
+  "theme.json": JSON.stringify(themeJson, null, 2),
+  "layout.html": layout,
+  "templates/index.html": indexTpl,
+  "templates/page.html": pageTpl,
+  "templates/post.html": postTpl,
+  "templates/archive.html": archiveTpl,
+  "sections/hero.html": secHero,
+  "sections/news.html": secNews,
+  "sections/menu.html": secMenu,
+  "sections/gallery.html": secGallery,
+  "sections/text.html": secText,
+  "assets/style.css": previewCss,
+};
+
+function themeWorkingCopy(): Record<string, string> {
+  try {
+    const raw = localStorage.getItem(THEME_KEY);
+    return raw ? (JSON.parse(raw) as Record<string, string>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function themeFileKind(path: string): ThemeFileKind {
+  if (path.endsWith(".html")) return "html";
+  if (path.endsWith(".css")) return "css";
+  if (path.endsWith(".js")) return "js";
+  if (path.endsWith(".json")) return "json";
+  return "other";
+}
+
 /** Browser mock of window.pcms used by the dev harness. */
 export function createMockApi(): PcmsApi {
   return {
@@ -294,6 +378,48 @@ export function createMockApi(): PcmsApi {
     },
     async aiSeo(title: string, bodyHtml: string) {
       return seoSuggest(title, bodyHtml);
+    },
+    async loadAccount(): Promise<AccountView> {
+      return mockAccount;
+    },
+    async listProjects(): Promise<ProjectSummary[]> {
+      return mockProjects;
+    },
+    async listSites(projectId: string): Promise<SiteSummary[]> {
+      return mockSites[projectId] ?? [];
+    },
+    async loadSiteStats(siteId: string): Promise<SiteStats> {
+      // Only the active (real) site has data; others are empty until published.
+      if (siteId !== ACTIVE_SITE_ID) {
+        return { visits: 0, inquiries: 0, pages: 0, visitSeries: [], recentInquiries: [] };
+      }
+      // A plausible two-week visit series (would come from analytics).
+      const visitSeries = [48, 52, 40, 61, 73, 58, 66, 71, 64, 80, 77, 69, 85, 92];
+      return {
+        visits: 1240,
+        inquiries: mockInquiries.length,
+        pages: outputCount(),
+        visitSeries,
+        recentInquiries: mockInquiries,
+      };
+    },
+    async listThemes(): Promise<ThemeSummary[]> {
+      return mockThemes;
+    },
+    async listThemeFiles(): Promise<ThemeFileNode[]> {
+      const paths = new Set([...Object.keys(THEME_FILES), ...Object.keys(themeWorkingCopy())]);
+      return [...paths]
+        .sort()
+        .map((path) => ({ path, kind: themeFileKind(path) }));
+    },
+    async readThemeFile(path: string): Promise<string> {
+      const working = themeWorkingCopy();
+      return working[path] ?? THEME_FILES[path] ?? "";
+    },
+    async writeThemeFile(path: string, content: string): Promise<void> {
+      const working = themeWorkingCopy();
+      working[path] = content;
+      saveJson(THEME_KEY, working);
     },
     async deleteContent(type: string, slug: string): Promise<void> {
       const next = loadContent().filter((i) => !(i.type === type && i.slug === slug));

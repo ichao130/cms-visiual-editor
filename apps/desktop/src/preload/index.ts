@@ -43,6 +43,15 @@ const api: PcmsApi = {
     ipcRenderer.invoke("pcms:aiRewrite", text, instruction),
   aiSeo: (title: string, bodyHtml: string) =>
     ipcRenderer.invoke("pcms:aiSeo", title, bodyHtml),
+  loadAccount: () => ipcRenderer.invoke("pcms:loadAccount"),
+  listProjects: () => ipcRenderer.invoke("pcms:listProjects"),
+  listSites: (projectId: string) => ipcRenderer.invoke("pcms:listSites", projectId),
+  loadSiteStats: (siteId: string) => ipcRenderer.invoke("pcms:loadSiteStats", siteId),
+  listThemes: () => ipcRenderer.invoke("pcms:listThemes"),
+  listThemeFiles: () => ipcRenderer.invoke("pcms:listThemeFiles"),
+  readThemeFile: (path: string) => ipcRenderer.invoke("pcms:readThemeFile", path),
+  writeThemeFile: (path: string, content: string) =>
+    ipcRenderer.invoke("pcms:writeThemeFile", path, content),
 };
 
 contextBridge.exposeInMainWorld("pcms", api);

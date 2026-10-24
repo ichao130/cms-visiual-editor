@@ -30,6 +30,26 @@ export function Preview({ html, selectedSection, device = "desktop", overlay }: 
   // Re-sync when the selection changes without a full re-render.
   useEffect(syncSelection, [selectedSection]);
 
+  // Drive the sandboxed iframe via srcdoc, set imperatively. Inside the shell's
+  // nested flex layout, setting srcdoc in the same commit can paint blank, so we
+  // blank it now and write the content on the next frame (after layout settles):
+  // two distinct values across frames guarantee a real load at the final size.
+  // The iframe stays sandboxed (allow-scripts), so it remains untrusted content
+  // and talks to the editor only via postMessage.
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      const el = ref.current;
+      if (!el) return;
+      // Remove + reflow + set in one task forces a clean reload into the content
+      // (splitting remove and set across tasks lets the blank load settle first,
+      // and the later set then fails to repaint).
+      el.removeAttribute("srcdoc");
+      void el.offsetHeight;
+      el.setAttribute("srcdoc", html);
+    }, 60);
+    return () => window.clearTimeout(id);
+  }, [html]);
+
   return (
     <section className={`pcms-preview pcms-preview--${device}`} aria-label={t("preview.title")}>
       <div className="pcms-preview__stage">
@@ -38,7 +58,6 @@ export function Preview({ html, selectedSection, device = "desktop", overlay }: 
           className="pcms-preview__frame"
           title={t("preview.title")}
           sandbox="allow-scripts"
-          srcDoc={html}
           onLoad={syncSelection}
         />
         {overlay}
