@@ -43,6 +43,27 @@ export const EDITOR_RUNTIME = `
     if(selected) selected.removeAttribute('data-pcms-selected');
     selected=el;
     if(selected) selected.setAttribute('data-pcms-selected','');
+    postRect();
+  }
+  var rectPending=false;
+  function sectionOf(el){
+    if(!el) return null;
+    if(el.getAttribute && el.getAttribute('data-pcms-section')!=null) return el;
+    return el.closest ? el.closest('[data-pcms-section]') : null;
+  }
+  function postRect(){
+    var el=sectionOf(selected);
+    if(!el){ post({type:'rect', section:null, rect:null}); return; }
+    var r=el.getBoundingClientRect();
+    post({type:'rect', section:el.getAttribute('data-pcms-section'),
+      rect:{top:r.top,left:r.left,width:r.width,height:r.height},
+      view:{w:(window.innerWidth||document.documentElement.clientWidth),
+            h:(window.innerHeight||document.documentElement.clientHeight)}});
+  }
+  function scheduleRect(){
+    if(rectPending||!selected) return;
+    rectPending=true;
+    requestAnimationFrame(function(){ rectPending=false; postRect(); });
   }
   function clearDrop(){ var e=document.querySelector('.pcms-insert--over'); if(e) e.classList.remove('pcms-insert--over'); }
 
@@ -144,12 +165,18 @@ export const EDITOR_RUNTIME = `
     dragId=null; document.body.classList.remove('pcms-dragging'); clearDrop();
   }, true);
 
+  // Keep the floating editor glued to its section as the preview scrolls/resizes.
+  window.addEventListener('scroll', scheduleRect, true);
+  window.addEventListener('resize', scheduleRect);
+
   window.addEventListener('message', function(e){
     var d=e.data||{};
     if(d.source!=='pcms-editor' || d.type!=='select') return;
     var el=d.section ? document.querySelector('[data-pcms-section="'+d.section+'"]') : null;
     setSelected(el);
     if(el && el.scrollIntoView) el.scrollIntoView({block:'nearest',behavior:'smooth'});
+    // The rect may change after the smooth scroll settles; re-post shortly.
+    setTimeout(postRect, 320);
   });
 })();
 `;

@@ -42,6 +42,7 @@ import { Preview } from "./Preview.js";
 import { SettingsPanel } from "./SettingsPanel.js";
 import { SectionCanvas, type InstanceRow } from "./SectionCanvas.js";
 import { InstanceSettings } from "./InstanceSettings.js";
+import { InlineEditor, type Anchor } from "./InlineEditor.js";
 import { AddSectionModal } from "./AddSectionModal.js";
 import { ContentForm } from "./ContentForm.js";
 import { NewContentModal } from "./NewContentModal.js";
@@ -79,6 +80,7 @@ export function App({ api }: AppProps) {
   const [aiOpen, setAiOpen] = useState(false);
   const [insertAt, setInsertAt] = useState<number | null>(null);
   const [focusTarget, setFocusTarget] = useState<string | null>(null);
+  const [anchor, setAnchor] = useState<Anchor | null>(null);
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
   const { doc, commit, undo, redo, reset, canUndo, canRedo } =
     useEditorHistory<EditorState>(EMPTY_STATE);
@@ -405,12 +407,18 @@ export function App({ api }: AppProps) {
             id?: string;
             toIndex?: number;
             index?: number;
+            rect?: Anchor["rect"] | null;
+            view?: Anchor["view"];
           }
         | null;
       if (!d || d.source !== "pcms-preview") return;
 
       if (d.type === "select") {
         if (d.section) setSelectedId(d.section);
+        return;
+      }
+      if (d.type === "rect") {
+        setAnchor(d.rect && d.view ? { rect: d.rect, view: d.view } : null);
         return;
       }
       if (d.type === "focusfield" && d.field) {
@@ -456,6 +464,11 @@ export function App({ api }: AppProps) {
     applyFieldEdit,
     mediaLib.value,
   ]);
+
+  // The inline editor only makes sense while a section is selected.
+  useEffect(() => {
+    if (!selectedId) setAnchor(null);
+  }, [selectedId]);
 
   // Focus a field in the right panel after a field click in the preview.
   useEffect(() => {
@@ -552,7 +565,23 @@ export function App({ api }: AppProps) {
           />
         )}
 
-        <Preview html={previewHtml} selectedSection={selectedId} device={device} />
+        <Preview
+          html={previewHtml}
+          selectedSection={selectedId}
+          device={device}
+          overlay={
+            composed && selectedInstance && selectedInstanceSchema && anchor ? (
+              <InlineEditor
+                schema={selectedInstanceSchema}
+                instance={selectedInstance}
+                anchor={anchor}
+                onFieldChange={onInstanceField}
+                onRepeatChange={onInstanceRepeat}
+                onClose={() => setSelectedId(null)}
+              />
+            ) : null
+          }
+        />
 
         {target.kind === "page" && composed ? (
           selectedInstance ? (

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { t } from "../i18n.js";
 
 interface PreviewProps {
@@ -7,6 +7,8 @@ interface PreviewProps {
   selectedSection?: string | null;
   /** Preview device width. */
   device?: "desktop" | "mobile";
+  /** Overlay rendered on top of the iframe (e.g. the inline editor). */
+  overlay?: ReactNode;
 }
 
 /**
@@ -15,7 +17,7 @@ interface PreviewProps {
  * only our editor runtime runs (sandbox="allow-scripts"). It talks to the
  * editor via postMessage (CLAUDE.md: プレビューは信頼しないコンテンツ).
  */
-export function Preview({ html, selectedSection, device = "desktop" }: PreviewProps) {
+export function Preview({ html, selectedSection, device = "desktop", overlay }: PreviewProps) {
   const ref = useRef<HTMLIFrameElement>(null);
 
   const syncSelection = () => {
@@ -30,14 +32,17 @@ export function Preview({ html, selectedSection, device = "desktop" }: PreviewPr
 
   return (
     <section className={`pcms-preview pcms-preview--${device}`} aria-label={t("preview.title")}>
-      <iframe
-        ref={ref}
-        className="pcms-preview__frame"
-        title={t("preview.title")}
-        sandbox="allow-scripts"
-        srcDoc={html}
-        onLoad={syncSelection}
-      />
+      <div className="pcms-preview__stage">
+        <iframe
+          ref={ref}
+          className="pcms-preview__frame"
+          title={t("preview.title")}
+          sandbox="allow-scripts"
+          srcDoc={html}
+          onLoad={syncSelection}
+        />
+        {overlay}
+      </div>
     </section>
   );
 }

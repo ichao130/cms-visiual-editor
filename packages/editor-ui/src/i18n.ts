@@ -22,6 +22,7 @@ const ja = {
   "settings.title": "設定",
   "settings.empty": "左のセクションを選ぶと、ここで編集できます。",
   "settings.hidden": "このセクションは非表示です。",
+  "inline.close": "閉じる",
   "repeat.add": "項目を追加",
   "repeat.remove": "削除",
   "repeat.item": "項目",
