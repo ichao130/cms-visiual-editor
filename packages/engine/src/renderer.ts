@@ -12,6 +12,11 @@ import {
 export interface RenderOptions {
   /** Optional layout.html whose `data-slot="content"` receives the template. */
   layout?: string;
+  /**
+   * Keep `data-pcms-section` / `data-pcms-field` markers on the template so the
+   * live editor can map clicks to sections/fields. For preview only.
+   */
+  markEditable?: boolean;
 }
 
 /**
@@ -28,10 +33,12 @@ export function renderTemplate(
   scope: RenderScope,
   options: RenderOptions = {},
 ): string {
-  const body = renderFragment(html, scope);
+  const fragScope = options.markEditable ? { ...scope, editable: true } : scope;
+  const body = renderFragment(html, fragScope);
 
   if (options.layout == null) return body;
 
+  // The layout (header/footer) is not section-editable, so render it normally.
   const layoutRoot = parse(options.layout, { comment: false });
   const slot = layoutRoot.querySelector(`[${ATTR.slot}]`);
   if (slot) slot.set_content(body);
@@ -117,8 +124,9 @@ function processElement(el: HTMLElement, scope: RenderScope): void {
   }
 
   // 5. data-field — bind a value (keeps theme default when unset).
+  const fieldPath = el.getAttribute(ATTR.field);
   let replacedContent = false;
-  if (el.getAttribute(ATTR.field) != null) {
+  if (fieldPath != null) {
     replacedContent = applyField(el, scope);
   }
 
@@ -129,7 +137,13 @@ function processElement(el: HTMLElement, scope: RenderScope): void {
     }
   }
 
-  // 7. strip editor-only attributes from the published output.
+  // 7. In editable (preview) mode, leave markers the editor can click-map.
+  if (scope.editable) {
+    if (sectionId != null) el.setAttribute("data-pcms-section", sectionId);
+    if (fieldPath != null) el.setAttribute("data-pcms-field", fieldPath);
+  }
+
+  // 8. strip editor-only attributes from the published output.
   stripEditorAttrs(el);
 }
 
@@ -172,7 +186,7 @@ function expandLoop(el: HTMLElement, scope: RenderScope): void {
     const clone = el.clone() as HTMLElement;
     clone.removeAttribute(ATTR.loop);
     clone.removeAttribute(ATTR.limit);
-    const childScope: RenderScope = { ...scope, item };
+    const childScope: RenderScope = { ...scope, item, editable: false };
     processElement(clone, childScope);
     return clone.toString();
   });
@@ -190,7 +204,7 @@ function expandRepeat(el: HTMLElement, scope: RenderScope): void {
     clone.removeAttribute(ATTR.repeat);
     // A repeat row binds against an ad-hoc item whose fields are the row.
     const item: ContentItem = { type: "item", slug: "", fields: row, body: "" };
-    const childScope: RenderScope = { ...scope, item };
+    const childScope: RenderScope = { ...scope, item, editable: false };
     processElement(clone, childScope);
     return clone.toString();
   });

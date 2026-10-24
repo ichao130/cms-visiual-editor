@@ -11,6 +11,7 @@ import {
   type EditorState,
   type EditorTarget,
 } from "../state/editorState.js";
+import { EDITOR_OVERLAY_CSS, EDITOR_RUNTIME } from "./editorRuntime.js";
 
 function itemUrl(item: ContentItem, site: SiteConfig): string {
   const pattern = site.permalink ?? "/:type/:slug/";
@@ -87,6 +88,7 @@ export function renderPreview(
     const name = pageTemplateName(project, target.id);
     html = renderTemplate(templateHtml(project, name), scope, {
       layout: project.theme.layout,
+      markEditable: true,
     });
   } else {
     const item = findItem(state, target.type, target.slug);
@@ -103,17 +105,22 @@ export function renderPreview(
     const name = contentTemplateName(project, target.type);
     html = renderTemplate(templateHtml(project, name), scope, {
       layout: project.theme.layout,
+      markEditable: true,
     });
   }
 
-  const style = `<style>\n${project.previewCss}\n</style>`;
-  const withStyle = html.includes("</head>")
-    ? html.replace("</head>", `${style}</head>`)
-    : `${style}${html}`;
+  // Remove any theme scripts (untrusted) before adding our trusted runtime.
+  html = html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "");
+
+  const head = `<style>\n${project.previewCss}\n</style><style>${EDITOR_OVERLAY_CSS}</style>`;
+  html = html.includes("</head>") ? html.replace("</head>", `${head}</head>`) : `${head}${html}`;
+
+  const runtime = `<script>${EDITOR_RUNTIME}</script>`;
+  html = html.includes("</body>") ? html.replace("</body>", `${runtime}</body>`) : `${html}${runtime}`;
 
   // The sandboxed iframe can't load site-relative `media/...` paths, so swap
   // media references to their data URLs for display.
-  return inlineMedia(withStyle, media);
+  return inlineMedia(html, media);
 }
 
 function inlineMedia(html: string, media: MediaItem[]): string {

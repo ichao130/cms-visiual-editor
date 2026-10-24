@@ -1,22 +1,40 @@
+import { useEffect, useRef } from "react";
 import { t } from "../i18n.js";
 
 interface PreviewProps {
   html: string;
+  /** The currently selected section id, mirrored into the preview. */
+  selectedSection?: string | null;
 }
 
 /**
- * Live preview. The generated site/theme HTML is untrusted content, so it is
- * rendered in a sandboxed iframe with no script execution and no same-origin
- * access (CLAUDE.md: プレビューは信頼しないコンテンツとして別領域で描画).
+ * Live preview. The site/theme HTML is untrusted, so it renders in a sandboxed
+ * iframe with no same-origin access; theme scripts are stripped upstream and
+ * only our editor runtime runs (sandbox="allow-scripts"). It talks to the
+ * editor via postMessage (CLAUDE.md: プレビューは信頼しないコンテンツ).
  */
-export function Preview({ html }: PreviewProps) {
+export function Preview({ html, selectedSection }: PreviewProps) {
+  const ref = useRef<HTMLIFrameElement>(null);
+
+  const syncSelection = () => {
+    ref.current?.contentWindow?.postMessage(
+      { source: "pcms-editor", type: "select", section: selectedSection ?? null },
+      "*",
+    );
+  };
+
+  // Re-sync when the selection changes without a full re-render.
+  useEffect(syncSelection, [selectedSection]);
+
   return (
     <section className="pcms-preview" aria-label={t("preview.title")}>
       <iframe
+        ref={ref}
         className="pcms-preview__frame"
         title={t("preview.title")}
-        sandbox=""
+        sandbox="allow-scripts"
         srcDoc={html}
+        onLoad={syncSelection}
       />
     </section>
   );

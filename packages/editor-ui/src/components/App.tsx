@@ -262,6 +262,19 @@ export function App({ api }: AppProps) {
     setSelectedId(null);
   }, []);
 
+  // Clicks in the preview (its injected runtime) select the matching section.
+  useEffect(() => {
+    const onMessage = (e: MessageEvent) => {
+      const d = e.data as
+        | { source?: string; type?: string; section?: string | null }
+        | null;
+      if (!d || d.source !== "pcms-preview" || d.type !== "select") return;
+      if (d.section) setSelectedId(d.section);
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, []);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const mod = e.metaKey || e.ctrlKey;
@@ -332,7 +345,7 @@ export function App({ api }: AppProps) {
           </nav>
         )}
 
-        <Preview html={previewHtml} />
+        <Preview html={previewHtml} selectedSection={selectedId} />
 
         {target.kind === "page" ? (
           <SettingsPanel

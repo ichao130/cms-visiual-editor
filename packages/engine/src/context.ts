@@ -42,6 +42,12 @@ export interface RenderScope {
   pagination?: PaginationContext;
   /** Term fields (`data-field="term.*"`) on taxonomy archive pages. */
   term?: TermContext;
+  /**
+   * When true, keep `data-pcms-section` / `data-pcms-field` markers on output
+   * so the live editor can map clicks back to sections/fields. Not set for
+   * published output. Turned off inside loops/repeats (those are content).
+   */
+  editable?: boolean;
 }
 
 /**
