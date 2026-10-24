@@ -4,15 +4,18 @@ import {
   mkdirSync,
   existsSync,
   readdirSync,
+  unlinkSync,
 } from "node:fs";
 import { join, resolve } from "node:path";
 import { app } from "electron";
 import type {
   ContentItem,
+  ContentTypeDef,
   FieldValue,
   MediaItem,
   SiteSettings,
 } from "@pcms/shared";
+import { BUILTIN_CONTENT_TYPES } from "@pcms/shared";
 import { parseFrontMatter } from "@pcms/engine";
 import type { MediaUpload, ProjectData } from "@pcms/editor-ui";
 
@@ -43,6 +46,20 @@ function settingsPath(): string {
 
 function contentDir(): string {
   return join(siteDir(), "content");
+}
+
+function contentTypesPath(): string {
+  return join(siteDir(), "content-types.json");
+}
+
+function loadContentTypes(): ContentTypeDef[] {
+  const path = contentTypesPath();
+  if (!existsSync(path)) return BUILTIN_CONTENT_TYPES;
+  try {
+    return JSON.parse(readFileSync(path, "utf8")) as ContentTypeDef[];
+  } catch {
+    return BUILTIN_CONTENT_TYPES;
+  }
 }
 
 function mediaDir(): string {
@@ -188,7 +205,7 @@ export function loadProject(): ProjectData {
         { label: "お知らせ", url: "/post/open/" },
       ],
     },
-    contentTypes: [],
+    contentTypes: loadContentTypes(),
     previewCss: readTheme("assets/style.css"),
   };
 }
@@ -198,6 +215,15 @@ export function saveDraft(settings: SiteSettings): void {
 }
 
 export { saveContent };
+
+export function saveContentTypes(types: ContentTypeDef[]): void {
+  writeFileSync(contentTypesPath(), JSON.stringify(types, null, 2), "utf8");
+}
+
+export function deleteContent(type: string, slug: string): void {
+  const file = join(contentDir(), type, `${slug}.md`);
+  if (existsSync(file)) unlinkSync(file);
+}
 
 export function listMedia(): MediaItem[] {
   const dir = mediaDir();

@@ -1,64 +1,66 @@
-import type { ContentItem, InlineFieldType } from "@pcms/shared";
-import { FieldInput } from "./FieldInput.js";
+import type { ContentItem, ContentTypeDef, FieldDef, FieldValue } from "@pcms/shared";
+import { ContentField } from "./ContentField.js";
 import { t } from "../i18n.js";
 
 interface ContentFormProps {
   item: ContentItem;
+  def: ContentTypeDef | undefined;
   onChange: (key: string, value: string) => void;
+  onDelete: () => void;
 }
 
-const RESERVED = new Set(["title", "date", "url"]);
+/** Editing form for a content item, driven by its content-type definition. */
+export function ContentForm({ item, def, onChange, onDelete }: ContentFormProps) {
+  const fields = def?.fields ?? fallbackFields(item);
 
-/**
- * Editing form for a content item (post / static page). The MVP exposes the
- * common fields — title, date (posts) and the markdown body — plus any extra
- * string fields the item already carries. A full custom-field UI follows with
- * content-type definitions.
- */
-export function ContentForm({ item, onChange }: ContentFormProps) {
-  const showDate = item.type === "post" || item.fields.date != null;
-  const extras = Object.keys(item.fields).filter((k) => !RESERVED.has(k));
+  function valueOf(name: string): FieldValue | undefined {
+    return name === "body" ? item.body : item.fields[name];
+  }
 
   return (
     <aside className="pcms-settings">
-      <h2 className="pcms-col__title">{t("content.title")}</h2>
+      <div className="pcms-settings__head">
+        <h2 className="pcms-col__title">
+          {t("content.title")}：{def?.label ?? item.type}
+        </h2>
+        <button type="button" className="pcms-danger" onClick={onDelete}>
+          {t("content.delete")}
+        </button>
+      </div>
 
-      <FieldInput
-        id="content-title"
-        label={t("content.field.title")}
-        type="text"
-        value={item.fields.title}
-        onChange={(v) => onChange("title", v)}
-      />
-
-      {showDate && (
-        <FieldInput
-          id="content-date"
-          label={t("content.field.date")}
-          type="text"
-          value={item.fields.date}
-          onChange={(v) => onChange("date", v)}
-        />
-      )}
-
-      {extras.map((key) => (
-        <FieldInput
-          key={key}
-          id={`content-${key}`}
-          label={key}
-          type={"text" as InlineFieldType}
-          value={item.fields[key]}
-          onChange={(v) => onChange(key, v)}
-        />
-      ))}
-
-      <FieldInput
-        id="content-body"
-        label={t("content.field.body")}
-        type="richtext"
-        value={item.body}
-        onChange={(v) => onChange("body", v)}
-      />
+      {fields
+        .filter((f) => isVisible(f, valueOf))
+        .map((f) => (
+          <ContentField
+            key={f.name}
+            field={f}
+            value={valueOf(f.name)}
+            onChange={(v) => onChange(f.name, v)}
+          />
+        ))}
     </aside>
   );
+}
+
+function isVisible(
+  field: FieldDef,
+  valueOf: (name: string) => FieldValue | undefined,
+): boolean {
+  if (!field.showIf) return true;
+  const other = valueOf(field.showIf.field);
+  if (field.showIf.equals !== undefined) return other === field.showIf.equals;
+  return other != null && other !== "";
+}
+
+/** Used when a content type has no definition: expose what the item carries. */
+function fallbackFields(item: ContentItem): FieldDef[] {
+  const defs: FieldDef[] = [
+    { name: "title", label: "タイトル", type: "text", required: true },
+  ];
+  for (const key of Object.keys(item.fields)) {
+    if (key === "title" || key === "url") continue;
+    defs.push({ name: key, label: key, type: "text" });
+  }
+  defs.push({ name: "body", label: "本文", type: "richtext" });
+  return defs;
 }

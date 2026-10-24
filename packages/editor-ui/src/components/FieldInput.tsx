@@ -32,7 +32,7 @@ export function FieldInput({ id, label, type, value, onChange }: FieldInputProps
   );
 }
 
-function ImageField({
+export function ImageField({
   id,
   value,
   onChange,

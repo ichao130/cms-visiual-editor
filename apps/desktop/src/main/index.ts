@@ -1,11 +1,13 @@
 import { join } from "node:path";
 import { app, BrowserWindow, ipcMain, shell } from "electron";
-import type { ContentItem, SiteSettings } from "@pcms/shared";
+import type { ContentItem, ContentTypeDef, SiteSettings } from "@pcms/shared";
 import type { MediaUpload } from "@pcms/editor-ui";
 import {
   loadProject,
   saveDraft,
   saveContent,
+  saveContentTypes,
+  deleteContent,
   listMedia,
   saveMedia,
 } from "./project.js";
@@ -70,6 +72,12 @@ function registerIpc(): void {
   );
   ipcMain.handle("pcms:saveContent", (_event, content: ContentItem[]) =>
     saveContent(content),
+  );
+  ipcMain.handle("pcms:saveContentTypes", (_event, types: ContentTypeDef[]) =>
+    saveContentTypes(types),
+  );
+  ipcMain.handle("pcms:deleteContent", (_event, type: string, slug: string) =>
+    deleteContent(type, slug),
   );
   ipcMain.handle("pcms:listMedia", () => listMedia());
   ipcMain.handle("pcms:saveMedia", (_event, files: MediaUpload[]) =>

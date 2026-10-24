@@ -1,4 +1,10 @@
-import type { ContentItem, MediaItem, SiteSettings } from "@pcms/shared";
+import type {
+  ContentItem,
+  ContentTypeDef,
+  MediaItem,
+  SiteSettings,
+} from "@pcms/shared";
+import { BUILTIN_CONTENT_TYPES } from "@pcms/shared";
 import type { MediaUpload, PcmsApi, ProjectData } from "./types.js";
 
 // Read the sample-cafe theme at build time as raw strings (Vite ?raw). This
@@ -13,6 +19,7 @@ import previewCss from "../../../../themes/sample-cafe/assets/style.css?raw";
 const DRAFT_KEY = "pcms.mock.draft";
 const CONTENT_KEY = "pcms.mock.content";
 const MEDIA_KEY = "pcms.mock.media";
+const TYPES_KEY = "pcms.mock.types";
 
 function svgDataUrl(label: string, color: string): string {
   const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='320' height='200'><rect width='320' height='200' fill='${color}'/><text x='160' y='108' font-size='24' text-anchor='middle' fill='#fff' font-family='sans-serif'>${label}</text></svg>`;
@@ -101,6 +108,23 @@ function loadMedia(): MediaItem[] {
   }
 }
 
+function loadTypes(): ContentTypeDef[] {
+  try {
+    const raw = localStorage.getItem(TYPES_KEY);
+    return raw ? (JSON.parse(raw) as ContentTypeDef[]) : BUILTIN_CONTENT_TYPES;
+  } catch {
+    return BUILTIN_CONTENT_TYPES;
+  }
+}
+
+function saveJson(key: string, value: unknown): void {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    /* ignore storage failures in the mock */
+  }
+}
+
 /** Browser mock of window.pcms used by the dev harness. */
 export function createMockApi(): PcmsApi {
   return {
@@ -125,7 +149,7 @@ export function createMockApi(): PcmsApi {
             { label: "お知らせ", url: "/post/open/" },
           ],
         },
-        contentTypes: [],
+        contentTypes: loadTypes(),
         previewCss,
       };
     },
@@ -137,11 +161,14 @@ export function createMockApi(): PcmsApi {
       }
     },
     async saveContent(content: ContentItem[]): Promise<void> {
-      try {
-        localStorage.setItem(CONTENT_KEY, JSON.stringify(content));
-      } catch {
-        /* ignore storage failures in the mock */
-      }
+      saveJson(CONTENT_KEY, content);
+    },
+    async saveContentTypes(types: ContentTypeDef[]): Promise<void> {
+      saveJson(TYPES_KEY, types);
+    },
+    async deleteContent(type: string, slug: string): Promise<void> {
+      const next = loadContent().filter((i) => !(i.type === type && i.slug === slug));
+      saveJson(CONTENT_KEY, next);
     },
     async listMedia(): Promise<MediaItem[]> {
       return loadMedia();

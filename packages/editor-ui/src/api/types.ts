@@ -39,6 +39,10 @@ export interface PcmsApi {
   listMedia(): Promise<MediaItem[]>;
   /** Persist imported, already-processed (WebP) images; returns their records. */
   saveMedia(files: MediaUpload[]): Promise<MediaItem[]>;
+  /** Persist custom post type / field definitions (content-types.json). */
+  saveContentTypes(types: ContentTypeDef[]): Promise<void>;
+  /** Delete one content item (removes content/<type>/<slug>.md). */
+  deleteContent(type: string, slug: string): Promise<void>;
 }
 
 /** A processed image ready to persist. Bytes are the final WebP file. */

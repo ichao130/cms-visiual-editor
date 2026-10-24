@@ -1,18 +1,35 @@
-import type { ContentItem, FieldValue, SiteSettings } from "@pcms/shared";
+import type {
+  ContentItem,
+  ContentTypeDef,
+  FieldDef,
+  FieldValue,
+  SiteSettings,
+} from "@pcms/shared";
 import type { ProjectData } from "../api/types.js";
 
 /**
- * The full undoable document: the operator's page settings plus the editable
- * content items. Keeping both under one history gives a single undo/redo stack
- * across page and content edits.
+ * The full undoable document: page settings, content items and content-type
+ * definitions. Keeping them under one history gives a single undo/redo stack.
  */
 export interface EditorState {
   settings: SiteSettings;
   content: ContentItem[];
+  contentTypes: ContentTypeDef[];
 }
 
 export function initialState(project: ProjectData): EditorState {
-  return { settings: project.settings, content: project.content };
+  return {
+    settings: project.settings,
+    content: project.content,
+    contentTypes: project.contentTypes,
+  };
+}
+
+export function typeDef(
+  state: EditorState,
+  name: string,
+): ContentTypeDef | undefined {
+  return state.contentTypes.find((t) => t.name === name);
 }
 
 // ---------------------------------------------------------------------------
@@ -27,13 +44,8 @@ export function targetKey(t: EditorTarget): string {
   return t.kind === "page" ? `page:${t.id}` : `content:${t.type}/${t.slug}`;
 }
 
-const TYPE_LABELS: Record<string, string> = {
-  post: "投稿",
-  page: "固定ページ",
-};
-
-function typeLabel(type: string): string {
-  return TYPE_LABELS[type] ?? type;
+function typeLabel(state: EditorState, type: string): string {
+  return typeDef(state, type)?.label ?? type;
 }
 
 /** Build the list of switchable targets: site pages first, then content. */
@@ -50,7 +62,7 @@ export function listTargets(state: EditorState): EditorTarget[] {
       kind: "content",
       type: item.type,
       slug: item.slug,
-      label: `${typeLabel(item.type)}：${title}`,
+      label: `${typeLabel(state, item.type)}：${title}`,
     });
   }
 
@@ -83,4 +95,96 @@ export function setContentField(
     return { ...item, fields: { ...item.fields, [key]: value as FieldValue } };
   });
   return { ...state, content };
+}
+
+/** Make an ASCII slug from a title, falling back to a unique id. */
+export function slugify(input: string, fallbackPrefix: string): string {
+  const base = input
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return base || `${fallbackPrefix}-${Date.now().toString(36)}`;
+}
+
+export function slugExists(state: EditorState, type: string, slug: string): boolean {
+  return state.content.some((i) => i.type === type && i.slug === slug);
+}
+
+/** Create a content item of a type, seeding defaults from its field defs. */
+export function createContent(
+  state: EditorState,
+  type: string,
+  title: string,
+  slug: string,
+): EditorState {
+  const def = typeDef(state, type);
+  const fields: Record<string, FieldValue> = {};
+  let body = "";
+  for (const f of def?.fields ?? []) {
+    if (f.name === "body") {
+      body = typeof f.default === "string" ? f.default : "";
+    } else if (f.default !== undefined) {
+      fields[f.name] = f.default;
+    }
+  }
+  fields.title = title;
+  const item: ContentItem = { type, slug, fields, body };
+  return { ...state, content: [...state.content, item] };
+}
+
+export function removeContent(
+  state: EditorState,
+  type: string,
+  slug: string,
+): EditorState {
+  return {
+    ...state,
+    content: state.content.filter((i) => !(i.type === type && i.slug === slug)),
+  };
+}
+
+// --- Content-type definitions ------------------------------------------------
+
+export function addContentType(
+  state: EditorState,
+  name: string,
+  label: string,
+): EditorState {
+  if (typeDef(state, name)) return state;
+  const def: ContentTypeDef = {
+    name,
+    label,
+    fields: [{ name: "title", label: "タイトル", type: "text", required: true }],
+  };
+  return { ...state, contentTypes: [...state.contentTypes, def] };
+}
+
+export function updateContentType(
+  state: EditorState,
+  name: string,
+  patch: Partial<Pick<ContentTypeDef, "label" | "fields">>,
+): EditorState {
+  return {
+    ...state,
+    contentTypes: state.contentTypes.map((t) =>
+      t.name === name ? { ...t, ...patch } : t,
+    ),
+  };
+}
+
+export function setTypeFields(
+  state: EditorState,
+  name: string,
+  fields: FieldDef[],
+): EditorState {
+  return updateContentType(state, name, { fields });
+}
+
+/** Delete a custom content type and all its items. */
+export function deleteContentType(state: EditorState, name: string): EditorState {
+  return {
+    ...state,
+    contentTypes: state.contentTypes.filter((t) => t.name !== name),
+    content: state.content.filter((i) => i.type !== name),
+  };
 }

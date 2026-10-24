@@ -131,6 +131,32 @@ export interface FieldDef {
   fields?: FieldDef[];
 }
 
+/**
+ * The content types every site starts with. They are ordinary type definitions
+ * (not special-cased in the engine), so the operator can add custom fields to
+ * them or define entirely new types via the editor.
+ */
+export const BUILTIN_CONTENT_TYPES: ContentTypeDef[] = [
+  {
+    name: "post",
+    label: "投稿",
+    hasArchive: true,
+    fields: [
+      { name: "title", label: "タイトル", type: "text", required: true },
+      { name: "date", label: "日付", type: "date" },
+      { name: "body", label: "本文", type: "richtext" },
+    ],
+  },
+  {
+    name: "page",
+    label: "固定ページ",
+    fields: [
+      { name: "title", label: "タイトル", type: "text", required: true },
+      { name: "body", label: "本文", type: "richtext" },
+    ],
+  },
+];
+
 // ---------------------------------------------------------------------------
 // Content items (content/<type>/<slug>.md)
 // ---------------------------------------------------------------------------
