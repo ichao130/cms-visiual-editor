@@ -6,7 +6,7 @@ import type {
   SiteSettings,
   TaxonomyDef,
 } from "@pcms/shared";
-import type { MediaUpload, PcmsApi } from "@pcms/editor-ui";
+import type { DeployConfigInput, MediaUpload, PcmsApi } from "@pcms/editor-ui";
 
 /**
  * The preload exposes a minimal, explicit API over IPC — no generic
@@ -30,6 +30,13 @@ const api: PcmsApi = {
     ipcRenderer.invoke("pcms:deleteContent", type, slug),
   listMedia: () => ipcRenderer.invoke("pcms:listMedia"),
   saveMedia: (files: MediaUpload[]) => ipcRenderer.invoke("pcms:saveMedia", files),
+  getDeployConfig: () => ipcRenderer.invoke("pcms:getDeployConfig"),
+  setDeployConfig: (config: DeployConfigInput) =>
+    ipcRenderer.invoke("pcms:setDeployConfig", config),
+  previewPublish: () => ipcRenderer.invoke("pcms:previewPublish"),
+  publishSite: () => ipcRenderer.invoke("pcms:publishSite"),
+  listPublishHistory: () => ipcRenderer.invoke("pcms:listPublishHistory"),
+  rollbackPublish: (id: string) => ipcRenderer.invoke("pcms:rollbackPublish", id),
 };
 
 contextBridge.exposeInMainWorld("pcms", api);

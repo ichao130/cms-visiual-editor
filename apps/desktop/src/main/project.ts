@@ -18,7 +18,8 @@ import type {
   TaxonomyDef,
 } from "@pcms/shared";
 import { BUILTIN_CONTENT_TYPES, BUILTIN_TAXONOMIES } from "@pcms/shared";
-import { parseFrontMatter, renderMarkdown } from "@pcms/engine";
+import { generateSite, parseFrontMatter, renderMarkdown } from "@pcms/engine";
+import type { FileSet } from "@pcms/deploy";
 import type { MediaUpload, ProjectData } from "@pcms/editor-ui";
 
 /**
@@ -262,6 +263,40 @@ export function saveMenus(menus: Record<string, MenuItem[]>): void {
 
 export function saveTaxonomies(taxonomies: TaxonomyDef[]): void {
   writeFileSync(taxonomiesPath(), JSON.stringify(taxonomies, null, 2), "utf8");
+}
+
+/**
+ * Assemble the complete publishable output: the generated pages plus the theme
+ * assets and site media, as an in-memory file set for the deploy package.
+ */
+export function assembleOutput(): FileSet {
+  const project = loadProject();
+  const generated = generateSite({
+    site: project.site,
+    settings: project.settings,
+    contentTypes: project.contentTypes,
+    content: project.content,
+    theme: project.theme,
+    menus: project.menus,
+  });
+
+  const files: FileSet = { ...generated.files };
+
+  for (const rel of generated.assets) {
+    try {
+      files[rel] = new Uint8Array(readFileSync(join(themeDir(), rel)));
+    } catch {
+      /* skip assets that cannot be read */
+    }
+  }
+
+  const mdir = mediaDir();
+  for (const file of readdirSync(mdir)) {
+    if (file.startsWith(".")) continue;
+    files[`media/${file}`] = new Uint8Array(readFileSync(join(mdir, file)));
+  }
+
+  return files;
 }
 
 export function deleteContent(type: string, slug: string): void {

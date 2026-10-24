@@ -19,6 +19,15 @@ import {
   listMedia,
   saveMedia,
 } from "./project.js";
+import {
+  getDeployConfig,
+  setDeployConfig,
+  previewPublish,
+  publishSite,
+  listPublishHistory,
+  rollbackPublish,
+  type DeployConfigInput,
+} from "./publish.js";
 
 function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
@@ -60,11 +69,20 @@ function runSmokeCheck(win: BrowserWindow): void {
     void (async () => {
       await new Promise((r) => setTimeout(r, 1500));
       try {
-        const rows = (await win.webContents.executeJavaScript(
-          "(!!window.pcms && !!document.querySelector('.pcms-columns')) ? document.querySelectorAll('.pcms-section-row').length : -1",
-        )) as number;
-        console.log(`PCMS_SMOKE_RESULT sections=${rows}`);
-        app.exit(rows > 0 ? 0 : 2);
+        const result = (await win.webContents.executeJavaScript(
+          `(async () => {
+            const sections = document.querySelectorAll('.pcms-section-row').length;
+            const hasPcms = !!window.pcms;
+            let upload = -1;
+            try { upload = (await window.pcms.previewPublish()).upload; }
+            catch (e) { upload = 'ERR:' + (e && e.message); }
+            return JSON.stringify({ sections, hasPcms, upload });
+          })()`,
+        )) as string;
+        console.log(`PCMS_SMOKE_RESULT ${result}`);
+        const parsed = JSON.parse(result) as { sections: number; hasPcms: boolean; upload: number };
+        const ok = parsed.hasPcms && parsed.sections > 0 && typeof parsed.upload === "number" && parsed.upload > 0;
+        app.exit(ok ? 0 : 2);
       } catch (err) {
         console.log(`PCMS_SMOKE_ERROR ${String(err)}`);
         app.exit(3);
@@ -97,6 +115,17 @@ function registerIpc(): void {
   ipcMain.handle("pcms:listMedia", () => listMedia());
   ipcMain.handle("pcms:saveMedia", (_event, files: MediaUpload[]) =>
     saveMedia(files),
+  );
+
+  ipcMain.handle("pcms:getDeployConfig", () => getDeployConfig());
+  ipcMain.handle("pcms:setDeployConfig", (_event, config: DeployConfigInput) =>
+    setDeployConfig(config),
+  );
+  ipcMain.handle("pcms:previewPublish", () => previewPublish());
+  ipcMain.handle("pcms:publishSite", () => publishSite());
+  ipcMain.handle("pcms:listPublishHistory", () => listPublishHistory());
+  ipcMain.handle("pcms:rollbackPublish", (_event, id: string) =>
+    rollbackPublish(id),
   );
 }
 

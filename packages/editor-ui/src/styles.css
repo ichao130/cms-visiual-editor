@@ -45,6 +45,26 @@ button {
 }
 button:disabled { opacity: 0.45; cursor: default; }
 button.pcms-primary { background: var(--pcms-accent); color: #fff; border-color: var(--pcms-accent); }
+button.pcms-publishbtn { background: #1a7f37; color: #fff; border-color: #1a7f37; }
+
+/* Publish panel */
+.pcms-publish__target, .pcms-publish__actions, .pcms-publish__result, .pcms-publish__history { margin-bottom: 1rem; }
+.pcms-publish__typerow { display: flex; gap: 1.2rem; margin-bottom: 0.6rem; }
+.pcms-publish__typerow label { display: flex; align-items: center; gap: 0.3rem; }
+.pcms-publish__typerow input { width: auto; }
+.pcms-publish__target input { width: 100%; font: inherit; padding: 0.4rem 0.5rem; border: 1px solid var(--pcms-border); border-radius: 6px; }
+.pcms-publish__actions { display: flex; align-items: center; gap: 0.5rem; }
+.pcms-publish__targetlabel { font-size: 0.8rem; color: var(--pcms-muted); }
+.pcms-publish__counts { font-size: 0.9rem; }
+.pcms-publish__status { padding: 0.5rem 0.7rem; border-radius: 6px; font-size: 0.9rem; }
+.pcms-publish__status.is-ok { background: #e6f4ea; color: #1a7f37; }
+.pcms-publish__status.is-bad { background: #fde8e6; color: #b42318; }
+.pcms-publish__issues { list-style: none; padding: 0; margin: 0.5rem 0 0; }
+.pcms-publish__issue { font-size: 0.82rem; padding: 0.15rem 0; }
+.pcms-publish__issue.is-error { color: #b42318; }
+.pcms-publish__issue.is-warning { color: #9a6700; }
+.pcms-publish__history ul { list-style: none; padding: 0; margin: 0; }
+.pcms-publish__histitem { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; padding: 0.3rem 0; font-size: 0.85rem; border-bottom: 1px solid var(--pcms-border); }
 
 /* Columns */
 .pcms-columns {

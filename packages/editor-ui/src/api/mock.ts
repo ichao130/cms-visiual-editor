@@ -7,7 +7,16 @@ import type {
   TaxonomyDef,
 } from "@pcms/shared";
 import { BUILTIN_CONTENT_TYPES, BUILTIN_TAXONOMIES } from "@pcms/shared";
-import type { MediaUpload, PcmsApi, ProjectData } from "./types.js";
+import { generateSite } from "@pcms/engine";
+import type {
+  DeployConfigView,
+  MediaUpload,
+  PcmsApi,
+  ProjectData,
+  PublishHistoryEntry,
+  PublishPreview,
+  PublishReport,
+} from "./types.js";
 
 // Read the sample-cafe theme at build time as raw strings (Vite ?raw). This
 // keeps the dev harness free of any filesystem access at runtime.
@@ -154,6 +163,26 @@ function saveJson(key: string, value: unknown): void {
   }
 }
 
+const MOCK_TARGET = "ブラウザのモック（実際の送信は行いません）";
+
+/** Count the pages the engine would generate — a real preview number. */
+function outputCount(): number {
+  const generated = generateSite({
+    site: { name: "テスト珈琲店", baseUrl: "https://example.test", permalink: "/:type/:slug/" },
+    settings: loadDraft() ?? defaultSettings,
+    contentTypes: loadTypes(),
+    content: loadContent(),
+    theme: {
+      config: themeJson,
+      layout,
+      templates: { index: indexTpl, page: pageTpl, post: postTpl },
+      assets: ["assets/style.css"],
+    },
+    menus: loadMenus(),
+  });
+  return Object.keys(generated.files).length;
+}
+
 /** Browser mock of window.pcms used by the dev harness. */
 export function createMockApi(): PcmsApi {
   return {
@@ -196,6 +225,32 @@ export function createMockApi(): PcmsApi {
     },
     async saveTaxonomies(taxonomies: TaxonomyDef[]): Promise<void> {
       saveJson(TAX_KEY, taxonomies);
+    },
+    async getDeployConfig(): Promise<DeployConfigView> {
+      return { type: "local", dir: MOCK_TARGET };
+    },
+    async setDeployConfig(): Promise<void> {
+      /* no-op in the mock */
+    },
+    async previewPublish(): Promise<PublishPreview> {
+      return { issues: [], upload: outputCount(), delete: 0, unchanged: 0, target: MOCK_TARGET };
+    },
+    async publishSite(): Promise<PublishReport> {
+      return {
+        ok: true,
+        issues: [],
+        uploaded: outputCount(),
+        deleted: 0,
+        unchanged: 0,
+        target: MOCK_TARGET,
+        publishedAt: new Date().toISOString(),
+      };
+    },
+    async listPublishHistory(): Promise<PublishHistoryEntry[]> {
+      return [];
+    },
+    async rollbackPublish(): Promise<PublishReport> {
+      return { ok: true, issues: [], uploaded: 0, deleted: 0, unchanged: 0, target: MOCK_TARGET };
     },
     async deleteContent(type: string, slug: string): Promise<void> {
       const next = loadContent().filter((i) => !(i.type === type && i.slug === slug));

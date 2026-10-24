@@ -19,4 +19,9 @@ export function mount(container: HTMLElement, api: PcmsApi): () => void {
   return () => root.unmount();
 }
 
-export type { PcmsApi, ProjectData, MediaUpload } from "./api/types.js";
+export type {
+  PcmsApi,
+  ProjectData,
+  MediaUpload,
+  DeployConfigInput,
+} from "./api/types.js";

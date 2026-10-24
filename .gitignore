@@ -5,3 +5,6 @@ dist/
 coverage/
 out/
 .pcms/
+
+# Unrelated nested repo that appeared on disk; never track it
+cms-visiual-editor/

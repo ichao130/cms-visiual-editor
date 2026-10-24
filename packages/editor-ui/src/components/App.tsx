@@ -37,6 +37,7 @@ import { NewContentModal } from "./NewContentModal.js";
 import { ContentTypeManager } from "./ContentTypeManager.js";
 import { MenuManager } from "./MenuManager.js";
 import { TaxonomyManager } from "./TaxonomyManager.js";
+import { PublishPanel } from "./PublishPanel.js";
 import { t } from "../i18n.js";
 
 type Row = Record<string, FieldValue>;
@@ -62,6 +63,7 @@ export function App({ api }: AppProps) {
   const [typesOpen, setTypesOpen] = useState(false);
   const [menusOpen, setMenusOpen] = useState(false);
   const [taxOpen, setTaxOpen] = useState(false);
+  const [publishOpen, setPublishOpen] = useState(false);
   const { doc, commit, undo, redo, reset, canUndo, canRedo } =
     useEditorHistory<EditorState>(EMPTY_STATE);
   const mediaLib = useMediaLibrary(api);
@@ -300,6 +302,7 @@ export function App({ api }: AppProps) {
           onManageMenus={() => setMenusOpen(true)}
           onManageTax={() => setTaxOpen(true)}
           onOpenMedia={mediaLib.value.openLibrary}
+          onPublish={() => setPublishOpen(true)}
           canUndo={canUndo}
           canRedo={canRedo}
           dirty={dirty}
@@ -382,6 +385,7 @@ export function App({ api }: AppProps) {
           onClose={() => setTaxOpen(false)}
         />
       )}
+      {publishOpen && <PublishPanel api={api} onClose={() => setPublishOpen(false)} />}
     </MediaContext.Provider>
   );
 }

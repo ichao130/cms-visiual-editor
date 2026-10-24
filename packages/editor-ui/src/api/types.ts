@@ -49,6 +49,17 @@ export interface PcmsApi {
   saveTaxonomies(taxonomies: TaxonomyDef[]): Promise<void>;
   /** Delete one content item (removes content/<type>/<slug>.md). */
   deleteContent(type: string, slug: string): Promise<void>;
+
+  // Publishing
+  getDeployConfig(): Promise<DeployConfigView>;
+  setDeployConfig(config: DeployConfigInput): Promise<void>;
+  /** Dry run: pre-publish checks and the change counts, nothing sent. */
+  previewPublish(): Promise<PublishPreview>;
+  /** Publish the site (diff upload + delete, with rollback on failure). */
+  publishSite(): Promise<PublishReport>;
+  listPublishHistory(): Promise<PublishHistoryEntry[]>;
+  /** Re-publish a previous snapshot. */
+  rollbackPublish(id: string): Promise<PublishReport>;
 }
 
 /** A processed image ready to persist. Bytes are the final WebP file. */
@@ -58,6 +69,65 @@ export interface MediaUpload {
   width?: number;
   height?: number;
 }
+
+// ---------------------------------------------------------------------------
+// Publishing
+// ---------------------------------------------------------------------------
+
+export interface PublishIssue {
+  level: "error" | "warning";
+  message: string;
+  path?: string;
+}
+
+export interface PublishPreview {
+  issues: PublishIssue[];
+  upload: number;
+  delete: number;
+  unchanged: number;
+  target: string;
+}
+
+export interface PublishReport {
+  ok: boolean;
+  issues: PublishIssue[];
+  uploaded: number;
+  deleted: number;
+  unchanged: number;
+  error?: string;
+  rolledBack?: boolean;
+  blocked?: boolean;
+  publishedAt?: string;
+  target: string;
+}
+
+export interface PublishHistoryEntry {
+  id: string;
+  publishedAt: string;
+  fileCount: number;
+}
+
+export type DeployConfigView =
+  | { type: "local"; dir: string }
+  | {
+      type: "sftp";
+      host: string;
+      port: number;
+      username: string;
+      remoteDir: string;
+      hasPassword: boolean;
+    };
+
+export type DeployConfigInput =
+  | { type: "local"; dir: string }
+  | {
+      type: "sftp";
+      host: string;
+      port?: number;
+      username: string;
+      remoteDir: string;
+      password?: string;
+    };
 
 declare global {
   interface Window {

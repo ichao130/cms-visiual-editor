@@ -11,6 +11,7 @@ interface ToolbarProps {
   onManageMenus: () => void;
   onManageTax: () => void;
   onOpenMedia: () => void;
+  onPublish: () => void;
   canUndo: boolean;
   canRedo: boolean;
   dirty: boolean;
@@ -28,6 +29,7 @@ export function Toolbar({
   onManageMenus,
   onManageTax,
   onOpenMedia,
+  onPublish,
   canUndo,
   canRedo,
   dirty,
@@ -78,6 +80,9 @@ export function Toolbar({
       </span>
       <button type="button" className="pcms-primary" onClick={onSave} disabled={!dirty}>
         {t("toolbar.save")}
+      </button>
+      <button type="button" className="pcms-publishbtn" onClick={onPublish}>
+        {t("toolbar.publish")}
       </button>
     </header>
   );
