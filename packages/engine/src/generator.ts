@@ -9,7 +9,7 @@ import type {
   TaxonomyDef,
   ThemeConfig,
 } from "@pcms/shared";
-import { renderTemplate } from "./renderer.js";
+import { renderComposedPage, renderTemplate } from "./renderer.js";
 import type { RenderScope, TermContext } from "./context.js";
 import { archivePagePath, archivePageUrl, paginate } from "./pagination.js";
 import {
@@ -27,6 +27,8 @@ export interface ThemeBundle {
   layout?: string;
   /** Template name (without extension) → HTML. */
   templates: Record<string, string>;
+  /** Reusable section type → HTML (theme `sections/`), for composed pages. */
+  sections?: Record<string, string>;
   /** Relative asset paths the caller should copy into the output. */
   assets?: string[];
 }
@@ -117,13 +119,20 @@ export function generateSite(input: SiteInput): GeneratedSite {
     }
   };
 
-  // 1. Explicit pages from settings.json.
+  // 1. Explicit pages from settings.json (composed instances, or a template).
   for (const [id, page] of Object.entries(input.settings.pages)) {
-    const templateName = page.template ?? id;
-    const template = pickTemplate(input.theme, [templateName, "page"]);
-    if (template == null) continue;
-    const scope: RenderScope = { ...baseScope, page };
-    const html = renderTemplate(template, scope, { layout });
+    let html: string;
+    if (page.instances && page.instances.length > 0) {
+      html = renderComposedPage(page.instances, input.theme.sections ?? {}, baseScope, {
+        layout,
+      });
+    } else {
+      const templateName = page.template ?? id;
+      const template = pickTemplate(input.theme, [templateName, "page"]);
+      if (template == null) continue;
+      const scope: RenderScope = { ...baseScope, page };
+      html = renderTemplate(template, scope, { layout });
+    }
     files[pagePathForId(id)] = finish(html, []);
   }
 

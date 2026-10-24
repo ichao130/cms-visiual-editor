@@ -17,6 +17,8 @@ const ja = {
   "sections.hide": "非表示",
   "sections.up": "上へ",
   "sections.down": "下へ",
+  "sections.add": "＋セクションを追加",
+  "sections.drag": "ドラッグで並べ替え",
   "settings.title": "設定",
   "settings.empty": "左のセクションを選ぶと、ここで編集できます。",
   "settings.hidden": "このセクションは非表示です。",

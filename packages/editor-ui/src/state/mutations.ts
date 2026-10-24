@@ -1,6 +1,7 @@
 import type {
   FieldValue,
   PageSettings,
+  SectionInstance,
   SectionState,
   SiteSettings,
 } from "@pcms/shared";
@@ -77,5 +78,107 @@ export function setRepeatRows(
       ...s,
       repeats: { ...s.repeats, [name]: rows },
     })),
+  }));
+}
+
+// --- Composed-page section instances ---------------------------------------
+
+function withInstances(
+  settings: SiteSettings,
+  pageId: string,
+  update: (list: SectionInstance[]) => SectionInstance[],
+): SiteSettings {
+  return withPage(settings, pageId, (page) => ({
+    ...page,
+    instances: update(page.instances ?? []),
+  }));
+}
+
+export function newInstanceId(type: string): string {
+  return `${type}-${Date.now().toString(36)}-${Math.floor(Math.random() * 1000)}`;
+}
+
+export function addInstance(
+  settings: SiteSettings,
+  pageId: string,
+  type: string,
+  at?: number,
+): SiteSettings {
+  const instance: SectionInstance = { id: newInstanceId(type), type };
+  return withInstances(settings, pageId, (list) => {
+    const next = [...list];
+    next.splice(at ?? next.length, 0, instance);
+    return next;
+  });
+}
+
+export function removeInstance(
+  settings: SiteSettings,
+  pageId: string,
+  id: string,
+): SiteSettings {
+  return withInstances(settings, pageId, (list) => list.filter((i) => i.id !== id));
+}
+
+export function moveInstance(
+  settings: SiteSettings,
+  pageId: string,
+  from: number,
+  to: number,
+): SiteSettings {
+  return withInstances(settings, pageId, (list) => {
+    if (from < 0 || from >= list.length || to < 0 || to >= list.length) return list;
+    const next = [...list];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved as SectionInstance);
+    return next;
+  });
+}
+
+function withInstance(
+  settings: SiteSettings,
+  pageId: string,
+  id: string,
+  update: (inst: SectionInstance) => SectionInstance,
+): SiteSettings {
+  return withInstances(settings, pageId, (list) =>
+    list.map((inst) => (inst.id === id ? update(inst) : inst)),
+  );
+}
+
+export function toggleInstanceHidden(
+  settings: SiteSettings,
+  pageId: string,
+  id: string,
+): SiteSettings {
+  return withInstance(settings, pageId, id, (inst) => ({
+    ...inst,
+    hidden: !inst.hidden,
+  }));
+}
+
+export function setInstanceField(
+  settings: SiteSettings,
+  pageId: string,
+  id: string,
+  path: string,
+  value: FieldValue,
+): SiteSettings {
+  return withInstance(settings, pageId, id, (inst) => ({
+    ...inst,
+    fields: { ...inst.fields, [path]: value },
+  }));
+}
+
+export function setInstanceRepeat(
+  settings: SiteSettings,
+  pageId: string,
+  id: string,
+  name: string,
+  rows: Array<Record<string, FieldValue>>,
+): SiteSettings {
+  return withInstance(settings, pageId, id, (inst) => ({
+    ...inst,
+    repeats: { ...inst.repeats, [name]: rows },
   }));
 }

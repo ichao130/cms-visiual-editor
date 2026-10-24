@@ -81,8 +81,15 @@ export interface PageSettings {
   /** Template name to use; defaults to the page id, then "page". */
   template?: string;
   /**
-   * Operator's section order, as a list of section ids. Sections not listed
-   * keep their template order after the listed ones. Absent = template order.
+   * Composed-page layout: an ordered list of section instances. When present,
+   * the page is built by composing these from the theme's `sections/`, instead
+   * of a fixed template (Shopify-style). The operator can add / reorder /
+   * remove instances.
+   */
+  instances?: SectionInstance[];
+  /**
+   * Operator's section order, as a list of section ids (fixed-template pages).
+   * Sections not listed keep their template order after the listed ones.
    */
   sectionOrder?: string[];
   /** Section visibility / repeat overrides, keyed by section id. */
@@ -98,6 +105,19 @@ export interface SectionState {
   id: string;
   hidden?: boolean;
   /** Operator-managed repeat items, keyed by the `data-repeat` name. */
+  repeats?: Record<string, Array<Record<string, FieldValue>>>;
+}
+
+/** One section placed on a composed page. */
+export interface SectionInstance {
+  /** Unique instance id (stable across edits). */
+  id: string;
+  /** Section type — the file name in the theme's `sections/`. */
+  type: string;
+  hidden?: boolean;
+  /** Field values, keyed by the section's `data-field` paths. */
+  fields?: Record<string, FieldValue>;
+  /** Operator-managed repeat rows, keyed by the `data-repeat` name. */
   repeats?: Record<string, Array<Record<string, FieldValue>>>;
 }
 

@@ -1,4 +1,9 @@
-import { parseTemplate, renderTemplate, type RenderScope } from "@pcms/engine";
+import {
+  parseTemplate,
+  renderComposedPage,
+  renderTemplate,
+  type RenderScope,
+} from "@pcms/engine";
 import type {
   ContentItem,
   MediaItem,
@@ -81,15 +86,22 @@ export function renderPreview(
 
   let html: string;
   if (target.kind === "page") {
-    const scope: RenderScope = {
-      ...base,
-      page: state.settings.pages[target.id] ?? {},
-    };
-    const name = pageTemplateName(project, target.id);
-    html = renderTemplate(templateHtml(project, name), scope, {
-      layout: project.theme.layout,
-      markEditable: true,
-    });
+    const page = state.settings.pages[target.id] ?? {};
+    if (page.instances && page.instances.length > 0) {
+      html = renderComposedPage(
+        page.instances,
+        project.theme.sections ?? {},
+        base,
+        { layout: project.theme.layout, markEditable: true },
+      );
+    } else {
+      const scope: RenderScope = { ...base, page };
+      const name = pageTemplateName(project, target.id);
+      html = renderTemplate(templateHtml(project, name), scope, {
+        layout: project.theme.layout,
+        markEditable: true,
+      });
+    }
   } else {
     const item = findItem(state, target.type, target.slug);
     const prepared: ContentItem | undefined = item && {

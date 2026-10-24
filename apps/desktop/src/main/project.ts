@@ -133,17 +133,22 @@ function mediaItemFromBytes(fileName: string, bytes: Uint8Array): MediaItem {
 const defaultSettings: SiteSettings = {
   pages: {
     index: {
-      fields: {
-        "hero.heading": "朝の一杯を、ていねいに。",
-        "hero.lead": "駅前の小さな自家焙煎珈琲店です。",
-        "hero.cta_label": "メニューを見る",
-        "hero.cta_url": "/page/about/",
-        "news.title": "お知らせ",
-        "menu.title": "ドリンク",
-      },
-      sections: [
+      instances: [
         {
-          id: "menu",
+          id: "hero-1",
+          type: "hero",
+          fields: {
+            heading: "朝の一杯を、ていねいに。",
+            lead: "駅前の小さな自家焙煎珈琲店です。",
+            cta_label: "メニューを見る",
+            cta_url: "/page/about/",
+          },
+        },
+        { id: "news-1", type: "news", fields: { title: "お知らせ" } },
+        {
+          id: "menu-1",
+          type: "menu",
+          fields: { title: "ドリンク" },
           repeats: {
             items: [
               { name: "ブレンドコーヒー", price: "480円", note: "やさしい口当たり。" },
@@ -151,6 +156,7 @@ const defaultSettings: SiteSettings = {
             ],
           },
         },
+        { id: "gallery-1", type: "gallery", fields: { title: "店内のようす" } },
       ],
     },
   },
@@ -164,6 +170,18 @@ const defaultContent: ContentItem[] = [
 
 function readTheme(rel: string): string {
   return readFileSync(join(themeDir(), rel), "utf8");
+}
+
+/** Load the theme's reusable sections (sections/<type>.html) for composed pages. */
+function readSections(): Record<string, string> {
+  const dir = join(themeDir(), "sections");
+  if (!existsSync(dir)) return {};
+  const out: Record<string, string> = {};
+  for (const file of readdirSync(dir)) {
+    if (!file.endsWith(".html")) continue;
+    out[file.replace(/\.html$/, "")] = readFileSync(join(dir, file), "utf8");
+  }
+  return out;
 }
 
 /** Serialize a content item to a Markdown file with YAML front matter. */
@@ -240,6 +258,7 @@ export function loadProject(): ProjectData {
         post: readTheme("templates/post.html"),
         archive: readTheme("templates/archive.html"),
       },
+      sections: readSections(),
       assets: ["assets/style.css"],
     },
     content: loadContent(),

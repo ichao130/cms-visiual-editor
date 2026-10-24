@@ -60,5 +60,9 @@ main { max-width: 860px; margin: 0 auto; padding: 2rem 1.5rem; }
 .pager a { color: var(--accent); text-decoration: none; }
 .pager-label { color: var(--primary); opacity: 0.7; font-size: 0.9rem; }
 
+.text-section { padding: 2rem 0; }
+.text-section h2 { font-family: "Hiragino Mincho ProN", serif; color: var(--primary); }
+.pcms-section + .pcms-section { margin-top: 1rem; }
+
 .site-footer { text-align: center; padding: 2rem; color: var(--primary); }
 .copyright { font-size: 0.85rem; opacity: 0.7; }

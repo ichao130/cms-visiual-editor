@@ -25,6 +25,19 @@ import indexTpl from "../../../../themes/sample-cafe/templates/index.html?raw";
 import pageTpl from "../../../../themes/sample-cafe/templates/page.html?raw";
 import postTpl from "../../../../themes/sample-cafe/templates/post.html?raw";
 import archiveTpl from "../../../../themes/sample-cafe/templates/archive.html?raw";
+import secHero from "../../../../themes/sample-cafe/sections/hero.html?raw";
+import secNews from "../../../../themes/sample-cafe/sections/news.html?raw";
+import secMenu from "../../../../themes/sample-cafe/sections/menu.html?raw";
+import secGallery from "../../../../themes/sample-cafe/sections/gallery.html?raw";
+import secText from "../../../../themes/sample-cafe/sections/text.html?raw";
+
+const SECTIONS: Record<string, string> = {
+  hero: secHero,
+  news: secNews,
+  menu: secMenu,
+  gallery: secGallery,
+  text: secText,
+};
 import themeJson from "../../../../themes/sample-cafe/theme.json";
 import previewCss from "../../../../themes/sample-cafe/assets/style.css?raw";
 
@@ -67,19 +80,23 @@ const defaultContent: ContentItem[] = [
 const defaultSettings: SiteSettings = {
   pages: {
     index: {
-      fields: {
-        "hero.image": "media/sample-beans.svg",
-        "hero.heading": "朝の一杯を、ていねいに。",
-        "hero.lead": "駅前の小さな自家焙煎珈琲店です。",
-        "hero.cta_label": "メニューを見る",
-        "hero.cta_url": "/page/about/",
-        "news.title": "お知らせ",
-        "menu.title": "ドリンク",
-        "gallery.title": "店内のようす",
-      },
-      sections: [
+      instances: [
         {
-          id: "menu",
+          id: "hero-1",
+          type: "hero",
+          fields: {
+            image: "media/sample-beans.svg",
+            heading: "朝の一杯を、ていねいに。",
+            lead: "駅前の小さな自家焙煎珈琲店です。",
+            cta_label: "メニューを見る",
+            cta_url: "/page/about/",
+          },
+        },
+        { id: "news-1", type: "news", fields: { title: "お知らせ" } },
+        {
+          id: "menu-1",
+          type: "menu",
+          fields: { title: "ドリンク" },
           repeats: {
             items: [
               { name: "ブレンドコーヒー", price: "480円", note: "やさしい口当たり。" },
@@ -89,7 +106,9 @@ const defaultSettings: SiteSettings = {
           },
         },
         {
-          id: "gallery",
+          id: "gallery-1",
+          type: "gallery",
+          fields: { title: "店内のようす" },
           repeats: {
             photos: [
               { image: "media/sample-beans.svg" },
@@ -177,6 +196,7 @@ function outputCount(): number {
       config: themeJson,
       layout,
       templates: { index: indexTpl, page: pageTpl, post: postTpl, archive: archiveTpl },
+      sections: SECTIONS,
       assets: ["assets/style.css"],
     },
     menus: loadMenus(),
@@ -200,6 +220,7 @@ export function createMockApi(): PcmsApi {
           config: themeJson,
           layout,
           templates: { index: indexTpl, page: pageTpl, post: postTpl, archive: archiveTpl },
+      sections: SECTIONS,
           assets: ["assets/style.css"],
         },
         content: loadContent(),

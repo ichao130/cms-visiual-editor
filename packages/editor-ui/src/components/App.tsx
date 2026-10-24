@@ -21,17 +21,26 @@ import {
   type EditorTarget,
 } from "../state/editorState.js";
 import {
+  addInstance,
+  moveInstance,
+  removeInstance,
   setField,
+  setInstanceField,
+  setInstanceRepeat,
   setRepeatRows,
   setSectionOrder,
+  toggleInstanceHidden,
   toggleSectionHidden,
 } from "../state/mutations.js";
+import { parseSectionSchema } from "@pcms/engine";
 import { renderPreview, schemaForPage } from "../preview/render.js";
 import { MediaContext, useMediaLibrary } from "../media/MediaContext.js";
 import { Toolbar } from "./Toolbar.js";
 import { SectionList, type SectionRow } from "./SectionList.js";
 import { Preview } from "./Preview.js";
 import { SettingsPanel } from "./SettingsPanel.js";
+import { SectionCanvas, type InstanceRow } from "./SectionCanvas.js";
+import { InstanceSettings } from "./InstanceSettings.js";
 import { ContentForm } from "./ContentForm.js";
 import { NewContentModal } from "./NewContentModal.js";
 import { ContentTypeManager } from "./ContentTypeManager.js";
@@ -165,6 +174,95 @@ export function App({ api }: AppProps) {
       setDirty(true);
     },
     [commit, doc, pageId],
+  );
+
+  // --- Composed-page (section instances) editing ---------------------------
+
+  const catalog: SectionSchema[] = useMemo(() => {
+    const sections = project?.theme.sections ?? {};
+    return Object.entries(sections).map(([type, html]) =>
+      parseSectionSchema(type, html),
+    );
+  }, [project]);
+
+  const schemaByType = useMemo(() => {
+    const m = new Map<string, SectionSchema>();
+    for (const s of catalog) m.set(s.id, s);
+    return m;
+  }, [catalog]);
+
+  const composed = target?.kind === "page" && page.instances != null;
+  const instances = page.instances ?? [];
+  const instanceRows: InstanceRow[] = instances.map((inst) => ({
+    id: inst.id,
+    type: inst.type,
+    label: schemaByType.get(inst.type)?.label ?? inst.type,
+    hidden: inst.hidden === true,
+  }));
+  const selectedInstance = instances.find((i) => i.id === selectedId) ?? null;
+  const selectedInstanceSchema = selectedInstance
+    ? schemaByType.get(selectedInstance.type) ?? null
+    : null;
+
+  const onToggleInstanceHidden = useCallback(
+    (id: string) => {
+      commit({ ...doc, settings: toggleInstanceHidden(doc.settings, pageId, id) });
+      setDirty(true);
+    },
+    [commit, doc, pageId],
+  );
+
+  const onMoveInstance = useCallback(
+    (from: number, to: number) => {
+      commit({ ...doc, settings: moveInstance(doc.settings, pageId, from, to) });
+      setDirty(true);
+    },
+    [commit, doc, pageId],
+  );
+
+  const onDeleteInstance = useCallback(
+    (id: string) => {
+      commit({ ...doc, settings: removeInstance(doc.settings, pageId, id) });
+      setSelectedId((cur) => (cur === id ? null : cur));
+      setDirty(true);
+    },
+    [commit, doc, pageId],
+  );
+
+  const onAddInstance = useCallback(
+    (type: string) => {
+      const settings = addInstance(doc.settings, pageId, type);
+      commit({ ...doc, settings });
+      const list = settings.pages[pageId]?.instances ?? [];
+      const added = list[list.length - 1];
+      if (added) setSelectedId(added.id);
+      setDirty(true);
+    },
+    [commit, doc, pageId],
+  );
+
+  const onInstanceField = useCallback(
+    (path: string, value: string) => {
+      if (!selectedId) return;
+      commit(
+        { ...doc, settings: setInstanceField(doc.settings, pageId, selectedId, path, value) },
+        `inst:${selectedId}:${path}`,
+      );
+      setDirty(true);
+    },
+    [commit, doc, pageId, selectedId],
+  );
+
+  const onInstanceRepeat = useCallback(
+    (name: string, rows: Row[]) => {
+      if (!selectedId) return;
+      commit(
+        { ...doc, settings: setInstanceRepeat(doc.settings, pageId, selectedId, name, rows) },
+        `instrep:${selectedId}:${name}`,
+      );
+      setDirty(true);
+    },
+    [commit, doc, pageId, selectedId],
   );
 
   // --- Content-target editing ----------------------------------------------
@@ -330,7 +428,23 @@ export function App({ api }: AppProps) {
           onSave={onSave}
         />
       <div className="pcms-columns">
-        {target.kind === "page" ? (
+        {target.kind !== "page" ? (
+          <nav className="pcms-sections">
+            <h2 className="pcms-col__title">{t("content.outline")}</h2>
+            <p className="pcms-empty">{t("content.outline.hint")}</p>
+          </nav>
+        ) : composed ? (
+          <SectionCanvas
+            instances={instanceRows}
+            catalog={catalog.map((c) => ({ type: c.id, label: c.label ?? c.id }))}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+            onToggleHidden={onToggleInstanceHidden}
+            onMove={onMoveInstance}
+            onDelete={onDeleteInstance}
+            onAdd={onAddInstance}
+          />
+        ) : (
           <SectionList
             sections={sectionRows}
             selectedId={selectedId}
@@ -338,16 +452,25 @@ export function App({ api }: AppProps) {
             onToggleHidden={onToggleHidden}
             onMove={onMove}
           />
-        ) : (
-          <nav className="pcms-sections">
-            <h2 className="pcms-col__title">{t("content.outline")}</h2>
-            <p className="pcms-empty">{t("content.outline.hint")}</p>
-          </nav>
         )}
 
         <Preview html={previewHtml} selectedSection={selectedId} />
 
-        {target.kind === "page" ? (
+        {target.kind === "page" && composed ? (
+          selectedInstance ? (
+            <InstanceSettings
+              schema={selectedInstanceSchema}
+              instance={selectedInstance}
+              onFieldChange={onInstanceField}
+              onRepeatChange={onInstanceRepeat}
+            />
+          ) : (
+            <aside className="pcms-settings">
+              <h2 className="pcms-col__title">{t("settings.title")}</h2>
+              <p className="pcms-empty">{t("settings.empty")}</p>
+            </aside>
+          )
+        ) : target.kind === "page" ? (
           <SettingsPanel
             section={selectedSection}
             page={page}

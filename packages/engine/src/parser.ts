@@ -17,6 +17,28 @@ import { detectFieldType } from "./field-type.js";
  * This is pure: it reads an HTML string and returns plain data. It does not
  * mutate anything and has no I/O, so it runs identically in Node and the browser.
  */
+/**
+ * Parse a reusable section file (theme `sections/<type>.html`) into one section
+ * schema. The whole file is a single section; its label comes from the root
+ * element's `data-label`.
+ */
+export function parseSectionSchema(type: string, html: string): SectionSchema {
+  const root = parse(html, { comment: false });
+  const claimed = new Set<HTMLElement>();
+  const section: SectionSchema = {
+    id: type,
+    fields: collectFields(root, claimed),
+    loops: collectLoops(root, claimed),
+    repeats: collectRepeats(root, claimed),
+  };
+  const firstEl = root.childNodes.find(
+    (n) => (n as HTMLElement).tagName != null,
+  ) as HTMLElement | undefined;
+  const label = firstEl?.getAttribute(ATTR.label);
+  section.label = label ?? type;
+  return section;
+}
+
 export function parseTemplate(name: string, html: string): ThemeTemplateSchema {
   const root = parse(html, { comment: false });
 

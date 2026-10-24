@@ -7,8 +7,13 @@
  */
 
 export { ATTR, EDITOR_ATTRS } from "./attributes.js";
-export { parseTemplate } from "./parser.js";
-export { renderTemplate, type RenderOptions } from "./renderer.js";
+export { parseTemplate, parseSectionSchema } from "./parser.js";
+export {
+  renderTemplate,
+  renderComposedPage,
+  type RenderOptions,
+  type ComposedScope,
+} from "./renderer.js";
 export {
   resolveField,
   isEmpty,

@@ -1,5 +1,10 @@
 import { parse, type HTMLElement, type Node } from "node-html-parser";
-import type { ContentItem, FieldValue, MenuItem } from "@pcms/shared";
+import type {
+  ContentItem,
+  FieldValue,
+  MenuItem,
+  SectionInstance,
+} from "@pcms/shared";
 import { ATTR, EDITOR_ATTRS } from "./attributes.js";
 import { detectFieldType } from "./field-type.js";
 import { escapeHtml } from "./markdown.js";
@@ -51,6 +56,51 @@ function renderFragment(html: string, scope: RenderScope): string {
   reorderSections(root, scope.page.sectionOrder);
   processTree(root, scope);
   return root.toString();
+}
+
+/** Scope for a composed page — like RenderScope but the page is per-instance. */
+export type ComposedScope = Omit<RenderScope, "page" | "editable">;
+
+/**
+ * Render a composed page: each section instance is rendered from the theme's
+ * `sections/<type>` with its own field/repeat values, wrapped in a container,
+ * then placed in the layout slot. In editable mode each wrapper carries
+ * `data-pcms-section="<instance id>"` so the editor can select it.
+ */
+export function renderComposedPage(
+  instances: SectionInstance[],
+  sections: Record<string, string>,
+  scope: ComposedScope,
+  options: RenderOptions = {},
+): string {
+  const parts: string[] = [];
+  for (const inst of instances) {
+    if (inst.hidden) continue;
+    const tpl = sections[inst.type];
+    if (tpl == null) continue;
+    const instScope: RenderScope = {
+      ...scope,
+      page: {
+        fields: inst.fields,
+        sections: inst.repeats ? [{ id: inst.id, repeats: inst.repeats }] : [],
+      },
+      editable: options.markEditable ? true : undefined,
+    };
+    const inner = renderFragment(tpl, instScope);
+    const attrs = options.markEditable ? ` data-pcms-section="${inst.id}"` : "";
+    parts.push(
+      `<div class="pcms-section pcms-section--${inst.type}"${attrs}>${inner}</div>`,
+    );
+  }
+  const body = parts.join("\n");
+
+  if (options.layout == null) return body;
+
+  const layoutRoot = parse(options.layout, { comment: false });
+  const slot = layoutRoot.querySelector(`[${ATTR.slot}]`);
+  if (slot) slot.set_content(body);
+  processTree(layoutRoot, { ...scope, page: {} } as RenderScope);
+  return layoutRoot.toString();
 }
 
 /**
