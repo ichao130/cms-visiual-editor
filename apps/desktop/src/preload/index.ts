@@ -37,6 +37,12 @@ const api: PcmsApi = {
   publishSite: () => ipcRenderer.invoke("pcms:publishSite"),
   listPublishHistory: () => ipcRenderer.invoke("pcms:listPublishHistory"),
   rollbackPublish: (id: string) => ipcRenderer.invoke("pcms:rollbackPublish", id),
+  aiThemeify: (html: string) => ipcRenderer.invoke("pcms:aiThemeify", html),
+  aiDraft: (prompt: string) => ipcRenderer.invoke("pcms:aiDraft", prompt),
+  aiRewrite: (text: string, instruction: string) =>
+    ipcRenderer.invoke("pcms:aiRewrite", text, instruction),
+  aiSeo: (title: string, bodyHtml: string) =>
+    ipcRenderer.invoke("pcms:aiSeo", title, bodyHtml),
 };
 
 contextBridge.exposeInMainWorld("pcms", api);

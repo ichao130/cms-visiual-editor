@@ -7,7 +7,7 @@ import type {
   SiteSettings,
   TaxonomyDef,
 } from "@pcms/shared";
-import type { ThemeBundle } from "@pcms/engine";
+import type { AiIssue, ThemeBundle } from "@pcms/engine";
 
 /**
  * The project data the editor works on. The theme and content are read-only
@@ -60,6 +60,23 @@ export interface PcmsApi {
   listPublishHistory(): Promise<PublishHistoryEntry[]>;
   /** Re-publish a previous snapshot. */
   rollbackPublish(id: string): Promise<PublishReport>;
+
+  // AI assist. These go through the Firebase proxy in production (no API key in
+  // the app); offline heuristics stand in for the evaluation build.
+  aiThemeify(html: string): Promise<AiThemeifyResult>;
+  aiDraft(prompt: string): Promise<string>;
+  aiRewrite(text: string, instruction: string): Promise<string>;
+  aiSeo(title: string, bodyHtml: string): Promise<AiSeoResult>;
+}
+
+export interface AiThemeifyResult {
+  html: string;
+  issues: AiIssue[];
+}
+
+export interface AiSeoResult {
+  title: string;
+  description: string;
 }
 
 /** A processed image ready to persist. Bytes are the final WebP file. */

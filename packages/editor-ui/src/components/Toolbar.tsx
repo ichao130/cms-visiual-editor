@@ -13,6 +13,7 @@ interface ToolbarProps {
   onManageMenus: () => void;
   onManageTax: () => void;
   onOpenMedia: () => void;
+  onAi: () => void;
   onPublish: () => void;
   canUndo: boolean;
   canRedo: boolean;
@@ -33,6 +34,7 @@ export function Toolbar({
   onManageMenus,
   onManageTax,
   onOpenMedia,
+  onAi,
   onPublish,
   canUndo,
   canRedo,
@@ -90,6 +92,9 @@ export function Toolbar({
       </button>
       <button type="button" onClick={onOpenMedia}>
         {t("media.title")}
+      </button>
+      <button type="button" className="pcms-aibtn" onClick={onAi}>
+        {t("toolbar.ai")}
       </button>
       <button type="button" onClick={onUndo} disabled={!canUndo}>
         {t("toolbar.undo")}

@@ -30,3 +30,11 @@ export {
   type ThemeBundle,
   type GeneratedSite,
 } from "./generator.js";
+export {
+  themeifyHtml,
+  validateThemeHtml,
+  draftText,
+  rewriteText,
+  seoSuggest,
+  type AiIssue,
+} from "./ai.js";

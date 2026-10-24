@@ -46,6 +46,21 @@ button {
 button:disabled { opacity: 0.45; cursor: default; }
 button.pcms-primary { background: var(--pcms-accent); color: #fff; border-color: var(--pcms-accent); }
 button.pcms-publishbtn { background: #1a7f37; color: #fff; border-color: #1a7f37; }
+button.pcms-aibtn { background: #6b46c1; color: #fff; border-color: #6b46c1; }
+
+/* AI panel */
+.pcms-ai__note { font-size: 0.8rem; color: #4b3b7a; background: #f3f0fa; border-radius: 6px; padding: 0.45rem 0.6rem; margin: 0 0 0.75rem; }
+.pcms-ai__tabs { display: flex; gap: 0.3rem; margin-bottom: 0.75rem; }
+.pcms-ai__tabs button.is-active { background: var(--pcms-accent); color: #fff; border-color: var(--pcms-accent); }
+.pcms-ai__target { font-size: 0.85rem; }
+.pcms-ai__box { border: 1px solid var(--pcms-border); border-radius: 6px; padding: 0.6rem; margin-top: 0.3rem; font-size: 0.9rem; max-height: 180px; overflow: auto; }
+.pcms-ai__before, .pcms-ai__result { margin-top: 0.85rem; }
+.pcms-ai__code { font-family: ui-monospace, monospace; font-size: 0.78rem; }
+.pcms-ai__ok { color: #1a7f37; font-size: 0.82rem; }
+.pcms-ai__assist select, .pcms-ai__assist input, .pcms-ai__assist textarea,
+.pcms-ai__themeify textarea, .pcms-ai__result input, .pcms-ai__result textarea {
+  width: 100%; font: inherit; padding: 0.4rem 0.5rem; border: 1px solid var(--pcms-border); border-radius: 6px;
+}
 
 /* Publish panel */
 .pcms-publish__target, .pcms-publish__actions, .pcms-publish__result, .pcms-publish__history { margin-bottom: 1rem; }

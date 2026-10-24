@@ -7,7 +7,14 @@ import type {
   TaxonomyDef,
 } from "@pcms/shared";
 import { BUILTIN_CONTENT_TYPES, BUILTIN_TAXONOMIES } from "@pcms/shared";
-import { generateSite } from "@pcms/engine";
+import {
+  generateSite,
+  themeifyHtml,
+  validateThemeHtml,
+  draftText,
+  rewriteText,
+  seoSuggest,
+} from "@pcms/engine";
 import type {
   DeployConfigView,
   MediaUpload,
@@ -274,6 +281,19 @@ export function createMockApi(): PcmsApi {
     },
     async rollbackPublish(): Promise<PublishReport> {
       return { ok: true, issues: [], uploaded: 0, deleted: 0, unchanged: 0, target: MOCK_TARGET };
+    },
+    async aiThemeify(html: string) {
+      const themed = themeifyHtml(html);
+      return { html: themed, issues: validateThemeHtml(themed) };
+    },
+    async aiDraft(prompt: string) {
+      return draftText(prompt);
+    },
+    async aiRewrite(text: string, instruction: string) {
+      return rewriteText(text, instruction);
+    },
+    async aiSeo(title: string, bodyHtml: string) {
+      return seoSuggest(title, bodyHtml);
     },
     async deleteContent(type: string, slug: string): Promise<void> {
       const next = loadContent().filter((i) => !(i.type === type && i.slug === slug));

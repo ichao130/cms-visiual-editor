@@ -49,6 +49,7 @@ import { ContentTypeManager } from "./ContentTypeManager.js";
 import { MenuManager } from "./MenuManager.js";
 import { TaxonomyManager } from "./TaxonomyManager.js";
 import { PublishPanel } from "./PublishPanel.js";
+import { AiPanel } from "./AiPanel.js";
 import { t } from "../i18n.js";
 
 type Row = Record<string, FieldValue>;
@@ -75,6 +76,7 @@ export function App({ api }: AppProps) {
   const [menusOpen, setMenusOpen] = useState(false);
   const [taxOpen, setTaxOpen] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
   const [insertAt, setInsertAt] = useState<number | null>(null);
   const [focusTarget, setFocusTarget] = useState<string | null>(null);
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
@@ -508,6 +510,7 @@ export function App({ api }: AppProps) {
           onManageMenus={() => setMenusOpen(true)}
           onManageTax={() => setTaxOpen(true)}
           onOpenMedia={mediaLib.value.openLibrary}
+          onAi={() => setAiOpen(true)}
           onPublish={() => setPublishOpen(true)}
           canUndo={canUndo}
           canRedo={canRedo}
@@ -617,6 +620,21 @@ export function App({ api }: AppProps) {
         />
       )}
       {publishOpen && <PublishPanel api={api} onClose={() => setPublishOpen(false)} />}
+      {aiOpen && (
+        <AiPanel
+          api={api}
+          content={
+            target.kind === "content" && currentItem
+              ? {
+                  title: String(currentItem.fields.title ?? currentItem.slug),
+                  body: currentItem.body,
+                  onApplyBody: (value) => onContentChange("body", value),
+                }
+              : undefined
+          }
+          onClose={() => setAiOpen(false)}
+        />
+      )}
       {insertAt != null && (
         <AddSectionModal
           catalog={catalog.map((c) => ({ type: c.id, label: c.label ?? c.id }))}

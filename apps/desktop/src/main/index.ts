@@ -1,6 +1,13 @@
 import { join } from "node:path";
 import { app, BrowserWindow, ipcMain, shell } from "electron";
 import { autoUpdater } from "electron-updater";
+import {
+  themeifyHtml,
+  validateThemeHtml,
+  draftText,
+  rewriteText,
+  seoSuggest,
+} from "@pcms/engine";
 import type {
   ContentItem,
   ContentTypeDef,
@@ -127,6 +134,20 @@ function registerIpc(): void {
   ipcMain.handle("pcms:listPublishHistory", () => listPublishHistory());
   ipcMain.handle("pcms:rollbackPublish", (_event, id: string) =>
     rollbackPublish(id),
+  );
+
+  // AI assist. Offline heuristics for the evaluation build; a real build would
+  // forward these to the Firebase AI proxy (no API key in the app).
+  ipcMain.handle("pcms:aiThemeify", (_event, html: string) => {
+    const themed = themeifyHtml(html);
+    return { html: themed, issues: validateThemeHtml(themed) };
+  });
+  ipcMain.handle("pcms:aiDraft", (_event, prompt: string) => draftText(prompt));
+  ipcMain.handle("pcms:aiRewrite", (_event, text: string, instruction: string) =>
+    rewriteText(text, instruction),
+  );
+  ipcMain.handle("pcms:aiSeo", (_event, title: string, bodyHtml: string) =>
+    seoSuggest(title, bodyHtml),
   );
 }
 
