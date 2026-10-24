@@ -4,6 +4,7 @@ dist/
 .DS_Store
 coverage/
 out/
+release/
 .pcms/
 
 # Unrelated nested repo that appeared on disk; never track it

@@ -33,7 +33,9 @@ import type { MediaUpload, ProjectData } from "@pcms/editor-ui";
 
 function themeDir(): string {
   if (process.env.PCMS_THEME_DIR) return process.env.PCMS_THEME_DIR;
-  // From out/main back up to the repo root, then themes/sample-cafe.
+  // Packaged: the theme is shipped as an extraResource under resources/.
+  if (app.isPackaged) return join(process.resourcesPath, "themes/sample-cafe");
+  // Dev: from out/main back up to the repo root, then themes/sample-cafe.
   return resolve(__dirname, "../../../..", "themes/sample-cafe");
 }
 

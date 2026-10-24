@@ -1,0 +1,63 @@
+# electron-builder configuration.
+# NOTE: product name, appId, icon, and the publish owner/repo are placeholders
+# (製品名は未決). Replace OWNER_TBD / REPO_TBD and add build/icon.png before a
+# real release. Code signing is driven by env/CI secrets and is skipped when
+# none are present, so unsigned local builds still succeed.
+appId: com.pcms.app
+productName: pcms
+copyright: Copyright © 2026 pcms
+
+directories:
+  output: release
+  buildResources: build
+
+# electron-vite builds main/preload/renderer into out/.
+files:
+  - out/**/*
+  - package.json
+
+# The default theme lives outside the app in the monorepo; ship it as a resource.
+extraResources:
+  - from: ../../themes/sample-cafe
+    to: themes/sample-cafe
+
+# ssh2's optional native crypto binding must run from disk, not the asar.
+asarUnpack:
+  - "**/node_modules/ssh2/**"
+
+mac:
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+    - target: zip
+      arch: [arm64, x64]
+  category: public.app-category.productivity
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+
+linux:
+  target:
+    - target: AppImage
+      arch: [x64]
+    - target: deb
+      arch: [x64]
+  category: Utility
+  maintainer: pcms
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+
+# Auto-update feed + release target. Set owner/repo before releasing.
+publish:
+  provider: github
+  owner: OWNER_TBD
+  repo: REPO_TBD

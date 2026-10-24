@@ -1,5 +1,6 @@
 import { join } from "node:path";
 import { app, BrowserWindow, ipcMain, shell } from "electron";
+import { autoUpdater } from "electron-updater";
 import type {
   ContentItem,
   ContentTypeDef,
@@ -129,10 +130,23 @@ function registerIpc(): void {
   );
 }
 
+/**
+ * Check for updates in the background. Only in a packaged build — never in dev
+ * or the smoke check — and it needs the publish feed configured in
+ * electron-builder.yml (electron-updater).
+ */
+function maybeCheckForUpdates(): void {
+  if (!app.isPackaged || process.env.PCMS_SMOKE === "1") return;
+  autoUpdater.checkForUpdatesAndNotify().catch((err) => {
+    console.error("update check failed", err);
+  });
+}
+
 void app.whenReady().then(() => {
   registerIpc();
   const win = createWindow();
   if (process.env.PCMS_SMOKE === "1") runSmokeCheck(win);
+  else maybeCheckForUpdates();
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
