@@ -219,7 +219,11 @@ function processElement(el: HTMLElement, scope: RenderScope): void {
   // 7. In editable (preview) mode, leave markers the editor can click-map.
   if (scope.editable) {
     if (sectionId != null) el.setAttribute("data-pcms-section", sectionId);
-    if (fieldPath != null) el.setAttribute("data-pcms-field", fieldPath);
+    if (fieldPath != null) {
+      el.setAttribute("data-pcms-field", fieldPath);
+      // The field type lets inline editing read the right value (text vs HTML).
+      el.setAttribute("data-pcms-fieldtype", detectFieldType(el));
+    }
   }
 
   // 8. strip editor-only attributes from the published output.

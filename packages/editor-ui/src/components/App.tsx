@@ -75,6 +75,7 @@ export function App({ api }: AppProps) {
   const [taxOpen, setTaxOpen] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
   const [insertAt, setInsertAt] = useState<number | null>(null);
+  const [focusTarget, setFocusTarget] = useState<string | null>(null);
   const { doc, commit, undo, redo, reset, canUndo, canRedo } =
     useEditorHistory<EditorState>(EMPTY_STATE);
   const mediaLib = useMediaLibrary(api);
@@ -370,6 +371,8 @@ export function App({ api }: AppProps) {
             source?: string;
             type?: string;
             section?: string | null;
+            field?: string | null;
+            value?: string;
             op?: string;
             id?: string;
             toIndex?: number;
@@ -380,6 +383,28 @@ export function App({ api }: AppProps) {
 
       if (d.type === "select") {
         if (d.section) setSelectedId(d.section);
+        return;
+      }
+      if (d.type === "focusfield" && d.field) {
+        // Deferred so a double-click (inline edit) can cancel it first.
+        if (d.section) setSelectedId(d.section);
+        setFocusTarget(composed ? `inst-${d.section}-${d.field}` : `field-${d.field}`);
+        return;
+      }
+      if (d.type === "edit" && d.field) {
+        const value = d.value ?? "";
+        if (composed && d.section) {
+          commit(
+            { ...doc, settings: setInstanceField(doc.settings, pageId, d.section, d.field, value) },
+            `edit:${d.section}:${d.field}`,
+          );
+        } else if (!composed) {
+          commit(
+            { ...doc, settings: setField(doc.settings, pageId, d.field, value) },
+            `edit:${pageId}:${d.field}`,
+          );
+        }
+        setDirty(true);
         return;
       }
       if (!composed) return;
@@ -397,7 +422,18 @@ export function App({ api }: AppProps) {
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [composed, instances, onMoveInstance, onDeleteInstance]);
+  }, [composed, instances, onMoveInstance, onDeleteInstance, commit, doc, pageId]);
+
+  // Focus a field in the right panel after a field click in the preview.
+  useEffect(() => {
+    if (!focusTarget) return;
+    const el = document.getElementById(focusTarget) as HTMLElement | null;
+    if (el) {
+      el.focus();
+      el.scrollIntoView({ block: "nearest" });
+    }
+    setFocusTarget(null);
+  }, [focusTarget, selectedId]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

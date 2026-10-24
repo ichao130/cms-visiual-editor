@@ -4,13 +4,14 @@
  * sandbox="allow-scripts" (no same-origin), so it talks to the editor only via
  * postMessage.
  *
- * It maps hover/click on `data-pcms-section` / `data-pcms-field` to a selection,
- * drives the per-section tools (up/down/delete), the "+" insert markers and
- * drag-to-reorder, and accepts a selection from the editor to highlight.
+ * Responsibilities: hover/click select, per-section tools (up/down/delete), "+"
+ * insert markers, drag-to-reorder, and inline editing (double-click a text /
+ * richtext field → contenteditable → confirm posts the new value).
  */
 export const EDITOR_OVERLAY_CSS = `
 [data-pcms-hover]{outline:2px solid #2f6feb!important;outline-offset:-2px!important;cursor:pointer;}
 [data-pcms-selected]{outline:2px solid #1a7f37!important;outline-offset:-2px!important;}
+.pcms-editing{outline:2px solid #1a7f37!important;outline-offset:-2px!important;background:rgba(26,127,55,.06);cursor:text;}
 .pcms-section{position:relative;}
 .pcms-section--hidden{opacity:.4;}
 .pcms-sec-tools{position:absolute;top:4px;right:4px;z-index:10;display:flex;gap:2px;background:rgba(255,255,255,.96);border:1px solid #d0d7de;border-radius:6px;padding:2px;opacity:0;transition:opacity .1s;box-shadow:0 1px 4px rgba(0,0,0,.15);}
@@ -29,7 +30,7 @@ body.pcms-dragging .pcms-insert{height:18px;outline:1px dashed #9db6ef;}
 export const EDITOR_RUNTIME = `
 (function(){
   var SEL='[data-pcms-section],[data-pcms-field]';
-  var hovered=null, selected=null, dragId=null;
+  var hovered=null, selected=null, dragId=null, editing=null, clickTimer=null;
   function closestEditable(t){ return (t && t.closest) ? t.closest(SEL) : null; }
   function post(o){ o.source='pcms-preview'; parent.postMessage(o,'*'); }
   function setHover(el){
@@ -45,58 +46,104 @@ export const EDITOR_RUNTIME = `
   }
   function clearDrop(){ var e=document.querySelector('.pcms-insert--over'); if(e) e.classList.remove('pcms-insert--over'); }
 
+  function startEdit(el){
+    if(editing && editing!==el) finishEdit();
+    editing=el;
+    setHover(null);
+    el.classList.add('pcms-editing');
+    el.setAttribute('contenteditable','true');
+    el.focus();
+    try{ var r=document.createRange(); r.selectNodeContents(el); var s=getSelection(); s.removeAllRanges(); s.addRange(r); }catch(_){}
+  }
+  function finishEdit(){
+    if(!editing) return;
+    var el=editing; editing=null;
+    el.removeAttribute('contenteditable');
+    el.classList.remove('pcms-editing');
+    var type=el.getAttribute('data-pcms-fieldtype');
+    var value=(type==='richtext') ? el.innerHTML : (el.innerText||'').replace(/\\n+$/,'');
+    var sectionEl=el.closest('[data-pcms-section]');
+    post({type:'edit',
+      section: sectionEl?sectionEl.getAttribute('data-pcms-section'):null,
+      field: el.getAttribute('data-pcms-field'), value:value});
+  }
+
   document.addEventListener('mousemove', function(e){
-    if(dragId) return;
+    if(dragId||editing) return;
     setHover(closestEditable(e.target));
   }, true);
-  document.addEventListener('mouseleave', function(){ setHover(null); }, true);
+  document.addEventListener('mouseleave', function(){ if(!editing) setHover(null); }, true);
+
+  document.addEventListener('dblclick', function(e){
+    var el=e.target.closest ? e.target.closest('[data-pcms-field]') : null;
+    if(!el) return;
+    var type=el.getAttribute('data-pcms-fieldtype');
+    if(type!=='text' && type!=='richtext') return;
+    e.preventDefault(); e.stopPropagation();
+    if(clickTimer){ clearTimeout(clickTimer); clickTimer=null; } // cancel the pending field focus
+    startEdit(el);
+  }, true);
+  document.addEventListener('blur', function(e){ if(editing && e.target===editing) finishEdit(); }, true);
+  document.addEventListener('keydown', function(e){
+    if(!editing) return;
+    if(e.key==='Escape'){ e.preventDefault(); editing.blur(); }
+    else if(e.key==='Enter' && editing.getAttribute('data-pcms-fieldtype')==='text'){ e.preventDefault(); editing.blur(); }
+  }, true);
 
   document.addEventListener('click', function(e){
-    var op = e.target.closest ? e.target.closest('[data-pcms-op]') : null;
+    var op=e.target.closest ? e.target.closest('[data-pcms-op]') : null;
     if(op){ e.preventDefault(); e.stopPropagation();
-      post({type:'op', op: op.getAttribute('data-pcms-op'), id: op.getAttribute('data-pcms-id')}); return; }
-    var ins = e.target.closest ? e.target.closest('[data-pcms-insert]') : null;
+      post({type:'op', op:op.getAttribute('data-pcms-op'), id:op.getAttribute('data-pcms-id')}); return; }
+    var ins=e.target.closest ? e.target.closest('[data-pcms-insert]') : null;
     if(ins){ e.preventDefault(); e.stopPropagation();
-      post({type:'insert', index: Number(ins.getAttribute('data-pcms-insert'))}); return; }
-    var a = e.target.closest ? e.target.closest('a') : null;
+      post({type:'insert', index:Number(ins.getAttribute('data-pcms-insert'))}); return; }
+    // Clicks inside the field being edited place the caret — leave them alone.
+    if(editing && (e.target===editing || editing.contains(e.target))) return;
+    var a=e.target.closest ? e.target.closest('a') : null;
     if(a) e.preventDefault();
     if(e.target.closest && e.target.closest('.pcms-sec-tools')) return;
-    var el = closestEditable(e.target);
+    var el=closestEditable(e.target);
     if(!el) return;
     e.preventDefault(); e.stopPropagation();
-    var sectionEl = el.closest('[data-pcms-section]');
-    var fieldEl = e.target.closest ? e.target.closest('[data-pcms-field]') : null;
+    var sectionEl=el.closest('[data-pcms-section]');
+    var fieldEl=e.target.closest ? e.target.closest('[data-pcms-field]') : null;
+    var section = sectionEl?sectionEl.getAttribute('data-pcms-section'):null;
+    var field = fieldEl?fieldEl.getAttribute('data-pcms-field'):null;
     setSelected(sectionEl || el);
-    post({type:'select',
-      section: sectionEl ? sectionEl.getAttribute('data-pcms-section') : null,
-      field: fieldEl ? fieldEl.getAttribute('data-pcms-field') : null});
+    post({type:'select', section:section, field:null});
+    // Focus the panel field after a delay, so a double-click (inline edit)
+    // can cancel it instead of stealing focus from the contenteditable.
+    if(field){
+      if(clickTimer) clearTimeout(clickTimer);
+      clickTimer=setTimeout(function(){ clickTimer=null; post({type:'focusfield', section:section, field:field}); }, 220);
+    }
   }, true);
 
   document.addEventListener('dragstart', function(e){
-    var h = e.target.closest ? e.target.closest('[data-pcms-drag]') : null;
+    var h=e.target.closest ? e.target.closest('[data-pcms-drag]') : null;
     if(!h) return;
-    dragId = h.getAttribute('data-pcms-drag');
+    dragId=h.getAttribute('data-pcms-drag');
     try{ e.dataTransfer.setData('text/plain', dragId); e.dataTransfer.effectAllowed='move'; }catch(_){}
     document.body.classList.add('pcms-dragging');
   }, true);
   document.addEventListener('dragend', function(){ dragId=null; document.body.classList.remove('pcms-dragging'); clearDrop(); }, true);
   document.addEventListener('dragover', function(e){
     if(!dragId) return;
-    var ins = e.target.closest ? e.target.closest('[data-pcms-insert]') : null;
+    var ins=e.target.closest ? e.target.closest('[data-pcms-insert]') : null;
     if(ins){ e.preventDefault(); clearDrop(); ins.classList.add('pcms-insert--over'); }
   }, true);
   document.addEventListener('drop', function(e){
     if(dragId){
-      var ins = e.target.closest ? e.target.closest('[data-pcms-insert]') : null;
-      if(ins){ e.preventDefault(); post({type:'move', id: dragId, toIndex: Number(ins.getAttribute('data-pcms-insert'))}); }
+      var ins=e.target.closest ? e.target.closest('[data-pcms-insert]') : null;
+      if(ins){ e.preventDefault(); post({type:'move', id:dragId, toIndex:Number(ins.getAttribute('data-pcms-insert'))}); }
     }
     dragId=null; document.body.classList.remove('pcms-dragging'); clearDrop();
   }, true);
 
   window.addEventListener('message', function(e){
-    var d = e.data || {};
+    var d=e.data||{};
     if(d.source!=='pcms-editor' || d.type!=='select') return;
-    var el = d.section ? document.querySelector('[data-pcms-section="'+d.section+'"]') : null;
+    var el=d.section ? document.querySelector('[data-pcms-section="'+d.section+'"]') : null;
     setSelected(el);
     if(el && el.scrollIntoView) el.scrollIntoView({block:'nearest',behavior:'smooth'});
   });

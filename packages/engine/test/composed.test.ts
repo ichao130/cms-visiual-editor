@@ -69,6 +69,7 @@ describe("renderComposedPage", () => {
       { layout, markEditable: true },
     );
     expect(html).toContain('data-pcms-section="i1"');
+    expect(html).toContain('data-pcms-fieldtype="text"'); // inline-edit type hint
     expect(html).toContain('data-pcms-drag="i1"'); // drag handle
     expect(html).toContain('data-pcms-op="del"'); // per-section tools
     expect(html).toContain('data-pcms-insert="0"'); // gap before first
