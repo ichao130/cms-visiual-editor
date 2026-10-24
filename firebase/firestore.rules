@@ -1,0 +1,48 @@
+rules_version = '2';
+
+// CLAUDE.md: 受信データはサイトの所有者以外が読めないこと. Submissions and usage are
+// written only by Cloud Functions (admin SDK bypasses rules); clients may read
+// only what they own, and may never write these collections directly.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // A site belongs to its owner (uid stored on the site doc).
+    match /sites/{siteId} {
+      function isOwner() {
+        return signedIn() && resource.data.ownerId == request.auth.uid;
+      }
+
+      allow read: if isOwner();
+      allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow update, delete: if isOwner();
+
+      // Form definitions: the owner manages them; the receiver reads via admin.
+      match /forms/{formId} {
+        allow read, write: if signedIn()
+          && get(/databases/$(database)/documents/sites/$(siteId)).data.ownerId == request.auth.uid;
+      }
+
+      // Received submissions: owner-read only, never client-write.
+      match /submissions/{submissionId} {
+        allow read: if signedIn()
+          && get(/databases/$(database)/documents/sites/$(siteId)).data.ownerId == request.auth.uid;
+        allow write: if false;
+      }
+    }
+
+    // AI usage counters: the user reads their own; only Functions write.
+    match /users/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow write: if false;
+
+      match /usage/{period} {
+        allow read: if signedIn() && request.auth.uid == uid;
+        allow write: if false;
+      }
+    }
+  }
+}

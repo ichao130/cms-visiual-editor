@@ -1,0 +1,25 @@
+{
+  "name": "@pcms/functions",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "lib/index.js",
+  "engines": {
+    "node": "20"
+  },
+  "scripts": {
+    "build": "node esbuild.config.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@pcms/engine": "workspace:*",
+    "@pcms/shared": "workspace:*",
+    "firebase-admin": "^13.0.1",
+    "firebase-functions": "^6.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "esbuild": "^0.28.2",
+    "typescript": "^5.7.2"
+  }
+}

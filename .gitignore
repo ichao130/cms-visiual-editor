@@ -7,5 +7,15 @@ out/
 release/
 .pcms/
 
+# Firebase build output + local emulator state
+firebase/functions/lib/
+firebase/.runtimeconfig.json
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+database-debug.log
+pubsub-debug.log
+
 # Unrelated nested repo that appeared on disk; never track it
 cms-visiual-editor/
