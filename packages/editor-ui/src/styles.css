@@ -171,7 +171,12 @@ button.pcms-aibtn { background: #6b46c1; color: #fff; border-color: #6b46c1; }
   padding: 0.5rem 0.4rem 0.5rem 0.7rem;
   border-bottom: 1px solid var(--pcms-border);
   background: #eaf1ff;
+  cursor: grab;
+  user-select: none;
 }
+.pcms-inline__head.is-dragging { cursor: grabbing; }
+/* Transparent cover over the iframe while dragging, so it keeps the mouse. */
+.pcms-inline__shield { position: absolute; inset: 0; z-index: 19; cursor: grabbing; }
 .pcms-inline__title { font-size: 0.85rem; font-weight: 600; }
 .pcms-inline__close {
   border: none;

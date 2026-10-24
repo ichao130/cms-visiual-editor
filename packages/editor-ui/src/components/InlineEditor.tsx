@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { FieldValue, SectionInstance, SectionSchema } from "@pcms/shared";
 import { SectionFields } from "./SectionFields.js";
 import { t } from "../i18n.js";
@@ -27,9 +27,9 @@ const MARGIN = 8;
 /**
  * Studio-style on-preview editor: a floating card anchored next to the selected
  * section. It renders the same fields as the right-hand panel (shared state via
- * SectionFields) and follows the section as the preview scrolls. The iframe is
- * untrusted, so this lives in the parent and positions itself from the rect the
- * preview runtime reports — it never reaches into the iframe.
+ * SectionFields), follows the section as the preview scrolls, and can be dragged
+ * by its header. The iframe is untrusted, so this lives in the parent and
+ * positions itself from the rect the preview runtime reports.
  */
 export function InlineEditor({
   schema,
@@ -39,6 +39,16 @@ export function InlineEditor({
   onRepeatChange,
   onClose,
 }: InlineEditorProps) {
+  // A manual position set by dragging overrides the anchored position until the
+  // selection changes (then we re-anchor to the new section).
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const drag = useRef<{ mx: number; my: number; ox: number; oy: number } | null>(null);
+
+  useEffect(() => {
+    setPos(null);
+  }, [instance.id]);
+
   // Close on Escape (unless a field is mid-edit inside the card).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -52,46 +62,92 @@ export function InlineEditor({
   }, [onClose]);
 
   const { rect, view } = anchor;
+
+  // Anchored position: beside the section, flipping / overlaying to stay in view.
   const rightX = rect.left + rect.width + GAP;
   const leftX = rect.left - CARD_W - GAP;
-  let x: number;
+  let ax: number;
   if (rightX + CARD_W <= view.w - MARGIN) {
-    x = rightX; // beside the section, to its right
+    ax = rightX;
   } else if (leftX >= MARGIN) {
-    x = leftX; // flipped to the left when the right would overflow
+    ax = leftX;
   } else {
-    x = Math.min(Math.max(MARGIN, rect.left + GAP), view.w - CARD_W - MARGIN); // overlay inside
+    ax = Math.min(Math.max(MARGIN, rect.left + GAP), view.w - CARD_W - MARGIN);
   }
-  const y = Math.min(Math.max(rect.top, MARGIN), Math.max(MARGIN, view.h - 80));
+  const ay = Math.min(Math.max(rect.top, MARGIN), Math.max(MARGIN, view.h - 80));
+
+  const x = pos ? pos.x : ax;
+  const y = pos ? pos.y : ay;
   const maxHeight = Math.max(160, view.h - y - MARGIN);
 
+  const onHeaderDown = useCallback(
+    (e: React.MouseEvent) => {
+      if ((e.target as HTMLElement).closest(".pcms-inline__close")) return;
+      e.preventDefault();
+      drag.current = { mx: e.clientX, my: e.clientY, ox: x, oy: y };
+      setDragging(true);
+    },
+    [x, y],
+  );
+
+  useEffect(() => {
+    if (!dragging) return;
+    const onMove = (e: MouseEvent) => {
+      const d = drag.current;
+      if (!d) return;
+      const nx = d.ox + (e.clientX - d.mx);
+      const ny = d.oy + (e.clientY - d.my);
+      setPos({
+        x: Math.min(Math.max(MARGIN - CARD_W + 40, nx), view.w - 40),
+        y: Math.min(Math.max(MARGIN, ny), Math.max(MARGIN, view.h - 40)),
+      });
+    };
+    const onUp = () => {
+      drag.current = null;
+      setDragging(false);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, [dragging, view.w, view.h]);
+
   return (
-    <div
-      className="pcms-inline"
-      style={{ left: `${x}px`, top: `${y}px`, width: `${CARD_W}px`, maxHeight: `${maxHeight}px` }}
-      role="dialog"
-      aria-label={schema.label ?? schema.id}
-    >
-      <header className="pcms-inline__head">
-        <span className="pcms-inline__title">{schema.label ?? schema.id}</span>
-        <button
-          type="button"
-          className="pcms-inline__close"
-          onClick={onClose}
-          aria-label={t("inline.close")}
-          title={t("inline.close")}
+    <>
+      {/* During a drag, cover the iframe so it doesn't swallow mouse events. */}
+      {dragging && <div className="pcms-inline__shield" />}
+      <div
+        className="pcms-inline"
+        style={{ left: `${x}px`, top: `${y}px`, width: `${CARD_W}px`, maxHeight: `${maxHeight}px` }}
+        role="dialog"
+        aria-label={schema.label ?? schema.id}
+      >
+        <header
+          className={`pcms-inline__head${dragging ? " is-dragging" : ""}`}
+          onMouseDown={onHeaderDown}
         >
-          ×
-        </button>
-      </header>
-      <div className="pcms-inline__body">
-        <SectionFields
-          schema={schema}
-          instance={instance}
-          onFieldChange={onFieldChange}
-          onRepeatChange={onRepeatChange}
-        />
+          <span className="pcms-inline__title">{schema.label ?? schema.id}</span>
+          <button
+            type="button"
+            className="pcms-inline__close"
+            onClick={onClose}
+            aria-label={t("inline.close")}
+            title={t("inline.close")}
+          >
+            ×
+          </button>
+        </header>
+        <div className="pcms-inline__body">
+          <SectionFields
+            schema={schema}
+            instance={instance}
+            onFieldChange={onFieldChange}
+            onRepeatChange={onRepeatChange}
+          />
+        </div>
       </div>
-    </div>
+    </>
   );
 }

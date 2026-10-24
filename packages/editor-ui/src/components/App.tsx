@@ -81,6 +81,9 @@ export function App({ api }: AppProps) {
   const [insertAt, setInsertAt] = useState<number | null>(null);
   const [focusTarget, setFocusTarget] = useState<string | null>(null);
   const [anchor, setAnchor] = useState<Anchor | null>(null);
+  // The inline card is open per selection; closing it keeps the section
+  // selected so its settings fall back to the right panel.
+  const [inlineOpen, setInlineOpen] = useState(true);
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
   const { doc, commit, undo, redo, reset, canUndo, canRedo } =
     useEditorHistory<EditorState>(EMPTY_STATE);
@@ -215,8 +218,14 @@ export function App({ api }: AppProps) {
 
   // The inline (on-preview) editor is showing — collapse the right panel.
   const inlineActive = Boolean(
-    composed && selectedInstance && selectedInstanceSchema && anchor,
+    composed && selectedInstance && selectedInstanceSchema && anchor && inlineOpen,
   );
+
+  // Selecting a section (from a list or the preview) opens its inline card.
+  const onSelectSection = useCallback((id: string | null) => {
+    setSelectedId(id);
+    if (id) setInlineOpen(true);
+  }, []);
 
   const onToggleInstanceHidden = useCallback(
     (id: string) => {
@@ -419,7 +428,10 @@ export function App({ api }: AppProps) {
       if (!d || d.source !== "pcms-preview") return;
 
       if (d.type === "select") {
-        if (d.section) setSelectedId(d.section);
+        if (d.section) {
+          setSelectedId(d.section);
+          setInlineOpen(true);
+        }
         return;
       }
       if (d.type === "rect") {
@@ -554,7 +566,7 @@ export function App({ api }: AppProps) {
             instances={instanceRows}
             catalog={catalog.map((c) => ({ type: c.id, label: c.label ?? c.id }))}
             selectedId={selectedId}
-            onSelect={setSelectedId}
+            onSelect={onSelectSection}
             onToggleHidden={onToggleInstanceHidden}
             onMove={onMoveInstance}
             onDelete={onDeleteInstance}
@@ -575,14 +587,14 @@ export function App({ api }: AppProps) {
           selectedSection={selectedId}
           device={device}
           overlay={
-            composed && selectedInstance && selectedInstanceSchema && anchor ? (
+            inlineActive && selectedInstance && selectedInstanceSchema && anchor ? (
               <InlineEditor
                 schema={selectedInstanceSchema}
                 instance={selectedInstance}
                 anchor={anchor}
                 onFieldChange={onInstanceField}
                 onRepeatChange={onInstanceRepeat}
-                onClose={() => setSelectedId(null)}
+                onClose={() => setInlineOpen(false)}
               />
             ) : null
           }
