@@ -427,10 +427,17 @@ export function createMockApi(): PcmsApi {
       return mockThemes;
     },
     async listThemeFiles(): Promise<ThemeFileNode[]> {
-      const paths = new Set([...Object.keys(THEME_FILES), ...Object.keys(themeWorkingCopy())]);
-      return [...paths]
-        .sort()
-        .map((path) => ({ path, kind: themeFileKind(path) }));
+      const working = themeWorkingCopy();
+      const paths = new Set([...Object.keys(THEME_FILES), ...Object.keys(working)]);
+      return [...paths].sort().map((path) => {
+        const original = path in THEME_FILES;
+        return {
+          path,
+          kind: themeFileKind(path),
+          custom: !original,
+          edited: original && path in working,
+        };
+      });
     },
     async readThemeFile(path: string): Promise<string> {
       const working = themeWorkingCopy();
@@ -440,6 +447,28 @@ export function createMockApi(): PcmsApi {
       const working = themeWorkingCopy();
       working[path] = content;
       saveJson(THEME_KEY, working);
+    },
+    async deleteThemeFile(path: string): Promise<void> {
+      // Remove the working-copy entry: deletes a created part, or reverts an
+      // edited original (which then falls back to the theme's version).
+      const working = themeWorkingCopy();
+      delete working[path];
+      saveJson(THEME_KEY, working);
+    },
+    async renameThemeFile(from: string, to: string): Promise<void> {
+      const working = themeWorkingCopy();
+      // Only created parts (not original theme files) can be renamed.
+      if (from in THEME_FILES || to in THEME_FILES || to in working) return;
+      working[to] = working[from] ?? "";
+      delete working[from];
+      saveJson(THEME_KEY, working);
+    },
+    async resetTheme(): Promise<void> {
+      try {
+        localStorage.removeItem(THEME_KEY);
+      } catch {
+        /* ignore storage failures in the mock */
+      }
     },
     async deleteContent(type: string, slug: string): Promise<void> {
       const next = loadContent().filter((i) => !(i.type === type && i.slug === slug));

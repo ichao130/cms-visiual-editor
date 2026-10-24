@@ -82,6 +82,13 @@ export interface PcmsApi {
   listThemeFiles(): Promise<ThemeFileNode[]>;
   readThemeFile(path: string): Promise<string>;
   writeThemeFile(path: string, content: string): Promise<void>;
+  /** Remove a working-copy file: deletes a created part, or reverts an edited
+   *  original back to the theme's version. */
+  deleteThemeFile(path: string): Promise<void>;
+  /** Rename a created part (working-copy file) to a new path. */
+  renameThemeFile(from: string, to: string): Promise<void>;
+  /** Discard the whole working copy — back to the original theme files. */
+  resetTheme(): Promise<void>;
 }
 
 // ---------------------------------------------------------------------------
@@ -140,6 +147,10 @@ export interface ThemeFileNode {
   /** Theme-relative path, e.g. "sections/hero.html". */
   path: string;
   kind: ThemeFileKind;
+  /** Created in the code editor (not part of the original theme). */
+  custom?: boolean;
+  /** An original theme file that has unsaved-to-theme edits in the working copy. */
+  edited?: boolean;
 }
 
 export interface AiThemeifyResult {

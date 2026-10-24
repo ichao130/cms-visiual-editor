@@ -456,9 +456,23 @@ button.pcms-danger { color: #b42318; border-color: #f0c2bc; }
 .pcms-filetree__newinput { flex: 1; min-width: 0; font: inherit; font-size: 0.82rem; padding: 0.3rem 0.4rem; border: 1px solid var(--pcms-border); border-radius: 5px; }
 .pcms-filetree__newrow button { font-size: 0.78rem; padding: 0.25rem 0.5rem; }
 .pcms-filetree__dir { font-size: 0.75rem; color: var(--pcms-muted); padding: 0.3rem 0.4rem 0.1rem; }
-.pcms-filetree__file { display: block; width: 100%; text-align: left; border: none; background: none; padding: 0.25rem 0.6rem; border-radius: 5px; font-size: 0.85rem; font-family: ui-monospace, monospace; }
+.pcms-filetree__file { display: flex; align-items: center; gap: 0.35rem; width: 100%; text-align: left; border: none; background: none; padding: 0.25rem 0.6rem; border-radius: 5px; font-size: 0.85rem; font-family: ui-monospace, monospace; }
 .pcms-filetree__file:hover { background: #f1f3f5; }
 .pcms-filetree__file.is-active { background: #eaf1ff; color: var(--pcms-accent); }
+.pcms-filetree__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.pcms-filetree__tag { font-size: 0.62rem; font-family: sans-serif; padding: 0.05rem 0.3rem; border-radius: 999px; }
+.pcms-filetree__tag.is-new { background: #e6f4ea; color: #1a7f37; }
+.pcms-filetree__tag.is-edited { background: #fff4e5; color: #9a6700; }
+.pcms-filetree__foot { margin-top: 0.75rem; padding-top: 0.5rem; border-top: 1px solid var(--pcms-border); }
+.pcms-filetree__reset { width: 100%; font-size: 0.78rem; color: #b42318; }
+.pcms-confirm { font-size: 0.78rem; display: flex; flex-direction: column; gap: 0.4rem; }
+.pcms-confirm__actions { display: flex; gap: 0.3rem; }
+.pcms-confirm__actions button { font-size: 0.78rem; padding: 0.2rem 0.5rem; }
+button.pcms-danger { background: #b42318; color: #fff; border-color: #b42318; }
+.pcms-codemain__actions { display: flex; gap: 0.4rem; }
+.pcms-codemain__actions button { font-size: 0.82rem; }
+.pcms-codemain__rename { display: flex; align-items: center; gap: 0.4rem; flex: 1; font-size: 0.82rem; }
+.pcms-codemain__rename .pcms-filetree__newinput { max-width: 260px; }
 .pcms-codemain { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .pcms-codemain__bar { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.4rem 0.8rem; border-bottom: 1px solid var(--pcms-border); }
 .pcms-codemain__path { font-family: ui-monospace, monospace; font-size: 0.82rem; color: var(--pcms-muted); }

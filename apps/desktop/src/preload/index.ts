@@ -52,6 +52,10 @@ const api: PcmsApi = {
   readThemeFile: (path: string) => ipcRenderer.invoke("pcms:readThemeFile", path),
   writeThemeFile: (path: string, content: string) =>
     ipcRenderer.invoke("pcms:writeThemeFile", path, content),
+  deleteThemeFile: (path: string) => ipcRenderer.invoke("pcms:deleteThemeFile", path),
+  renameThemeFile: (from: string, to: string) =>
+    ipcRenderer.invoke("pcms:renameThemeFile", from, to),
+  resetTheme: () => ipcRenderer.invoke("pcms:resetTheme"),
 };
 
 contextBridge.exposeInMainWorld("pcms", api);

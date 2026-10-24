@@ -15,18 +15,28 @@ const NEW_PART_TEMPLATE = (name: string) =>
 </section>
 `;
 
+const safeName = (raw: string): string =>
+  raw.trim().replace(/[^a-z0-9-]/gi, "-").toLowerCase();
+
 /**
  * VSCode-style code editor for theme development / part authoring. Edits a theme
- * working copy (never the original theme files — CLAUDE.md); "新しいパーツ" scaffolds
- * a reusable section under sections/.
+ * working copy (never the original theme files — CLAUDE.md). Created parts can be
+ * renamed/deleted; edited originals can be reverted; the whole working copy can
+ * be reset back to the theme.
  */
 export function CodeEditorView({ api }: Props) {
   const { reloadProject } = useSiteWorkspace();
   const [files, setFiles] = useState<ThemeFileNode[]>([]);
-  const [active, setActive] = useState<ThemeFileNode | null>(null);
+  const [activePath, setActivePath] = useState<string | null>(null);
   const [content, setContent] = useState("");
   const [dirty, setDirty] = useState(false);
   const [newName, setNewName] = useState<string | null>(null);
+  const [rename, setRename] = useState<string | null>(null);
+  const [confirm, setConfirm] = useState<"delete" | "reset" | null>(null);
+
+  // The active node is derived from the current list, so its custom/edited flags
+  // stay correct after a save/delete/reset refresh.
+  const active = files.find((f) => f.path === activePath) ?? null;
 
   const refreshFiles = useCallback(async () => {
     const list = await api.listThemeFiles();
@@ -37,14 +47,14 @@ export function CodeEditorView({ api }: Props) {
   useEffect(() => {
     void refreshFiles().then((list) => {
       const first = list.find((f) => f.path === "layout.html") ?? list[0] ?? null;
-      setActive(first);
+      setActivePath(first?.path ?? null);
     });
   }, [refreshFiles]);
 
   useEffect(() => {
-    if (!active) return;
+    if (!activePath) return;
     let ok = true;
-    void api.readThemeFile(active.path).then((text) => {
+    void api.readThemeFile(activePath).then((text) => {
       if (!ok) return;
       setContent(text);
       setDirty(false);
@@ -52,29 +62,78 @@ export function CodeEditorView({ api }: Props) {
     return () => {
       ok = false;
     };
-  }, [api, active]);
+  }, [api, activePath]);
+
+  // Drop transient UI when switching files.
+  useEffect(() => {
+    setRename(null);
+    setConfirm(null);
+  }, [activePath]);
 
   const onSave = () => {
     if (!active) return;
     void api.writeThemeFile(active.path, content).then(() => {
       setDirty(false);
-      // Refresh the visual editor's section catalog + preview with the change.
+      void refreshFiles();
       reloadProject();
     });
   };
 
   const createPart = async () => {
-    const safe = (newName ?? "").trim().replace(/[^a-z0-9-]/gi, "-").toLowerCase();
+    const safe = safeName(newName ?? "");
     if (!safe) {
       setNewName(null);
       return;
     }
     const path = `sections/${safe}.html`;
     await api.writeThemeFile(path, NEW_PART_TEMPLATE(safe));
-    const list = await refreshFiles();
-    setActive(list.find((f) => f.path === path) ?? null);
+    await refreshFiles();
+    setActivePath(path);
     setNewName(null);
-    // Make the new part available in the visual editor immediately.
+    reloadProject();
+  };
+
+  const doRename = async () => {
+    if (!active || rename == null) return;
+    const safe = safeName(rename);
+    const to = `sections/${safe}.html`;
+    if (!safe || to === active.path) {
+      setRename(null);
+      return;
+    }
+    await api.renameThemeFile(active.path, to);
+    await refreshFiles();
+    setActivePath(to);
+    setRename(null);
+    reloadProject();
+  };
+
+  const doDelete = async () => {
+    if (!active) return;
+    const wasPath = active.path;
+    const wasCustom = active.custom;
+    await api.deleteThemeFile(wasPath);
+    const list = await refreshFiles();
+    // A reverted original stays in the list (reload it); a deleted part is gone.
+    const next = wasCustom
+      ? (list.find((f) => f.path === "layout.html") ?? list[0] ?? null)
+      : (list.find((f) => f.path === wasPath) ?? null);
+    setActivePath(next?.path ?? null);
+    // Reverting keeps the same path, so reload the content explicitly.
+    setContent(next ? await api.readThemeFile(next.path) : "");
+    setDirty(false);
+    setConfirm(null);
+    reloadProject();
+  };
+
+  const doReset = async () => {
+    await api.resetTheme();
+    const list = await refreshFiles();
+    const next = list.find((f) => f.path === "layout.html") ?? list[0] ?? null;
+    setActivePath(next?.path ?? null);
+    setContent(next ? await api.readThemeFile(next.path) : "");
+    setDirty(false);
+    setConfirm(null);
     reloadProject();
   };
 
@@ -118,22 +177,86 @@ export function CodeEditorView({ api }: Props) {
               <button
                 key={f.path}
                 className={`pcms-filetree__file${active?.path === f.path ? " is-active" : ""}`}
-                onClick={() => setActive(f)}
+                onClick={() => setActivePath(f.path)}
                 style={{ paddingLeft: dir ? "1.4rem" : "0.6rem" }}
               >
-                {basename(f.path)}
+                <span className="pcms-filetree__name">{basename(f.path)}</span>
+                {f.custom && <span className="pcms-filetree__tag is-new">{t("code.tag.new")}</span>}
+                {f.edited && <span className="pcms-filetree__tag is-edited">{t("code.tag.edited")}</span>}
               </button>
             ))}
           </div>
         ))}
+        <div className="pcms-filetree__foot">
+          {confirm === "reset" ? (
+            <div className="pcms-confirm">
+              <span>{t("code.resetConfirm")}</span>
+              <div className="pcms-confirm__actions">
+                <button className="pcms-danger" onClick={() => void doReset()}>
+                  {t("common.yes")}
+                </button>
+                <button onClick={() => setConfirm(null)}>{t("common.no")}</button>
+              </div>
+            </div>
+          ) : (
+            <button className="pcms-filetree__reset" onClick={() => setConfirm("reset")}>
+              {t("code.reset")}
+            </button>
+          )}
+        </div>
       </aside>
 
       <div className="pcms-codemain">
         <div className="pcms-codemain__bar">
-          <span className="pcms-codemain__path">{active?.path ?? ""}</span>
-          <button className="pcms-primary" onClick={onSave} disabled={!active || !dirty}>
-            {dirty ? t("common.save") : t("common.saved")}
-          </button>
+          {rename != null ? (
+            <div className="pcms-codemain__rename">
+              <input
+                autoFocus
+                className="pcms-filetree__newinput"
+                value={rename}
+                placeholder={t("code.renamePlaceholder")}
+                onChange={(e) => setRename(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void doRename();
+                  else if (e.key === "Escape") setRename(null);
+                }}
+              />
+              <button className="pcms-primary" onClick={() => void doRename()}>
+                {t("code.rename")}
+              </button>
+              <button onClick={() => setRename(null)}>{t("common.no")}</button>
+            </div>
+          ) : confirm === "delete" ? (
+            <div className="pcms-codemain__rename">
+              <span>{t("code.deleteConfirm")}</span>
+              <button className="pcms-danger" onClick={() => void doDelete()}>
+                {t("common.yes")}
+              </button>
+              <button onClick={() => setConfirm(null)}>{t("common.no")}</button>
+            </div>
+          ) : (
+            <>
+              <span className="pcms-codemain__path">{active?.path ?? ""}</span>
+              <div className="pcms-codemain__actions">
+                {active?.custom && (
+                  <>
+                    <button onClick={() => setRename(baseNoExt(active.path))}>
+                      {t("code.rename")}
+                    </button>
+                    <button className="pcms-danger" onClick={() => setConfirm("delete")}>
+                      {t("code.delete")}
+                    </button>
+                  </>
+                )}
+                {active?.edited && (
+                  <button onClick={() => void doDelete()}>{t("code.revert")}</button>
+                )}
+                <button className="pcms-primary" onClick={onSave} disabled={!active || !dirty}>
+                  {dirty ? t("common.save") : t("common.saved")}
+                </button>
+              </div>
+            </>
+          )}
         </div>
         {active ? (
           <CodeEditor
@@ -156,6 +279,10 @@ export function CodeEditorView({ api }: Props) {
 function basename(path: string): string {
   const i = path.lastIndexOf("/");
   return i < 0 ? path : path.slice(i + 1);
+}
+
+function baseNoExt(path: string): string {
+  return basename(path).replace(/\.[^.]+$/, "");
 }
 
 function groupByDir(files: ThemeFileNode[]): [string, ThemeFileNode[]][] {

@@ -140,6 +140,8 @@ const ja = {
   "common.save": "保存",
   "common.saved": "保存済み",
   "common.comingSoon": "近日対応予定",
+  "common.yes": "はい",
+  "common.no": "いいえ",
   "account.title": "アカウント",
   "account.name": "お名前",
   "account.email": "メール",
@@ -194,6 +196,15 @@ const ja = {
   "code.newPartPlaceholder": "パーツ名（半角英数）",
   "code.create": "作成",
   "code.pickHint": "左のファイルを選ぶと、ここで編集できます。",
+  "code.rename": "リネーム",
+  "code.renamePlaceholder": "新しいパーツ名（半角英数）",
+  "code.delete": "削除",
+  "code.deleteConfirm": "このパーツを削除しますか？",
+  "code.revert": "変更を破棄",
+  "code.reset": "テーマをリセット",
+  "code.resetConfirm": "テーマの変更をすべて破棄しますか？",
+  "code.tag.new": "新規",
+  "code.tag.edited": "編集",
 } as const;
 
 export type MessageKey = keyof typeof ja;

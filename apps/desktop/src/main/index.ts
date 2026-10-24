@@ -45,6 +45,9 @@ import {
   listThemeFiles,
   readThemeFile,
   writeThemeFile,
+  deleteThemeFile,
+  renameThemeFile,
+  resetTheme,
 } from "./shell.js";
 
 function createWindow(): BrowserWindow {
@@ -172,6 +175,11 @@ function registerIpc(): void {
   ipcMain.handle("pcms:writeThemeFile", (_event, path: string, content: string) =>
     writeThemeFile(path, content),
   );
+  ipcMain.handle("pcms:deleteThemeFile", (_event, path: string) => deleteThemeFile(path));
+  ipcMain.handle("pcms:renameThemeFile", (_event, from: string, to: string) =>
+    renameThemeFile(from, to),
+  );
+  ipcMain.handle("pcms:resetTheme", () => resetTheme());
 }
 
 /**

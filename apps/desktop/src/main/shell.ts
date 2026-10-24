@@ -82,7 +82,15 @@ export async function listThemeFiles(): Promise<ThemeFileNode[]> {
   const project = await loadProject();
   const base = themeFiles(project.theme);
   const paths = new Set([...Object.keys(base), ...themeOverlay.keys()]);
-  return [...paths].sort().map((path) => ({ path, kind: fileKind(path) }));
+  return [...paths].sort().map((path) => {
+    const original = path in base;
+    return {
+      path,
+      kind: fileKind(path),
+      custom: !original,
+      edited: original && themeOverlay.has(path),
+    };
+  });
 }
 
 export async function readThemeFile(path: string): Promise<string> {
@@ -94,4 +102,21 @@ export async function readThemeFile(path: string): Promise<string> {
 export async function writeThemeFile(path: string, content: string): Promise<void> {
   // Working copy only — the original theme files on disk are left untouched.
   themeOverlay.set(path, content);
+}
+
+export async function deleteThemeFile(path: string): Promise<void> {
+  themeOverlay.delete(path);
+}
+
+export async function renameThemeFile(from: string, to: string): Promise<void> {
+  const project = await loadProject();
+  const base = themeFiles(project.theme);
+  // Only created parts (in the overlay, not original theme files) can be renamed.
+  if (from in base || to in base || themeOverlay.has(to)) return;
+  themeOverlay.set(to, themeOverlay.get(from) ?? "");
+  themeOverlay.delete(from);
+}
+
+export async function resetTheme(): Promise<void> {
+  themeOverlay.clear();
 }
