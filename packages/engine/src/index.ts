@@ -9,7 +9,13 @@
 export { ATTR, EDITOR_ATTRS } from "./attributes.js";
 export { parseTemplate } from "./parser.js";
 export { renderTemplate, type RenderOptions } from "./renderer.js";
-export { resolveField, isEmpty, type RenderScope } from "./context.js";
+export {
+  resolveField,
+  isEmpty,
+  type RenderScope,
+  type PaginationContext,
+  type TermContext,
+} from "./context.js";
 export { parseFrontMatter, type ParsedFrontMatter } from "./frontmatter.js";
 export { renderMarkdown, escapeHtml } from "./markdown.js";
 export { detectFieldType } from "./field-type.js";

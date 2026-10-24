@@ -85,11 +85,16 @@ function processTree(root: HTMLElement, scope: RenderScope): void {
 }
 
 function processElement(el: HTMLElement, scope: RenderScope): void {
-  // 1. data-if — drop the element entirely when the value is empty.
-  const ifPath = el.getAttribute(ATTR.if);
-  if (ifPath != null && isEmpty(resolveField(ifPath, scope))) {
-    el.remove();
-    return;
+  // 1. data-if — drop the element when the value is empty (or, with a leading
+  //    "!", when it is non-empty).
+  const ifExpr = el.getAttribute(ATTR.if);
+  if (ifExpr != null) {
+    const negate = ifExpr.startsWith("!");
+    const empty = isEmpty(resolveField(negate ? ifExpr.slice(1) : ifExpr, scope));
+    if (negate ? !empty : empty) {
+      el.remove();
+      return;
+    }
   }
 
   // 2. data-loop — repeat for each item in a collection/menu.

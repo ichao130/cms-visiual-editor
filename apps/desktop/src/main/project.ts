@@ -236,6 +236,7 @@ export function loadProject(): ProjectData {
         index: readTheme("templates/index.html"),
         page: readTheme("templates/page.html"),
         post: readTheme("templates/post.html"),
+        archive: readTheme("templates/archive.html"),
       },
       assets: ["assets/style.css"],
     },
@@ -278,6 +279,7 @@ export function assembleOutput(): FileSet {
     content: project.content,
     theme: project.theme,
     menus: project.menus,
+    taxonomies: project.taxonomies,
   });
 
   const files: FileSet = { ...generated.files };

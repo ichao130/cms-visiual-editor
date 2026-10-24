@@ -24,6 +24,7 @@ import layout from "../../../../themes/sample-cafe/layout.html?raw";
 import indexTpl from "../../../../themes/sample-cafe/templates/index.html?raw";
 import pageTpl from "../../../../themes/sample-cafe/templates/page.html?raw";
 import postTpl from "../../../../themes/sample-cafe/templates/post.html?raw";
+import archiveTpl from "../../../../themes/sample-cafe/templates/archive.html?raw";
 import themeJson from "../../../../themes/sample-cafe/theme.json";
 import previewCss from "../../../../themes/sample-cafe/assets/style.css?raw";
 
@@ -175,10 +176,11 @@ function outputCount(): number {
     theme: {
       config: themeJson,
       layout,
-      templates: { index: indexTpl, page: pageTpl, post: postTpl },
+      templates: { index: indexTpl, page: pageTpl, post: postTpl, archive: archiveTpl },
       assets: ["assets/style.css"],
     },
     menus: loadMenus(),
+    taxonomies: loadTaxonomies(),
   });
   return Object.keys(generated.files).length;
 }
@@ -197,7 +199,7 @@ export function createMockApi(): PcmsApi {
         theme: {
           config: themeJson,
           layout,
-          templates: { index: indexTpl, page: pageTpl, post: postTpl },
+          templates: { index: indexTpl, page: pageTpl, post: postTpl, archive: archiveTpl },
           assets: ["assets/style.css"],
         },
         content: loadContent(),

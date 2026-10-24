@@ -55,5 +55,10 @@ main { max-width: 860px; margin: 0 auto; padding: 2rem 1.5rem; }
 .menu-list .item { padding: 1rem; background: #fff; border-radius: 12px; }
 .price { color: var(--accent); font-weight: 700; }
 
+.archive-title { font-family: "Hiragino Mincho ProN", serif; color: var(--primary); }
+.pager { display: flex; justify-content: space-between; align-items: center; margin-top: 2rem; gap: 1rem; }
+.pager a { color: var(--accent); text-decoration: none; }
+.pager-label { color: var(--primary); opacity: 0.7; font-size: 0.9rem; }
+
 .site-footer { text-align: center; padding: 2rem; color: var(--primary); }
 .copyright { font-size: 0.85rem; opacity: 0.7; }

@@ -7,6 +7,26 @@ import type {
   ThemeConfig,
 } from "@pcms/shared";
 
+/** Pagination state for an archive page. */
+export interface PaginationContext {
+  current: number;
+  total: number;
+  /** Archive base URL, e.g. "/post/". */
+  baseUrl: string;
+  prevUrl?: string;
+  nextUrl?: string;
+}
+
+/** The term context on a taxonomy archive page. */
+export interface TermContext {
+  taxonomy: string;
+  /** Taxonomy label, e.g. "カテゴリ". */
+  label: string;
+  /** The term value, e.g. "お知らせ". */
+  value: string;
+  url: string;
+}
+
 /** Everything the renderer needs to resolve values for one page render. */
 export interface RenderScope {
   site: SiteConfig;
@@ -18,6 +38,10 @@ export interface RenderScope {
   menus: Record<string, MenuItem[]>;
   /** Named collections available via `data-loop="<name>"`, e.g. "posts". */
   collections: Record<string, ContentItem[]>;
+  /** Pagination fields (`data-field="pagination.*"`) on archive pages. */
+  pagination?: PaginationContext;
+  /** Term fields (`data-field="term.*"`) on taxonomy archive pages. */
+  term?: TermContext;
 }
 
 /**
@@ -36,6 +60,17 @@ export function resolveField(
 
   if (head === "site") return getByPath(scope.site, tail);
   if (head === "theme") return getByPath(scope.theme, tail);
+
+  if (head === "pagination" && scope.pagination) {
+    return resolvePagination(scope.pagination, tail);
+  }
+  if (head === "term" && scope.term) {
+    if (tail === "label") return scope.term.label;
+    if (tail === "value") return scope.term.value;
+    if (tail === "taxonomy") return scope.term.taxonomy;
+    if (tail === "url") return scope.term.url;
+    return undefined;
+  }
 
   // Inside a loop/repeat (or on a content-item page) the current item takes
   // priority. `post.title` / `item.url` strip the prefix; a bare name like
@@ -67,6 +102,26 @@ function resolveItemField(item: ContentItem, tail: string): FieldValue | undefin
   if (tail === "type") return item.type;
   const value = getByPath(item.fields, tail);
   return value;
+}
+
+function resolvePagination(
+  p: PaginationContext,
+  tail: string,
+): FieldValue | undefined {
+  switch (tail) {
+    case "current":
+      return p.current;
+    case "total":
+      return p.total;
+    case "label":
+      return `${p.current} / ${p.total}`;
+    case "prevUrl":
+      return p.prevUrl ?? null;
+    case "nextUrl":
+      return p.nextUrl ?? null;
+    default:
+      return undefined;
+  }
 }
 
 /** Read a dotted path out of a plain object; returns undefined if missing. */

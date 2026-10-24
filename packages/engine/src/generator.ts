@@ -1,14 +1,24 @@
 import type {
   ContentItem,
   ContentTypeDef,
+  FieldValue,
   MenuItem,
   PageSettings,
   SiteConfig,
   SiteSettings,
+  TaxonomyDef,
   ThemeConfig,
 } from "@pcms/shared";
 import { renderTemplate } from "./renderer.js";
-import type { RenderScope } from "./context.js";
+import type { RenderScope, TermContext } from "./context.js";
+import { archivePagePath, archivePageUrl, paginate } from "./pagination.js";
+import {
+  articleJsonLd,
+  breadcrumbJsonLd,
+  injectJsonLd,
+  siteJsonLd,
+  type Crumb,
+} from "./jsonld.js";
 
 /** A parsed theme ready to render (templates as strings, no I/O). */
 export interface ThemeBundle {
@@ -29,6 +39,7 @@ export interface SiteInput {
   content: ContentItem[];
   theme: ThemeBundle;
   menus?: Record<string, MenuItem[]>;
+  taxonomies?: TaxonomyDef[];
 }
 
 export interface GeneratedSite {
@@ -50,7 +61,7 @@ export function generateSite(input: SiteInput): GeneratedSite {
   // Content bodies are stored as HTML (authored in the rich text editor), so
   // they pass through as-is. Attach each item's own permalink up front, so loops
   // can bind `data-field="post.url"` to a real URL.
-  const content = input.content.map((item) => ({
+  const content: ContentItem[] = input.content.map((item) => ({
     ...item,
     fields: { ...item.fields, url: "/" + itemPath(item, input.site).replace(/index\.html$/, "") },
     bodyHtml: item.body,
@@ -58,6 +69,8 @@ export function generateSite(input: SiteInput): GeneratedSite {
 
   const collections = buildCollections(content);
   const menus = input.menus ?? {};
+  const layout = input.theme.layout;
+  const pageSize = input.site.archivePageSize ?? 10;
 
   const baseScope = {
     site: input.site,
@@ -66,33 +79,150 @@ export function generateSite(input: SiteInput): GeneratedSite {
     collections,
   };
 
+  const siteLd = siteJsonLd(input.site);
+  const home: Crumb = { name: input.site.name, url: "/" };
+  const finish = (html: string, extra: object[]): string =>
+    injectJsonLd(html, [...siteLd, ...extra]);
+  const typeLabel = (type: string): string =>
+    input.contentTypes.find((t) => t.name === type)?.label ?? type;
+
+  // Render one archive across its pages, with pagination + optional term.
+  const renderArchive = (opts: {
+    template: string;
+    items: ContentItem[];
+    baseUrl: string;
+    crumbs: Crumb[];
+    term?: TermContext;
+  }): void => {
+    const pages = paginate(opts.items, pageSize);
+    for (let i = 0; i < pages.length; i++) {
+      const n = i + 1;
+      const scope: RenderScope = {
+        ...baseScope,
+        page: {},
+        collections: { ...collections, items: pages[i] as ContentItem[] },
+        pagination: {
+          current: n,
+          total: pages.length,
+          baseUrl: opts.baseUrl,
+          prevUrl: n > 1 ? archivePageUrl(opts.baseUrl, n - 1) : undefined,
+          nextUrl: n < pages.length ? archivePageUrl(opts.baseUrl, n + 1) : undefined,
+        },
+        ...(opts.term ? { term: opts.term } : {}),
+      };
+      const html = renderTemplate(opts.template, scope, { layout });
+      files[archivePagePath(opts.baseUrl, n)] = finish(html, [
+        breadcrumbJsonLd(opts.crumbs, input.site),
+      ]);
+    }
+  };
+
   // 1. Explicit pages from settings.json.
   for (const [id, page] of Object.entries(input.settings.pages)) {
     const templateName = page.template ?? id;
     const template = pickTemplate(input.theme, [templateName, "page"]);
     if (template == null) continue;
     const scope: RenderScope = { ...baseScope, page };
-    const html = renderTemplate(template, scope, { layout: input.theme.layout });
-    files[pagePathForId(id)] = html;
+    const html = renderTemplate(template, scope, { layout });
+    files[pagePathForId(id)] = finish(html, []);
   }
 
-  // 2. A page per content item.
+  // 2. A page per content item (with Article + breadcrumb structured data).
   for (const item of content) {
     const template = pickTemplate(input.theme, [item.type, "post", "page"]);
     if (template == null) continue;
     const page: PageSettings = input.settings.pages[item.type] ?? {};
     const scope: RenderScope = { ...baseScope, page, item };
-    const html = renderTemplate(template, scope, { layout: input.theme.layout });
-    files[itemPath(item, input.site)] = html;
+    const html = renderTemplate(template, scope, { layout });
+    const url = itemUrl(item, input.site);
+    files[itemPath(item, input.site)] = finish(html, [
+      articleJsonLd(item, input.site, url),
+      breadcrumbJsonLd(
+        [
+          home,
+          { name: typeLabel(item.type), url: `/${item.type}/` },
+          { name: String(item.fields.title ?? item.slug), url },
+        ],
+        input.site,
+      ),
+    ]);
   }
 
-  // 3. Always-on outputs.
+  // 3. Type archives (article listings), paginated.
+  for (const type of new Set(content.map((i) => i.type))) {
+    const template = pickTemplate(input.theme, [`${type}-archive`, "archive"]);
+    if (template == null) continue;
+    const base = `/${type}/`;
+    renderArchive({
+      template,
+      items: collections[type] ?? [],
+      baseUrl: base,
+      crumbs: [home, { name: typeLabel(type), url: base }],
+    });
+  }
+
+  // 4. Taxonomy term archives, paginated.
+  for (const tax of input.taxonomies ?? []) {
+    const template = pickTemplate(input.theme, [
+      `${tax.name}-archive`,
+      "taxonomy",
+      "archive",
+    ]);
+    if (template == null) continue;
+    for (const [term, items] of termBuckets(content, tax)) {
+      const base = `/${tax.name}/${taxoSlug(term)}/`;
+      renderArchive({
+        template,
+        items: [...items].sort(byDateDesc),
+        baseUrl: base,
+        term: { taxonomy: tax.name, label: tax.label, value: term, url: base },
+        crumbs: [home, { name: `${tax.label}: ${term}`, url: base }],
+      });
+    }
+  }
+
+  // 5. Always-on outputs.
   files["sitemap.xml"] = buildSitemap(files, input.site);
   files["robots.txt"] = buildRobots(input.site);
   files["feed.xml"] = buildFeed(content, input.site);
   if (!files["404.html"]) files["404.html"] = build404(input.site);
 
   return { files, assets: input.theme.assets ?? [] };
+}
+
+function itemUrl(item: ContentItem, site: SiteConfig): string {
+  return "/" + itemPath(item, site).replace(/index\.html$/, "");
+}
+
+function termBuckets(
+  content: ContentItem[],
+  tax: TaxonomyDef,
+): Map<string, ContentItem[]> {
+  const buckets = new Map<string, ContentItem[]>();
+  for (const item of content) {
+    if (!tax.types.includes(item.type)) continue;
+    for (const term of toTerms(item.fields[tax.name])) {
+      const arr = buckets.get(term) ?? [];
+      arr.push(item);
+      buckets.set(term, arr);
+    }
+  }
+  return buckets;
+}
+
+function toTerms(value: FieldValue | undefined): string[] {
+  if (Array.isArray(value)) return value.map(String).filter(Boolean);
+  if (value == null || value === "") return [];
+  return [String(value)];
+}
+
+/** URL-safe slug for a taxonomy term (ASCII slug, else percent-encoded). */
+function taxoSlug(term: string): string {
+  const ascii = term
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return ascii || encodeURIComponent(term);
 }
 
 function buildCollections(content: ContentItem[]): Record<string, ContentItem[]> {

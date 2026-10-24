@@ -1,0 +1,19 @@
+<section class="archive">
+  <h1 class="archive-title" data-field="term.value" data-if="term.value">カテゴリ</h1>
+  <h1 class="archive-title" data-field="archive.title" data-if="!term.value" data-label="見出し">記事一覧</h1>
+
+  <ul class="post-list">
+    <li data-loop="items">
+      <a data-field="item.url" href="#">
+        <span class="date" data-field="item.date">2026-01-01</span>
+        <span class="title" data-field="item.title">記事タイトル</span>
+      </a>
+    </li>
+  </ul>
+
+  <nav class="pager">
+    <a class="pager-prev" data-field="pagination.prevUrl" data-if="pagination.prevUrl" href="#">← 前のページ</a>
+    <span class="pager-label" data-field="pagination.label">1 / 1</span>
+    <a class="pager-next" data-field="pagination.nextUrl" data-if="pagination.nextUrl" href="#">次のページ →</a>
+  </nav>
+</section>

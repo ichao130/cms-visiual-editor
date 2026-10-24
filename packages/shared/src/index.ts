@@ -45,6 +45,8 @@ export interface SiteConfig {
   logo?: string;
   /** Permalink pattern for content items, e.g. "/:type/:slug/". Default per type. */
   permalink?: string;
+  /** Items per page on archive / taxonomy listings. Default 10. */
+  archivePageSize?: number;
   ogpDefault?: {
     image?: string;
     description?: string;
