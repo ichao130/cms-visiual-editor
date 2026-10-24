@@ -8,6 +8,7 @@ interface ToolbarProps {
   onSelectTarget: (key: string) => void;
   onNew: () => void;
   onManageTypes: () => void;
+  onManageMenus: () => void;
   onOpenMedia: () => void;
   canUndo: boolean;
   canRedo: boolean;
@@ -23,6 +24,7 @@ export function Toolbar({
   onSelectTarget,
   onNew,
   onManageTypes,
+  onManageMenus,
   onOpenMedia,
   canUndo,
   canRedo,
@@ -51,6 +53,9 @@ export function Toolbar({
         {t("toolbar.new")}
       </button>
       <div className="pcms-toolbar__spacer" />
+      <button type="button" onClick={onManageMenus}>
+        {t("toolbar.menus")}
+      </button>
       <button type="button" onClick={onManageTypes}>
         {t("toolbar.types")}
       </button>

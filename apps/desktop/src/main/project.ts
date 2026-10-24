@@ -13,6 +13,7 @@ import type {
   ContentTypeDef,
   FieldValue,
   MediaItem,
+  MenuItem,
   SiteSettings,
 } from "@pcms/shared";
 import { BUILTIN_CONTENT_TYPES } from "@pcms/shared";
@@ -59,6 +60,27 @@ function loadContentTypes(): ContentTypeDef[] {
     return JSON.parse(readFileSync(path, "utf8")) as ContentTypeDef[];
   } catch {
     return BUILTIN_CONTENT_TYPES;
+  }
+}
+
+function menusPath(): string {
+  return join(siteDir(), "menus.json");
+}
+
+const defaultMenus: Record<string, MenuItem[]> = {
+  menu: [
+    { label: "ホーム", url: "/" },
+    { label: "お知らせ", url: "/post/open/" },
+  ],
+};
+
+function loadMenus(): Record<string, MenuItem[]> {
+  const path = menusPath();
+  if (!existsSync(path)) return defaultMenus;
+  try {
+    return JSON.parse(readFileSync(path, "utf8")) as Record<string, MenuItem[]>;
+  } catch {
+    return defaultMenus;
   }
 }
 
@@ -202,12 +224,7 @@ export function loadProject(): ProjectData {
       assets: ["assets/style.css"],
     },
     content: loadContent(),
-    menus: {
-      menu: [
-        { label: "ホーム", url: "/" },
-        { label: "お知らせ", url: "/post/open/" },
-      ],
-    },
+    menus: loadMenus(),
     contentTypes: loadContentTypes(),
     previewCss: readTheme("assets/style.css"),
   };
@@ -221,6 +238,10 @@ export { saveContent };
 
 export function saveContentTypes(types: ContentTypeDef[]): void {
   writeFileSync(contentTypesPath(), JSON.stringify(types, null, 2), "utf8");
+}
+
+export function saveMenus(menus: Record<string, MenuItem[]>): void {
+  writeFileSync(menusPath(), JSON.stringify(menus, null, 2), "utf8");
 }
 
 export function deleteContent(type: string, slug: string): void {

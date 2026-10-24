@@ -3,6 +3,7 @@ import type {
   ContentTypeDef,
   FieldDef,
   FieldValue,
+  MenuItem,
   SiteSettings,
 } from "@pcms/shared";
 import type { ProjectData } from "../api/types.js";
@@ -15,6 +16,7 @@ export interface EditorState {
   settings: SiteSettings;
   content: ContentItem[];
   contentTypes: ContentTypeDef[];
+  menus: Record<string, MenuItem[]>;
 }
 
 export function initialState(project: ProjectData): EditorState {
@@ -22,7 +24,16 @@ export function initialState(project: ProjectData): EditorState {
     settings: project.settings,
     content: project.content,
     contentTypes: project.contentTypes,
+    menus: project.menus,
   };
+}
+
+export function setMenu(
+  state: EditorState,
+  name: string,
+  items: MenuItem[],
+): EditorState {
+  return { ...state, menus: { ...state.menus, [name]: items } };
 }
 
 export function typeDef(

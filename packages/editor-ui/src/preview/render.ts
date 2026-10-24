@@ -76,7 +76,7 @@ export function renderPreview(
   const site = project.site;
   const theme = state.settings.theme ?? project.theme.config;
   const collections = buildCollections(state, site);
-  const base = { site, theme, menus: project.menus, collections };
+  const base = { site, theme, menus: state.menus, collections };
 
   let html: string;
   if (target.kind === "page") {

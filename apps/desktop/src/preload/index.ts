@@ -1,5 +1,10 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { ContentItem, ContentTypeDef, SiteSettings } from "@pcms/shared";
+import type {
+  ContentItem,
+  ContentTypeDef,
+  MenuItem,
+  SiteSettings,
+} from "@pcms/shared";
 import type { MediaUpload, PcmsApi } from "@pcms/editor-ui";
 
 /**
@@ -16,6 +21,8 @@ const api: PcmsApi = {
     ipcRenderer.invoke("pcms:saveContent", content),
   saveContentTypes: (types: ContentTypeDef[]) =>
     ipcRenderer.invoke("pcms:saveContentTypes", types),
+  saveMenus: (menus: Record<string, MenuItem[]>) =>
+    ipcRenderer.invoke("pcms:saveMenus", menus),
   deleteContent: (type: string, slug: string) =>
     ipcRenderer.invoke("pcms:deleteContent", type, slug),
   listMedia: () => ipcRenderer.invoke("pcms:listMedia"),

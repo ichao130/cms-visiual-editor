@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FieldValue, SectionSchema } from "@pcms/shared";
 import type { PcmsApi, ProjectData } from "../api/types.js";
 import { useEditorHistory } from "../state/history.js";
-import type { ContentTypeDef } from "@pcms/shared";
+import type { ContentTypeDef, MenuItem } from "@pcms/shared";
 import {
   createContent,
   findItem,
@@ -10,6 +10,7 @@ import {
   listTargets,
   removeContent,
   setContentField,
+  setMenu,
   slugExists,
   targetKey,
   typeDef,
@@ -31,11 +32,17 @@ import { SettingsPanel } from "./SettingsPanel.js";
 import { ContentForm } from "./ContentForm.js";
 import { NewContentModal } from "./NewContentModal.js";
 import { ContentTypeManager } from "./ContentTypeManager.js";
+import { MenuManager } from "./MenuManager.js";
 import { t } from "../i18n.js";
 
 type Row = Record<string, FieldValue>;
 
-const EMPTY_STATE: EditorState = { settings: { pages: {} }, content: [], contentTypes: [] };
+const EMPTY_STATE: EditorState = {
+  settings: { pages: {} },
+  content: [],
+  contentTypes: [],
+  menus: {},
+};
 
 interface AppProps {
   api: PcmsApi;
@@ -48,6 +55,7 @@ export function App({ api }: AppProps) {
   const [dirty, setDirty] = useState(false);
   const [newOpen, setNewOpen] = useState(false);
   const [typesOpen, setTypesOpen] = useState(false);
+  const [menusOpen, setMenusOpen] = useState(false);
   const { doc, commit, undo, redo, reset, canUndo, canRedo } =
     useEditorHistory<EditorState>(EMPTY_STATE);
   const mediaLib = useMediaLibrary(api);
@@ -201,6 +209,14 @@ export function App({ api }: AppProps) {
     [commit, doc],
   );
 
+  const onMenuCommit = useCallback(
+    (name: string, items: MenuItem[]) => {
+      commit(setMenu(doc, name, items), `menu:${name}`);
+      setDirty(true);
+    },
+    [commit, doc],
+  );
+
   // --- Save + history ------------------------------------------------------
 
   const onSave = useCallback(() => {
@@ -208,6 +224,7 @@ export function App({ api }: AppProps) {
       api.saveDraft(doc.settings),
       api.saveContent(doc.content),
       api.saveContentTypes(doc.contentTypes),
+      api.saveMenus(doc.menus),
     ]).then(() => setDirty(false));
   }, [api, doc]);
 
@@ -253,6 +270,7 @@ export function App({ api }: AppProps) {
           onSelectTarget={onSelectTarget}
           onNew={() => setNewOpen(true)}
           onManageTypes={() => setTypesOpen(true)}
+          onManageMenus={() => setMenusOpen(true)}
           onOpenMedia={mediaLib.value.openLibrary}
           canUndo={canUndo}
           canRedo={canRedo}
@@ -317,6 +335,13 @@ export function App({ api }: AppProps) {
           types={doc.contentTypes}
           onCommit={onTypesCommit}
           onClose={() => setTypesOpen(false)}
+        />
+      )}
+      {menusOpen && (
+        <MenuManager
+          menus={doc.menus}
+          onCommit={onMenuCommit}
+          onClose={() => setMenusOpen(false)}
         />
       )}
     </MediaContext.Provider>

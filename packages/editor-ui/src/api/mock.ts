@@ -2,6 +2,7 @@ import type {
   ContentItem,
   ContentTypeDef,
   MediaItem,
+  MenuItem,
   SiteSettings,
 } from "@pcms/shared";
 import { BUILTIN_CONTENT_TYPES } from "@pcms/shared";
@@ -20,6 +21,14 @@ const DRAFT_KEY = "pcms.mock.draft";
 const CONTENT_KEY = "pcms.mock.content";
 const MEDIA_KEY = "pcms.mock.media";
 const TYPES_KEY = "pcms.mock.types";
+const MENUS_KEY = "pcms.mock.menus";
+
+const defaultMenus: Record<string, MenuItem[]> = {
+  menu: [
+    { label: "ホーム", url: "/" },
+    { label: "お知らせ", url: "/post/open/" },
+  ],
+};
 
 function svgDataUrl(label: string, color: string): string {
   const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='320' height='200'><rect width='320' height='200' fill='${color}'/><text x='160' y='108' font-size='24' text-anchor='middle' fill='#fff' font-family='sans-serif'>${label}</text></svg>`;
@@ -117,6 +126,15 @@ function loadTypes(): ContentTypeDef[] {
   }
 }
 
+function loadMenus(): Record<string, MenuItem[]> {
+  try {
+    const raw = localStorage.getItem(MENUS_KEY);
+    return raw ? (JSON.parse(raw) as Record<string, MenuItem[]>) : defaultMenus;
+  } catch {
+    return defaultMenus;
+  }
+}
+
 function saveJson(key: string, value: unknown): void {
   try {
     localStorage.setItem(key, JSON.stringify(value));
@@ -143,12 +161,7 @@ export function createMockApi(): PcmsApi {
           assets: ["assets/style.css"],
         },
         content: loadContent(),
-        menus: {
-          menu: [
-            { label: "ホーム", url: "/" },
-            { label: "お知らせ", url: "/post/open/" },
-          ],
-        },
+        menus: loadMenus(),
         contentTypes: loadTypes(),
         previewCss,
       };
@@ -165,6 +178,9 @@ export function createMockApi(): PcmsApi {
     },
     async saveContentTypes(types: ContentTypeDef[]): Promise<void> {
       saveJson(TYPES_KEY, types);
+    },
+    async saveMenus(menus: Record<string, MenuItem[]>): Promise<void> {
+      saveJson(MENUS_KEY, menus);
     },
     async deleteContent(type: string, slug: string): Promise<void> {
       const next = loadContent().filter((i) => !(i.type === type && i.slug === slug));

@@ -41,6 +41,8 @@ export interface PcmsApi {
   saveMedia(files: MediaUpload[]): Promise<MediaItem[]>;
   /** Persist custom post type / field definitions (content-types.json). */
   saveContentTypes(types: ContentTypeDef[]): Promise<void>;
+  /** Persist navigation menus (menus.json). */
+  saveMenus(menus: Record<string, MenuItem[]>): Promise<void>;
   /** Delete one content item (removes content/<type>/<slug>.md). */
   deleteContent(type: string, slug: string): Promise<void>;
 }

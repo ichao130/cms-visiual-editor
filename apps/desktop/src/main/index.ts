@@ -1,12 +1,18 @@
 import { join } from "node:path";
 import { app, BrowserWindow, ipcMain, shell } from "electron";
-import type { ContentItem, ContentTypeDef, SiteSettings } from "@pcms/shared";
+import type {
+  ContentItem,
+  ContentTypeDef,
+  MenuItem,
+  SiteSettings,
+} from "@pcms/shared";
 import type { MediaUpload } from "@pcms/editor-ui";
 import {
   loadProject,
   saveDraft,
   saveContent,
   saveContentTypes,
+  saveMenus,
   deleteContent,
   listMedia,
   saveMedia,
@@ -75,6 +81,10 @@ function registerIpc(): void {
   );
   ipcMain.handle("pcms:saveContentTypes", (_event, types: ContentTypeDef[]) =>
     saveContentTypes(types),
+  );
+  ipcMain.handle(
+    "pcms:saveMenus",
+    (_event, menus: Record<string, MenuItem[]>) => saveMenus(menus),
   );
   ipcMain.handle("pcms:deleteContent", (_event, type: string, slug: string) =>
     deleteContent(type, slug),
