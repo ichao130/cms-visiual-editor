@@ -1,5 +1,6 @@
 import type { FieldValue, InlineFieldType } from "@pcms/shared";
 import { useMedia } from "../media/MediaContext.js";
+import { RichTextEditor } from "./RichTextEditor.js";
 import { t } from "../i18n.js";
 
 interface FieldInputProps {
@@ -25,6 +26,8 @@ export function FieldInput({ id, label, type, value, onChange }: FieldInputProps
       </span>
       {type === "image" ? (
         <ImageField id={id} value={str} onChange={onChange} />
+      ) : type === "richtext" ? (
+        <RichTextEditor value={str} onChange={onChange} />
       ) : (
         renderControl(id, type, str, onChange)
       )}
@@ -79,15 +82,6 @@ function renderControl(
   onChange: (value: string) => void,
 ) {
   switch (type) {
-    case "richtext":
-      return (
-        <textarea
-          id={id}
-          rows={5}
-          value={str}
-          onChange={(e) => onChange(e.target.value)}
-        />
-      );
     case "number":
       return (
         <input id={id} type="number" value={str} onChange={(e) => onChange(e.target.value)} />

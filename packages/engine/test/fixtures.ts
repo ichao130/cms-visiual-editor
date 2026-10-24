@@ -53,19 +53,19 @@ export function samplePosts(): ContentItem[] {
       type: "post",
       slug: "open",
       fields: { title: "開店しました", date: "2026-02-01" },
-      body: "# ごあいさつ\n\n本日**開店**しました。",
+      body: "<h2>ごあいさつ</h2><p>本日<strong>開店</strong>しました。</p>",
     },
     {
       type: "post",
       slug: "hours",
       fields: { title: "営業時間のお知らせ", date: "2026-02-10" },
-      body: "平日は *9時* から営業します。",
+      body: "<p>平日は <em>9時</em> から営業します。</p>",
     },
     {
       type: "page",
       slug: "about",
       fields: { title: "お店について" },
-      body: "小さな自家焙煎の珈琲店です。\n\n- こだわり1\n- こだわり2",
+      body: "<p>小さな自家焙煎の珈琲店です。</p><ul><li>こだわり1</li><li>こだわり2</li></ul>",
     },
   ];
 }

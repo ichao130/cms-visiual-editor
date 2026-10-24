@@ -24,9 +24,9 @@ describe("generateSite", () => {
     expect(files["404.html"]).toContain("404");
   });
 
-  it("renders markdown content bodies into item pages", () => {
+  it("renders HTML content bodies into item pages", () => {
     const post = files["post/open/index.html"]!;
-    expect(post).toContain("<h1>ごあいさつ</h1>");
+    expect(post).toContain("<h2>ごあいさつ</h2>");
     expect(post).toContain("<strong>開店</strong>");
     expect(post).toContain("開店しました"); // title bound
   });

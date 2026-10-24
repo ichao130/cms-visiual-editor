@@ -1,9 +1,4 @@
-import {
-  parseTemplate,
-  renderMarkdown,
-  renderTemplate,
-  type RenderScope,
-} from "@pcms/engine";
+import { parseTemplate, renderTemplate, type RenderScope } from "@pcms/engine";
 import type {
   ContentItem,
   MediaItem,
@@ -32,7 +27,7 @@ function buildCollections(
     const prepared: ContentItem = {
       ...item,
       fields: { ...item.fields, url: itemUrl(item, site) },
-      bodyHtml: renderMarkdown(item.body),
+      bodyHtml: item.body,
     };
     (byType[item.type] ??= []).push(prepared);
   }
@@ -98,7 +93,7 @@ export function renderPreview(
     const prepared: ContentItem | undefined = item && {
       ...item,
       fields: { ...item.fields, url: itemUrl(item, site) },
-      bodyHtml: renderMarkdown(item.body),
+      bodyHtml: item.body,
     };
     const scope: RenderScope = {
       ...base,

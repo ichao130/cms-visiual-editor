@@ -197,6 +197,22 @@ button.pcms-danger { color: #b42318; border-color: #f0c2bc; }
 .pcms-fielddef__actions { margin-left: auto; display: flex; gap: 0.2rem; }
 .pcms-fielddef__actions button { padding: 0.2rem 0.45rem; font-size: 0.78rem; }
 
+/* Rich text editor */
+.pcms-rte { border: 1px solid var(--pcms-border); border-radius: 8px; overflow: hidden; }
+.pcms-rte__toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.15rem; padding: 0.3rem; background: #fafbfc; border-bottom: 1px solid var(--pcms-border); }
+.pcms-rte__btn { padding: 0.2rem 0.45rem; font-size: 0.78rem; border: 1px solid transparent; background: transparent; border-radius: 5px; }
+.pcms-rte__btn:hover { background: #eef0f2; }
+.pcms-rte__btn.is-active { background: #eaf1ff; border-color: var(--pcms-accent); color: var(--pcms-accent); }
+.pcms-rte__sep { width: 1px; align-self: stretch; background: var(--pcms-border); margin: 0.1rem 0.2rem; }
+.pcms-rte__content .ProseMirror { min-height: 140px; padding: 0.6rem 0.7rem; outline: none; font-size: 0.9rem; line-height: 1.7; }
+.pcms-rte__content .ProseMirror:focus { outline: none; }
+.pcms-rte__content .ProseMirror p { margin: 0 0 0.6rem; }
+.pcms-rte__content .ProseMirror h2 { font-size: 1.15rem; margin: 0.8rem 0 0.4rem; }
+.pcms-rte__content .ProseMirror h3 { font-size: 1rem; margin: 0.7rem 0 0.3rem; }
+.pcms-rte__content .ProseMirror blockquote { border-left: 3px solid var(--pcms-border); margin: 0.6rem 0; padding-left: 0.8rem; color: var(--pcms-muted); }
+.pcms-rte__content .ProseMirror a { color: var(--pcms-accent); }
+.pcms-rte__content .ProseMirror ul, .pcms-rte__content .ProseMirror ol { padding-left: 1.4rem; margin: 0 0 0.6rem; }
+
 /* Repeat editor */
 .pcms-repeat { margin-top: 1rem; border-top: 1px dashed var(--pcms-border); padding-top: 0.75rem; }
 .pcms-repeat__title { font-size: 0.85rem; margin: 0 0 0.5rem; }

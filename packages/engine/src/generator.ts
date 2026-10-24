@@ -7,7 +7,6 @@ import type {
   SiteSettings,
   ThemeConfig,
 } from "@pcms/shared";
-import { renderMarkdown } from "./markdown.js";
 import { renderTemplate } from "./renderer.js";
 import type { RenderScope } from "./context.js";
 
@@ -48,12 +47,13 @@ export interface GeneratedSite {
 export function generateSite(input: SiteInput): GeneratedSite {
   const files: Record<string, string> = {};
 
-  // Render markdown bodies and attach each item's own permalink once up front,
-  // so loops can bind `data-field="post.url"` to a real URL.
+  // Content bodies are stored as HTML (authored in the rich text editor), so
+  // they pass through as-is. Attach each item's own permalink up front, so loops
+  // can bind `data-field="post.url"` to a real URL.
   const content = input.content.map((item) => ({
     ...item,
     fields: { ...item.fields, url: "/" + itemPath(item, input.site).replace(/index\.html$/, "") },
-    bodyHtml: renderMarkdown(item.body),
+    bodyHtml: item.body,
   }));
 
   const collections = buildCollections(content);

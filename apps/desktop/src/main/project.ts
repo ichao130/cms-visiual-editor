@@ -16,7 +16,7 @@ import type {
   SiteSettings,
 } from "@pcms/shared";
 import { BUILTIN_CONTENT_TYPES } from "@pcms/shared";
-import { parseFrontMatter } from "@pcms/engine";
+import { parseFrontMatter, renderMarkdown } from "@pcms/engine";
 import type { MediaUpload, ProjectData } from "@pcms/editor-ui";
 
 /**
@@ -117,9 +117,9 @@ const defaultSettings: SiteSettings = {
 };
 
 const defaultContent: ContentItem[] = [
-  { type: "post", slug: "open", fields: { title: "開店しました", date: "2026-02-01" }, body: "# ごあいさつ\n\n本日**開店**しました。ぜひお立ち寄りください。" },
-  { type: "post", slug: "hours", fields: { title: "営業時間のお知らせ", date: "2026-02-10" }, body: "平日は *9時* から営業します。\n\n- 月〜金 9:00-19:00\n- 土日 10:00-18:00" },
-  { type: "page", slug: "about", fields: { title: "お店について" }, body: "小さな自家焙煎の珈琲店です。" },
+  { type: "post", slug: "open", fields: { title: "開店しました", date: "2026-02-01" }, body: "<h2>ごあいさつ</h2><p>本日<strong>開店</strong>しました。ぜひお立ち寄りください。</p>" },
+  { type: "post", slug: "hours", fields: { title: "営業時間のお知らせ", date: "2026-02-10" }, body: "<p>平日は <em>9時</em> から営業します。</p><ul><li>月〜金 9:00-19:00</li><li>土日 10:00-18:00</li></ul>" },
+  { type: "page", slug: "about", fields: { title: "お店について" }, body: "<p>小さな自家焙煎の珈琲店です。</p>" },
 ];
 
 function readTheme(rel: string): string {
@@ -156,7 +156,10 @@ function loadContent(): ContentItem[] {
       if (!file.endsWith(".md")) continue;
       const slug = file.replace(/\.md$/, "");
       const { data, body } = parseFrontMatter(readFileSync(join(typeDir, file), "utf8"));
-      items.push({ type, slug, fields: data, body });
+      // Bodies are HTML (rich text editor). Convert any legacy Markdown body
+      // (no HTML tags) once on load so it keeps rendering correctly.
+      const html = /<[a-z!/]/i.test(body) ? body : renderMarkdown(body);
+      items.push({ type, slug, fields: data, body: html });
     }
   }
   return items.length > 0 ? items : defaultContent;

@@ -38,9 +38,9 @@ function bytesToWebpDataUrl(bytes: Uint8Array): string {
 }
 
 const defaultContent: ContentItem[] = [
-  { type: "post", slug: "open", fields: { title: "開店しました", date: "2026-02-01" }, body: "# ごあいさつ\n\n本日**開店**しました。ぜひお立ち寄りください。" },
-  { type: "post", slug: "hours", fields: { title: "営業時間のお知らせ", date: "2026-02-10" }, body: "平日は *9時* から営業します。\n\n- 月〜金 9:00-19:00\n- 土日 10:00-18:00" },
-  { type: "page", slug: "about", fields: { title: "お店について" }, body: "小さな自家焙煎の珈琲店です。" },
+  { type: "post", slug: "open", fields: { title: "開店しました", date: "2026-02-01" }, body: "<h2>ごあいさつ</h2><p>本日<strong>開店</strong>しました。ぜひお立ち寄りください。</p>" },
+  { type: "post", slug: "hours", fields: { title: "営業時間のお知らせ", date: "2026-02-10" }, body: "<p>平日は <em>9時</em> から営業します。</p><ul><li>月〜金 9:00-19:00</li><li>土日 10:00-18:00</li></ul>" },
+  { type: "page", slug: "about", fields: { title: "お店について" }, body: "<p>小さな自家焙煎の珈琲店です。</p>" },
 ];
 
 const defaultSettings: SiteSettings = {
