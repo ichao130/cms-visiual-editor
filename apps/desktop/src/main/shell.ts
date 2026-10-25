@@ -8,6 +8,7 @@ import type {
   ThemeSummary,
 } from "@pcms/editor-ui";
 import type { ThemeBundle } from "@pcms/engine";
+import { renameSection } from "@pcms/engine";
 import { loadProject } from "./project.js";
 
 /**
@@ -113,7 +114,8 @@ export async function renameThemeFile(from: string, to: string): Promise<void> {
   const base = themeFiles(project.theme);
   // Only created parts (in the overlay, not original theme files) can be renamed.
   if (from in base || to in base || themeOverlay.has(to)) return;
-  themeOverlay.set(to, themeOverlay.get(from) ?? "");
+  const stem = (p: string) => p.replace(/^.*\//, "").replace(/\.[^.]+$/, "");
+  themeOverlay.set(to, renameSection(themeOverlay.get(from) ?? "", stem(from), stem(to)));
   themeOverlay.delete(from);
 }
 

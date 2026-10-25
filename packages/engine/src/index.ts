@@ -8,6 +8,7 @@
 
 export { ATTR, EDITOR_ATTRS } from "./attributes.js";
 export { parseTemplate, parseSectionSchema } from "./parser.js";
+export { renameSection } from "./section.js";
 export {
   renderTemplate,
   renderComposedPage,

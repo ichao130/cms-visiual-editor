@@ -9,6 +9,7 @@ import type {
 import { BUILTIN_CONTENT_TYPES, BUILTIN_TAXONOMIES } from "@pcms/shared";
 import {
   generateSite,
+  renameSection,
   themeifyHtml,
   validateThemeHtml,
   draftText,
@@ -276,6 +277,11 @@ function themeWorkingCopy(): Record<string, string> {
   }
 }
 
+/** The section id a part path maps to (its file stem), e.g. sections/promo.html → promo. */
+function sectionStem(path: string): string {
+  return path.replace(/^.*\//, "").replace(/\.[^.]+$/, "");
+}
+
 function themeFileKind(path: string): ThemeFileKind {
   if (path.endsWith(".html")) return "html";
   if (path.endsWith(".css")) return "css";
@@ -459,7 +465,8 @@ export function createMockApi(): PcmsApi {
       const working = themeWorkingCopy();
       // Only created parts (not original theme files) can be renamed.
       if (from in THEME_FILES || to in THEME_FILES || to in working) return;
-      working[to] = working[from] ?? "";
+      // Keep the contents consistent: update data-section / default data-label.
+      working[to] = renameSection(working[from] ?? "", sectionStem(from), sectionStem(to));
       delete working[from];
       saveJson(THEME_KEY, working);
     },
