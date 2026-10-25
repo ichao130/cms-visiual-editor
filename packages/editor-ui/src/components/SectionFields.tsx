@@ -1,6 +1,7 @@
-import type { FieldValue, SectionInstance, SectionSchema } from "@pcms/shared";
+import type { FieldValue, SectionInstance, SectionSchema, SectionStyle } from "@pcms/shared";
 import { FieldInput } from "./FieldInput.js";
 import { RepeatEditor } from "./RepeatEditor.js";
+import { StyleEditor } from "./StyleEditor.js";
 
 type Row = Record<string, FieldValue>;
 
@@ -9,6 +10,7 @@ interface SectionFieldsProps {
   instance: SectionInstance;
   onFieldChange: (path: string, value: string) => void;
   onRepeatChange: (name: string, rows: Row[]) => void;
+  onStyleChange?: (patch: Partial<SectionStyle>) => void;
 }
 
 /**
@@ -21,6 +23,7 @@ export function SectionFields({
   instance,
   onFieldChange,
   onRepeatChange,
+  onStyleChange,
 }: SectionFieldsProps) {
   const fields = instance.fields ?? {};
   return (
@@ -44,6 +47,8 @@ export function SectionFields({
           onChange={(rows) => onRepeatChange(r.name, rows)}
         />
       ))}
+
+      {onStyleChange && <StyleEditor style={instance.style} onChange={onStyleChange} />}
     </>
   );
 }

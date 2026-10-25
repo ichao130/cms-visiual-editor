@@ -3,6 +3,7 @@ import type {
   PageSettings,
   SectionInstance,
   SectionState,
+  SectionStyle,
   SiteSettings,
 } from "@pcms/shared";
 
@@ -205,4 +206,20 @@ export function setInstanceRepeat(
     ...inst,
     repeats: { ...inst.repeats, [name]: rows },
   }));
+}
+
+export function setInstanceStyle(
+  settings: SiteSettings,
+  pageId: string,
+  id: string,
+  patch: Partial<SectionStyle>,
+): SiteSettings {
+  return withInstance(settings, pageId, id, (inst) => {
+    const style: SectionStyle = { ...inst.style, ...patch };
+    // Drop keys set back to empty so the section falls back to the theme.
+    for (const k of Object.keys(style) as (keyof SectionStyle)[]) {
+      if (style[k] === "" || style[k] == null) delete style[k];
+    }
+    return { ...inst, style };
+  });
 }

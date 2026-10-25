@@ -108,6 +108,16 @@ export interface SectionState {
   repeats?: Record<string, Array<Record<string, FieldValue>>>;
 }
 
+/** Per-section visual overrides applied to the section wrapper. */
+export interface SectionStyle {
+  /** Background color (any CSS color); empty = theme default. */
+  background?: string;
+  /** Text color. */
+  textColor?: string;
+  /** Vertical padding preset. */
+  paddingY?: "none" | "sm" | "md" | "lg";
+}
+
 /** One section placed on a composed page. */
 export interface SectionInstance {
   /** Unique instance id (stable across edits). */
@@ -119,6 +129,8 @@ export interface SectionInstance {
   fields?: Record<string, FieldValue>;
   /** Operator-managed repeat rows, keyed by the `data-repeat` name. */
   repeats?: Record<string, Array<Record<string, FieldValue>>>;
+  /** Visual overrides (background, text color, spacing). */
+  style?: SectionStyle;
 }
 
 export type FieldValue = string | number | boolean | null | FieldValue[];

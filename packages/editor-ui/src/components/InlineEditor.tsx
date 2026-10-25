@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { FieldValue, SectionInstance, SectionSchema } from "@pcms/shared";
+import type { FieldValue, SectionInstance, SectionSchema, SectionStyle } from "@pcms/shared";
 import { SectionFields } from "./SectionFields.js";
 import { t } from "../i18n.js";
 
@@ -17,6 +17,7 @@ interface InlineEditorProps {
   anchor: Anchor;
   onFieldChange: (path: string, value: string) => void;
   onRepeatChange: (name: string, rows: Row[]) => void;
+  onStyleChange: (patch: Partial<SectionStyle>) => void;
   onClose: () => void;
 }
 
@@ -37,6 +38,7 @@ export function InlineEditor({
   anchor,
   onFieldChange,
   onRepeatChange,
+  onStyleChange,
   onClose,
 }: InlineEditorProps) {
   // A manual position set by dragging overrides the anchored position until the
@@ -145,6 +147,7 @@ export function InlineEditor({
             instance={instance}
             onFieldChange={onFieldChange}
             onRepeatChange={onRepeatChange}
+            onStyleChange={onStyleChange}
           />
         </div>
       </div>

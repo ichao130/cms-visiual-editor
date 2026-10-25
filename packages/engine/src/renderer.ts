@@ -91,15 +91,16 @@ export function renderComposedPage(
       editable: editable ? true : undefined,
     };
     const inner = renderFragment(tpl, instScope);
+    const styleAttr = sectionStyleAttr(inst.style);
     if (editable) {
       parts.push(insertMarker(i));
       const hiddenCls = inst.hidden ? " pcms-section--hidden" : "";
       parts.push(
-        `<div class="pcms-section pcms-section--${inst.type}${hiddenCls}" data-pcms-section="${inst.id}">${sectionTools(inst.id)}${inner}</div>`,
+        `<div class="pcms-section pcms-section--${inst.type}${hiddenCls}"${styleAttr} data-pcms-section="${inst.id}">${sectionTools(inst.id)}${inner}</div>`,
       );
     } else {
       parts.push(
-        `<div class="pcms-section pcms-section--${inst.type}">${inner}</div>`,
+        `<div class="pcms-section pcms-section--${inst.type}"${styleAttr}>${inner}</div>`,
       );
     }
   }
@@ -145,6 +146,29 @@ function reorderSections(root: HTMLElement, order: string[] | undefined): void {
 
   for (const el of sections) root.removeChild(el);
   for (const el of ordered) root.appendChild(el);
+}
+
+const PADDING_Y: Record<string, string> = {
+  none: "0",
+  sm: "1.5rem",
+  md: "3rem",
+  lg: "5rem",
+};
+
+/** Inline style attribute for a section's visual overrides (sanitized). */
+function sectionStyleAttr(style: SectionInstance["style"]): string {
+  if (!style) return "";
+  const css: string[] = [];
+  if (style.background) css.push(`background-color:${cssColor(style.background)}`);
+  if (style.textColor) css.push(`color:${cssColor(style.textColor)}`);
+  const pad = style.paddingY ? PADDING_Y[style.paddingY] : undefined;
+  if (pad != null) css.push(`padding-top:${pad}`, `padding-bottom:${pad}`);
+  return css.length > 0 ? ` style="${css.join(";")}"` : "";
+}
+
+/** Keep only characters valid in a CSS color so the value can't break out. */
+function cssColor(value: string): string {
+  return value.replace(/[^#a-zA-Z0-9(),.%\s-]/g, "").trim();
 }
 
 /** Editor-only "+" marker inserted at a gap between composed sections. */

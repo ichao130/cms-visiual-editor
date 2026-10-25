@@ -1,4 +1,4 @@
-import type { FieldValue, SectionInstance, SectionSchema } from "@pcms/shared";
+import type { FieldValue, SectionInstance, SectionSchema, SectionStyle } from "@pcms/shared";
 import { SectionFields } from "./SectionFields.js";
 import { t } from "../i18n.js";
 
@@ -9,6 +9,7 @@ interface InstanceSettingsProps {
   instance: SectionInstance;
   onFieldChange: (path: string, value: string) => void;
   onRepeatChange: (name: string, rows: Row[]) => void;
+  onStyleChange: (patch: Partial<SectionStyle>) => void;
 }
 
 /** Settings panel for a selected section instance, driven by its schema. */
@@ -17,6 +18,7 @@ export function InstanceSettings({
   instance,
   onFieldChange,
   onRepeatChange,
+  onStyleChange,
 }: InstanceSettingsProps) {
   if (!schema) {
     return (
@@ -37,6 +39,7 @@ export function InstanceSettings({
         instance={instance}
         onFieldChange={onFieldChange}
         onRepeatChange={onRepeatChange}
+        onStyleChange={onStyleChange}
       />
     </aside>
   );

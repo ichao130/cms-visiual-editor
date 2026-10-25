@@ -78,6 +78,39 @@ describe("renderComposedPage", () => {
     expect(html).toContain("pcms-section--hidden");
   });
 
+  it("applies per-section style overrides (background / color / padding)", () => {
+    const html = renderComposedPage(
+      [
+        {
+          id: "i1",
+          type: "hero",
+          fields: { heading: "X" },
+          style: { background: "#112233", textColor: "#fff", paddingY: "lg" },
+        },
+      ],
+      sections,
+      { site: { name: "店" }, theme: {}, menus: {}, collections: {} },
+      {},
+    );
+    expect(html).toContain("background-color:#112233");
+    expect(html).toContain("color:#fff");
+    expect(html).toContain("padding-top:5rem");
+    expect(html).toContain("padding-bottom:5rem");
+  });
+
+  it("sanitizes a color value so it cannot break out of the attribute", () => {
+    const html = renderComposedPage(
+      [{ id: "i1", type: "hero", fields: {}, style: { background: 'red" onload="x' } }],
+      sections,
+      { site: { name: "店" }, theme: {}, menus: {}, collections: {} },
+      {},
+    );
+    // The quote is stripped, so the value can't close the style attribute and
+    // inject an event handler.
+    expect(html).not.toContain('onload="');
+    expect(html).toContain("background-color:red");
+  });
+
   it("lets two instances of the same type coexist independently", () => {
     const html = renderComposedPage(
       [

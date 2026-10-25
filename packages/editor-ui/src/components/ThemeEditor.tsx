@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { FieldValue, SectionSchema } from "@pcms/shared";
+import type { FieldValue, SectionSchema, SectionStyle } from "@pcms/shared";
 import { useSiteWorkspace } from "../state/SiteWorkspace.js";
 import type { ContentTypeDef, MenuItem, TaxonomyDef } from "@pcms/shared";
 import {
@@ -25,6 +25,7 @@ import {
   setField,
   setInstanceField,
   setInstanceRepeat,
+  setInstanceStyle,
   setRepeatRows,
   setSectionOrder,
   toggleInstanceHidden,
@@ -264,6 +265,18 @@ export function ThemeEditor() {
       setDirty(true);
     },
     [commit, doc, pageId, selectedId],
+  );
+
+  const onInstanceStyle = useCallback(
+    (patch: Partial<SectionStyle>) => {
+      if (!selectedId) return;
+      commit(
+        { ...doc, settings: setInstanceStyle(doc.settings, pageId, selectedId, patch) },
+        `inststyle:${selectedId}`,
+      );
+      setDirty(true);
+    },
+    [commit, doc, pageId, selectedId, setDirty],
   );
 
   const onDuplicateInstance = useCallback(
@@ -562,6 +575,7 @@ export function ThemeEditor() {
                 anchor={anchor}
                 onFieldChange={onInstanceField}
                 onRepeatChange={onInstanceRepeat}
+                onStyleChange={onInstanceStyle}
                 onClose={() => setInlineOpen(false)}
               />
             ) : null
@@ -575,6 +589,7 @@ export function ThemeEditor() {
               instance={selectedInstance}
               onFieldChange={onInstanceField}
               onRepeatChange={onInstanceRepeat}
+              onStyleChange={onInstanceStyle}
             />
           ) : (
             <aside className="pcms-settings">
