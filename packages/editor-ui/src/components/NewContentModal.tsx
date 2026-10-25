@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { ContentTypeDef } from "@pcms/shared";
 import { slugify } from "../state/editorState.js";
+import { useDialog } from "../state/useDialog.js";
 import { t } from "../i18n.js";
 
 interface NewContentModalProps {
@@ -18,11 +19,12 @@ export function NewContentModal({ types, onCreate, onClose }: NewContentModalPro
 
   const effectiveSlug = slugEdited ? slug : slugify(title, type);
   const canCreate = title.trim() !== "" && effectiveSlug.trim() !== "";
+  const ref = useDialog<HTMLDivElement>(onClose);
 
   return (
     <div className="pcms-modal" role="dialog" aria-modal="true" aria-label={t("new.title")}>
       <div className="pcms-modal__backdrop" onClick={onClose} />
-      <div className="pcms-modal__panel pcms-modal__panel--narrow">
+      <div className="pcms-modal__panel pcms-modal__panel--narrow" ref={ref} tabIndex={-1}>
         <header className="pcms-modal__head">
           <h2>{t("new.title")}</h2>
           <div className="pcms-modal__spacer" />

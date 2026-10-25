@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { PcmsApi, AiSeoResult } from "../api/types.js";
 import type { AiIssue } from "@pcms/engine";
+import { useDialog } from "../state/useDialog.js";
 import { t } from "../i18n.js";
 
 interface ContentContext {
@@ -73,10 +74,12 @@ export function AiPanel({ api, content, onClose }: AiPanelProps) {
     }
   };
 
+  const ref = useDialog<HTMLDivElement>(onClose);
+
   return (
     <div className="pcms-modal" role="dialog" aria-modal="true" aria-label={t("ai.title")}>
       <div className="pcms-modal__backdrop" onClick={onClose} />
-      <div className="pcms-modal__panel pcms-modal__panel--wide">
+      <div className="pcms-modal__panel pcms-modal__panel--wide" ref={ref} tabIndex={-1}>
         <header className="pcms-modal__head">
           <h2>{t("ai.title")}</h2>
           <div className="pcms-modal__spacer" />

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { MenuItem } from "@pcms/shared";
+import { useDialog } from "../state/useDialog.js";
 import { t } from "../i18n.js";
 
 interface MenuManagerProps {
@@ -29,10 +30,12 @@ export function MenuManager({ menus, onCommit, onClose }: MenuManagerProps) {
     onCommit(selected, next);
   };
 
+  const ref = useDialog<HTMLDivElement>(onClose);
+
   return (
     <div className="pcms-modal" role="dialog" aria-modal="true" aria-label={t("menu.title")}>
       <div className="pcms-modal__backdrop" onClick={onClose} />
-      <div className="pcms-modal__panel pcms-modal__panel--narrow">
+      <div className="pcms-modal__panel pcms-modal__panel--narrow" ref={ref} tabIndex={-1}>
         <header className="pcms-modal__head">
           <h2>{t("menu.title")}</h2>
           <div className="pcms-modal__spacer" />

@@ -1,3 +1,4 @@
+import { useDialog } from "../state/useDialog.js";
 import { t } from "../i18n.js";
 
 interface AddSectionModalProps {
@@ -8,10 +9,11 @@ interface AddSectionModalProps {
 
 /** Pick a section type to insert at a chosen position. */
 export function AddSectionModal({ catalog, onPick, onClose }: AddSectionModalProps) {
+  const ref = useDialog<HTMLDivElement>(onClose);
   return (
     <div className="pcms-modal" role="dialog" aria-modal="true" aria-label={t("sections.add")}>
       <div className="pcms-modal__backdrop" onClick={onClose} />
-      <div className="pcms-modal__panel pcms-modal__panel--narrow">
+      <div className="pcms-modal__panel pcms-modal__panel--narrow" ref={ref} tabIndex={-1}>
         <header className="pcms-modal__head">
           <h2>{t("sections.add")}</h2>
           <div className="pcms-modal__spacer" />

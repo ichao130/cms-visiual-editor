@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { ContentTypeDef, TaxonomyDef } from "@pcms/shared";
 import { slugify } from "../state/editorState.js";
+import { useDialog } from "../state/useDialog.js";
 import { t } from "../i18n.js";
 
 interface TaxonomyManagerProps {
@@ -50,10 +51,12 @@ export function TaxonomyManager({
     update(current.name, { types });
   };
 
+  const ref = useDialog<HTMLDivElement>(onClose);
+
   return (
     <div className="pcms-modal" role="dialog" aria-modal="true" aria-label={t("tax.title")}>
       <div className="pcms-modal__backdrop" onClick={onClose} />
-      <div className="pcms-modal__panel pcms-modal__panel--wide">
+      <div className="pcms-modal__panel pcms-modal__panel--wide" ref={ref} tabIndex={-1}>
         <header className="pcms-modal__head">
           <h2>{t("tax.title")}</h2>
           <div className="pcms-modal__spacer" />

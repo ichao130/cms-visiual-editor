@@ -1,4 +1,5 @@
 import type { MediaItem } from "@pcms/shared";
+import { useDialog } from "../state/useDialog.js";
 import { t } from "../i18n.js";
 
 interface MediaLibraryProps {
@@ -18,10 +19,11 @@ export function MediaLibrary({
   onImport,
   onClose,
 }: MediaLibraryProps) {
+  const ref = useDialog<HTMLDivElement>(onClose);
   return (
     <div className="pcms-modal" role="dialog" aria-modal="true" aria-label={t("media.title")}>
       <div className="pcms-modal__backdrop" onClick={onClose} />
-      <div className="pcms-modal__panel">
+      <div className="pcms-modal__panel" ref={ref} tabIndex={-1}>
         <header className="pcms-modal__head">
           <h2>{t("media.title")}</h2>
           <div className="pcms-modal__spacer" />

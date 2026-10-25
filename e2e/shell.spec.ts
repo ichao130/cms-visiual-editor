@@ -29,6 +29,19 @@ test("opens the contact form builder and inbox", async ({ page }) => {
   await expect(page.getByText("受信件数: 3")).toBeVisible();
 });
 
+test("a modal opens from posts and closes on Escape", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: /珈琲店サイト運用/ }).click();
+  await page.getByRole("button", { name: /テスト珈琲店/ }).click();
+  await page.getByRole("button", { name: "投稿", exact: true }).click();
+  await page.getByRole("button", { name: /新規作成/ }).click();
+
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+});
+
 test("language toggle switches the UI to English", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "EN" }).click();
