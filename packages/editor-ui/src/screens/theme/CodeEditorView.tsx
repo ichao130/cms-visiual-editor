@@ -3,6 +3,7 @@ import { validateThemeHtml, type AiIssue } from "@pcms/engine";
 import type { PcmsApi, ThemeFileKind, ThemeFileNode } from "../../api/types.js";
 import { useSiteWorkspace } from "../../state/SiteWorkspace.js";
 import { CodeEditor } from "../../components/CodeEditor.js";
+import { PartPreview } from "../../components/PartPreview.js";
 import { t, type MessageKey } from "../../i18n.js";
 
 interface Props {
@@ -60,8 +61,9 @@ function validateFile(content: string, kind: ThemeFileKind | undefined): AiIssue
  * be reset back to the theme.
  */
 export function CodeEditorView({ api }: Props) {
-  const { reloadProject } = useSiteWorkspace();
+  const { reloadProject, project } = useSiteWorkspace();
   const [files, setFiles] = useState<ThemeFileNode[]>([]);
+  const [showPreview, setShowPreview] = useState(true);
   const [activePath, setActivePath] = useState<string | null>(null);
   const [content, setContent] = useState("");
   const [dirty, setDirty] = useState(false);
@@ -74,6 +76,7 @@ export function CodeEditorView({ api }: Props) {
   // stay correct after a save/delete/reset refresh.
   const active = files.find((f) => f.path === activePath) ?? null;
   const issues = useMemo(() => validateFile(content, active?.kind), [content, active?.kind]);
+  const isSection = active?.kind === "html" && active.path.startsWith("sections/");
 
   const refreshFiles = useCallback(async () => {
     const list = await api.listThemeFiles();
@@ -302,6 +305,14 @@ export function CodeEditorView({ api }: Props) {
                 {active?.edited && (
                   <button onClick={() => void doDelete()}>{t("code.revert")}</button>
                 )}
+                {isSection && (
+                  <button
+                    className={showPreview ? "is-active" : ""}
+                    onClick={() => setShowPreview((v) => !v)}
+                  >
+                    {t("code.preview")}
+                  </button>
+                )}
                 <button className="pcms-primary" onClick={onSave} disabled={!active || !dirty}>
                   {dirty ? t("common.save") : t("common.saved")}
                 </button>
@@ -309,32 +320,42 @@ export function CodeEditorView({ api }: Props) {
             </>
           )}
         </div>
-        {active ? (
-          <CodeEditor
-            key={active.path}
-            value={content}
-            kind={active.kind}
-            onChange={(v) => {
-              setContent(v);
-              setDirty(true);
-            }}
-          />
-        ) : (
-          <p className="pcms-empty">{t("code.pickHint")}</p>
-        )}
-        {active && (
-          <div className={`pcms-codeissues${issues.length ? " has-issues" : ""}`}>
-            {issues.length === 0 ? (
-              <span className="pcms-codeissues__ok">✓ {t("code.validOk")}</span>
+        <div className="pcms-codemain__split">
+          <div className="pcms-codemain__editorcol">
+            {active ? (
+              <CodeEditor
+                key={active.path}
+                value={content}
+                kind={active.kind}
+                onChange={(v) => {
+                  setContent(v);
+                  setDirty(true);
+                }}
+              />
             ) : (
-              issues.map((iss, i) => (
-                <span key={i} className={`pcms-codeissues__item is-${iss.level}`}>
-                  {iss.level === "error" ? "⛔" : "⚠️"} {iss.message}
-                </span>
-              ))
+              <p className="pcms-empty">{t("code.pickHint")}</p>
+            )}
+            {active && (
+              <div className={`pcms-codeissues${issues.length ? " has-issues" : ""}`}>
+                {issues.length === 0 ? (
+                  <span className="pcms-codeissues__ok">✓ {t("code.validOk")}</span>
+                ) : (
+                  issues.map((iss, i) => (
+                    <span key={i} className={`pcms-codeissues__item is-${iss.level}`}>
+                      {iss.level === "error" ? "⛔" : "⚠️"} {iss.message}
+                    </span>
+                  ))
+                )}
+              </div>
             )}
           </div>
-        )}
+          {isSection && showPreview && (
+            <div className="pcms-partpreview">
+              <div className="pcms-partpreview__head">{t("code.preview")}</div>
+              <PartPreview html={content} css={project.previewCss} />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

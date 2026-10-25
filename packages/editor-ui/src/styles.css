@@ -536,3 +536,11 @@ button.pcms-danger { background: #b42318; color: #fff; border-color: #b42318; }
 .pcms-codeissues__ok { color: #1a7f37; }
 .pcms-codeissues__item.is-error { color: #b42318; }
 .pcms-codeissues__item.is-warning { color: #9a6700; }
+
+/* Code editor: editor | live part preview split */
+.pcms-codemain__split { flex: 1; min-height: 0; display: flex; }
+.pcms-codemain__editorcol { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.pcms-partpreview { width: 42%; min-width: 260px; display: flex; flex-direction: column; border-left: 1px solid var(--pcms-border); background: #fff; }
+.pcms-partpreview__head { flex: none; font-size: 0.78rem; color: var(--pcms-muted); padding: 0.3rem 0.6rem; border-bottom: 1px solid var(--pcms-border); background: var(--pcms-panel); }
+.pcms-partpreview__frame { flex: 1; min-height: 0; border: none; background: #fff; width: 100%; }
+.pcms-codemain__actions button.is-active { background: var(--pcms-accent); color: #fff; border-color: var(--pcms-accent); }

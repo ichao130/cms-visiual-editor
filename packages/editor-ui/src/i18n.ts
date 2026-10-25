@@ -229,6 +229,7 @@ const ja = {
   "code.tpl.cta": "見出し＋ボタン",
   "code.tpl.cards": "カード（繰り返し）",
   "code.validOk": "問題は見つかりません",
+  "code.preview": "プレビュー",
 
   // Forms
   "forms.new": "新規フォーム",
