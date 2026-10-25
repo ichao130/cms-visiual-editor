@@ -549,3 +549,9 @@ button.pcms-danger { background: #b42318; color: #fff; border-color: #b42318; }
 .pcms-langtoggle { display: inline-flex; gap: 2px; border: 1px solid var(--pcms-border); border-radius: 6px; padding: 2px; }
 .pcms-langtoggle button { border: none; background: none; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.78rem; }
 .pcms-langtoggle button.is-active { background: var(--pcms-accent); color: #fff; }
+
+/* Error boundary page */
+.pcms-errorpage { max-width: 420px; margin: 4rem auto; padding: 2rem; text-align: center; }
+.pcms-errorpage__title { font-size: 1.1rem; margin: 0 0 0.5rem; }
+.pcms-errorpage__msg { color: var(--pcms-muted); font-size: 0.9rem; margin: 0 0 1.25rem; }
+.pcms-errorpage__actions { display: flex; gap: 0.5rem; justify-content: center; }

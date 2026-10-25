@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import type { PcmsApi } from "./api/types.js";
 import { App } from "./components/App.js";
+import { ErrorBoundary } from "./components/ErrorBoundary.js";
 import "./styles.css";
 
 /**
@@ -13,7 +14,9 @@ export function mount(container: HTMLElement, api: PcmsApi): () => void {
   const root = createRoot(container);
   root.render(
     <StrictMode>
-      <App api={api} />
+      <ErrorBoundary>
+        <App api={api} />
+      </ErrorBoundary>
     </StrictMode>,
   );
   return () => root.unmount();
