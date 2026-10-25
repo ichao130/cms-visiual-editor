@@ -559,3 +559,47 @@ button.pcms-danger { background: #b42318; color: #fff; border-color: #b42318; }
 /* Keyboard focus visibility (a11y) */
 :focus-visible { outline: 2px solid var(--pcms-accent); outline-offset: 2px; border-radius: 4px; }
 .pcms-modal__panel:focus-visible { outline: none; }
+
+/* ===== Responsive: tablet / narrow ===== */
+@media (max-width: 860px) {
+  .pcms-topbar { flex-wrap: wrap; row-gap: 0.3rem; }
+  .pcms-crumbs { font-size: 0.8rem; }
+
+  /* Theme editor toolbar wraps instead of squeezing the title */
+  .pcms-toolbar { flex-wrap: wrap; row-gap: 0.3rem; }
+  .pcms-toolbar__title { white-space: nowrap; }
+
+  /* Dashboard / project: side panel stacks below the main column */
+  .pcms-page { grid-template-columns: 1fr; overflow-y: auto; }
+  .pcms-page__main, .pcms-page__side { overflow-y: visible; }
+  .pcms-page__side { border-left: none; border-top: 1px solid var(--pcms-border); }
+
+  /* Site: sub-nav becomes a horizontal scrolling bar on top */
+  .pcms-sitelayout { flex-direction: column; }
+  .pcms-subnav { flex-direction: row; width: auto; overflow-x: auto; border-right: none; border-bottom: 1px solid var(--pcms-border); gap: 0.1rem; }
+  .pcms-subnav__item { white-space: nowrap; }
+
+  /* Posts / pages / forms: list stacks above the editor */
+  .pcms-contentpane { flex-direction: column; }
+  .pcms-contentpane__list { width: auto; max-height: 42vh; border-right: none; border-bottom: 1px solid var(--pcms-border); }
+
+  /* Theme editor (visual): columns stack vertically and scroll */
+  .pcms-columns, .pcms-columns--inline { grid-template-columns: 1fr; overflow-y: auto; }
+  .pcms-sections, .pcms-settings { border: none; border-bottom: 1px solid var(--pcms-border); }
+  .pcms-preview { min-height: 55vh; }
+
+  /* Code editor: file tree stacks on top, editor + preview stack */
+  .pcms-codelayout { flex-direction: column; }
+  .pcms-filetree { width: auto; max-height: 30vh; border-right: none; border-bottom: 1px solid var(--pcms-border); }
+  .pcms-codemain__split { flex-direction: column; }
+  .pcms-codemain__editorcol { min-height: 300px; }
+  .pcms-partpreview { width: auto; min-height: 240px; border-left: none; border-top: 1px solid var(--pcms-border); }
+}
+
+/* ===== Responsive: phone ===== */
+@media (max-width: 560px) {
+  .pcms-page__main, .pcms-info, .pcms-themeview, .pcms-publishview, .pcms-settingsview, .pcms-formedit, .pcms-formedit__tabs { padding-left: 1rem; padding-right: 1rem; }
+  .pcms-cards { grid-template-columns: 1fr; }
+  .pcms-topbar__account { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pcms-toolbar { flex-wrap: wrap; row-gap: 0.3rem; }
+}
