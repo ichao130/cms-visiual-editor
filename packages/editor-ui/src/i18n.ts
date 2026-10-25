@@ -4,6 +4,8 @@
  * setup (locale switching, pluralization) can replace this without touching
  * call sites.
  */
+import { useSyncExternalStore } from "react";
+
 const ja = {
   "app.title": "テーマエディタ",
   "toolbar.page": "ページ",
@@ -267,6 +269,90 @@ const ja = {
 
 export type MessageKey = keyof typeof ja;
 
+export type Locale = "ja" | "en";
+
+/**
+ * English dictionary — the foundation for an English UI. It is intentionally
+ * partial: any key not translated here falls back to Japanese, so the app stays
+ * usable while translations are filled in over time.
+ */
+const en: Partial<Record<MessageKey, string>> = {
+  "common.loading": "Loading…",
+  "common.save": "Save",
+  "common.saved": "Saved",
+  "common.comingSoon": "Coming soon",
+  "common.yes": "Yes",
+  "common.no": "No",
+  "account.title": "Account",
+  "account.name": "Name",
+  "account.email": "Email",
+  "account.plan": "Plan",
+  "account.ai": "AI usage",
+  "dashboard.title": "Dashboard",
+  "dashboard.projects": "Projects",
+  "dashboard.sites": "sites",
+  "dashboard.newProject": "New project",
+  "project.sites": "Sites",
+  "project.newSite": "Add site",
+  "project.basicSettings": "Basic settings",
+  "site.published": "Live",
+  "site.draft": "Draft",
+  "site.stat.visits": "Visits",
+  "site.stat.inquiries": "Inquiries",
+  "site.stat.pages": "Pages",
+  "site.tab.info": "Overview",
+  "site.tab.posts": "Posts",
+  "site.tab.pages": "Pages",
+  "site.tab.forms": "Forms",
+  "site.tab.settings": "Settings",
+  "site.tab.theme": "Theme",
+  "site.tab.publish": "Publish",
+  "themeEditor.title": "Theme editor",
+  "themeEditor.back": "Back to theme",
+  "themeEditor.visual": "Visual",
+  "themeEditor.code": "Code",
+};
+
+const dictionaries: Record<Locale, Partial<Record<MessageKey, string>>> = { ja, en };
+
+const LOCALE_KEY = "pcms.locale";
+
+function loadLocale(): Locale {
+  try {
+    return localStorage.getItem(LOCALE_KEY) === "en" ? "en" : "ja";
+  } catch {
+    return "ja";
+  }
+}
+
+let locale: Locale = loadLocale();
+const listeners = new Set<() => void>();
+
+export function getLocale(): Locale {
+  return locale;
+}
+
+export function setLocale(next: Locale): void {
+  locale = next;
+  try {
+    localStorage.setItem(LOCALE_KEY, next);
+  } catch {
+    /* ignore storage failures */
+  }
+  for (const l of listeners) l();
+}
+
+/** Current UI copy for a key, falling back to Japanese when untranslated. */
 export function t(key: MessageKey): string {
-  return ja[key];
+  return dictionaries[locale][key] ?? ja[key];
+}
+
+function subscribe(cb: () => void): () => void {
+  listeners.add(cb);
+  return () => listeners.delete(cb);
+}
+
+/** Subscribe a component to locale changes (re-renders the tree that uses it). */
+export function useLocale(): Locale {
+  return useSyncExternalStore(subscribe, getLocale, () => "ja");
 }

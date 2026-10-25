@@ -7,7 +7,7 @@ import { DashboardScreen } from "../screens/DashboardScreen.js";
 import { ProjectScreen } from "../screens/ProjectScreen.js";
 import { SiteScreen } from "../screens/SiteScreen.js";
 import { ThemeEditorScreen } from "../screens/ThemeEditorScreen.js";
-import { t } from "../i18n.js";
+import { t, useLocale, setLocale } from "../i18n.js";
 
 interface AppProps {
   api: PcmsApi;
@@ -24,6 +24,7 @@ interface SiteEntry {
  * mount inside a SiteWorkspaceProvider so they share one site document.
  */
 export function App({ api }: AppProps) {
+  const locale = useLocale();
   const [route, setRoute] = useState<Route>(INITIAL_ROUTE);
   const [account, setAccount] = useState<AccountView | null>(null);
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
@@ -66,7 +67,8 @@ export function App({ api }: AppProps) {
       case "themeEditor":
         return <ThemeEditorScreen api={api} route={route} onNavigate={setRoute} />;
     }
-  }, [route, api, account]);
+    // `locale` is a dep so screens re-render (re-run t()) on a language switch.
+  }, [route, api, account, locale]);
 
   // The workspace is keyed by site so switching sites reloads its document.
   const body =
@@ -91,6 +93,20 @@ export function App({ api }: AppProps) {
           onNavigate={setRoute}
         />
         <div className="pcms-topbar__spacer" />
+        <div className="pcms-langtoggle" role="group" aria-label="language">
+          <button
+            className={locale === "ja" ? "is-active" : ""}
+            onClick={() => setLocale("ja")}
+          >
+            JA
+          </button>
+          <button
+            className={locale === "en" ? "is-active" : ""}
+            onClick={() => setLocale("en")}
+          >
+            EN
+          </button>
+        </div>
         {account && (
           <button
             className="pcms-topbar__account"

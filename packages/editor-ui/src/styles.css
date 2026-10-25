@@ -544,3 +544,8 @@ button.pcms-danger { background: #b42318; color: #fff; border-color: #b42318; }
 .pcms-partpreview__head { flex: none; font-size: 0.78rem; color: var(--pcms-muted); padding: 0.3rem 0.6rem; border-bottom: 1px solid var(--pcms-border); background: var(--pcms-panel); }
 .pcms-partpreview__frame { flex: 1; min-height: 0; border: none; background: #fff; width: 100%; }
 .pcms-codemain__actions button.is-active { background: var(--pcms-accent); color: #fff; border-color: var(--pcms-accent); }
+
+/* Language toggle */
+.pcms-langtoggle { display: inline-flex; gap: 2px; border: 1px solid var(--pcms-border); border-radius: 6px; padding: 2px; }
+.pcms-langtoggle button { border: none; background: none; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.78rem; }
+.pcms-langtoggle button.is-active { background: var(--pcms-accent); color: #fff; }
