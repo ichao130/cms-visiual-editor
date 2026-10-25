@@ -603,3 +603,7 @@ button.pcms-danger { background: #b42318; color: #fff; border-color: #b42318; }
   .pcms-topbar__account { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .pcms-toolbar { flex-wrap: wrap; row-gap: 0.3rem; }
 }
+
+/* Grouped site sub-nav */
+.pcms-subnav__group { display: flex; flex-direction: column; gap: 0.1rem; margin-bottom: 0.4rem; }
+.pcms-subnav__heading { font-size: 0.68rem; color: var(--pcms-muted); letter-spacing: 0.04em; padding: 0.5rem 0.6rem 0.15rem; text-transform: none; }

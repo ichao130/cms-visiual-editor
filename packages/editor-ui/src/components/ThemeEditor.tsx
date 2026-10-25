@@ -44,11 +44,6 @@ import { InstanceSettings } from "./InstanceSettings.js";
 import { InlineEditor, type Anchor } from "./InlineEditor.js";
 import { AddSectionModal } from "./AddSectionModal.js";
 import { ContentForm } from "./ContentForm.js";
-import { NewContentModal } from "./NewContentModal.js";
-import { ContentTypeManager } from "./ContentTypeManager.js";
-import { MenuManager } from "./MenuManager.js";
-import { TaxonomyManager } from "./TaxonomyManager.js";
-import { PublishPanel } from "./PublishPanel.js";
 import { AiPanel } from "./AiPanel.js";
 import { t } from "../i18n.js";
 
@@ -64,11 +59,6 @@ export function ThemeEditor() {
     useSiteWorkspace();
   const [currentKey, setCurrentKey] = useState<string>("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [newOpen, setNewOpen] = useState(false);
-  const [typesOpen, setTypesOpen] = useState(false);
-  const [menusOpen, setMenusOpen] = useState(false);
-  const [taxOpen, setTaxOpen] = useState(false);
-  const [publishOpen, setPublishOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
   const [insertAt, setInsertAt] = useState<number | null>(null);
   const [focusTarget, setFocusTarget] = useState<string | null>(null);
@@ -333,21 +323,7 @@ export function ThemeEditor() {
     [commit, doc, target],
   );
 
-  // --- Create / delete / types ---------------------------------------------
-
-  const onCreateContent = useCallback(
-    (type: string, title: string, slug: string) => {
-      let unique = slug;
-      let n = 2;
-      while (slugExists(doc, type, unique)) unique = `${slug}-${n++}`;
-      commit(createContent(doc, type, title, unique));
-      setDirty(true);
-      setNewOpen(false);
-      setCurrentKey(targetKey({ kind: "content", type, slug: unique, label: "" }));
-      setSelectedId(null);
-    },
-    [commit, doc],
-  );
+  // --- Delete content (while editing it inline) ----------------------------
 
   const onDeleteContent = useCallback(() => {
     if (target?.kind !== "content") return;
@@ -360,30 +336,6 @@ export function ThemeEditor() {
       if (first) setCurrentKey(targetKey(first));
     });
   }, [api, commit, doc, target]);
-
-  const onTypesCommit = useCallback(
-    (types: ContentTypeDef[]) => {
-      commit({ ...doc, contentTypes: types });
-      setDirty(true);
-    },
-    [commit, doc],
-  );
-
-  const onMenuCommit = useCallback(
-    (name: string, items: MenuItem[]) => {
-      commit(setMenu(doc, name, items), `menu:${name}`);
-      setDirty(true);
-    },
-    [commit, doc],
-  );
-
-  const onTaxCommit = useCallback(
-    (taxonomies: TaxonomyDef[]) => {
-      commit(setTaxonomies(doc, taxonomies));
-      setDirty(true);
-    },
-    [commit, doc],
-  );
 
   const onTermsChange = useCallback(
     (taxonomy: string, terms: string[]) => {
@@ -532,13 +484,7 @@ export function ThemeEditor() {
           onSelectTarget={onSelectTarget}
           device={device}
           onDevice={setDevice}
-          onNew={() => setNewOpen(true)}
-          onManageTypes={() => setTypesOpen(true)}
-          onManageMenus={() => setMenusOpen(true)}
-          onManageTax={() => setTaxOpen(true)}
-          onOpenMedia={mediaLib.value.openLibrary}
           onAi={() => setAiOpen(true)}
-          onPublish={() => setPublishOpen(true)}
           canUndo={canUndo}
           canRedo={canRedo}
           dirty={dirty}
@@ -638,36 +584,6 @@ export function ThemeEditor() {
         </div>
       </div>
       {mediaLib.modal}
-      {newOpen && (
-        <NewContentModal
-          types={doc.contentTypes}
-          onCreate={onCreateContent}
-          onClose={() => setNewOpen(false)}
-        />
-      )}
-      {typesOpen && (
-        <ContentTypeManager
-          types={doc.contentTypes}
-          onCommit={onTypesCommit}
-          onClose={() => setTypesOpen(false)}
-        />
-      )}
-      {menusOpen && (
-        <MenuManager
-          menus={doc.menus}
-          onCommit={onMenuCommit}
-          onClose={() => setMenusOpen(false)}
-        />
-      )}
-      {taxOpen && (
-        <TaxonomyManager
-          taxonomies={doc.taxonomies}
-          contentTypes={doc.contentTypes}
-          onCommit={onTaxCommit}
-          onClose={() => setTaxOpen(false)}
-        />
-      )}
-      {publishOpen && <PublishPanel api={api} onClose={() => setPublishOpen(false)} />}
       {aiOpen && (
         <AiPanel
           api={api}

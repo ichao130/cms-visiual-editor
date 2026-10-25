@@ -8,13 +8,7 @@ interface ToolbarProps {
   onSelectTarget: (key: string) => void;
   device: "desktop" | "mobile";
   onDevice: (device: "desktop" | "mobile") => void;
-  onNew: () => void;
-  onManageTypes: () => void;
-  onManageMenus: () => void;
-  onManageTax: () => void;
-  onOpenMedia: () => void;
   onAi: () => void;
-  onPublish: () => void;
   canUndo: boolean;
   canRedo: boolean;
   dirty: boolean;
@@ -29,13 +23,7 @@ export function Toolbar({
   onSelectTarget,
   device,
   onDevice,
-  onNew,
-  onManageTypes,
-  onManageMenus,
-  onManageTax,
-  onOpenMedia,
   onAi,
-  onPublish,
   canUndo,
   canRedo,
   dirty,
@@ -59,9 +47,6 @@ export function Toolbar({
           })}
         </select>
       </label>
-      <button type="button" onClick={onNew}>
-        {t("toolbar.new")}
-      </button>
       <div className="pcms-device" role="group" aria-label={t("toolbar.device")}>
         <button
           type="button"
@@ -81,18 +66,6 @@ export function Toolbar({
         </button>
       </div>
       <div className="pcms-toolbar__spacer" />
-      <button type="button" onClick={onManageMenus}>
-        {t("toolbar.menus")}
-      </button>
-      <button type="button" onClick={onManageTypes}>
-        {t("toolbar.types")}
-      </button>
-      <button type="button" onClick={onManageTax}>
-        {t("toolbar.tax")}
-      </button>
-      <button type="button" onClick={onOpenMedia}>
-        {t("media.title")}
-      </button>
       <button type="button" className="pcms-aibtn" onClick={onAi}>
         {t("toolbar.ai")}
       </button>
@@ -107,9 +80,6 @@ export function Toolbar({
       </span>
       <button type="button" className="pcms-primary" onClick={onSave} disabled={!dirty}>
         {t("toolbar.save")}
-      </button>
-      <button type="button" className="pcms-publishbtn" onClick={onPublish}>
-        {t("toolbar.publish")}
       </button>
     </header>
   );
