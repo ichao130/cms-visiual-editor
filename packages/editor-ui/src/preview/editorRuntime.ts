@@ -25,6 +25,7 @@ export const EDITOR_OVERLAY_CSS = `
 body.pcms-dragging .pcms-insert{height:18px;outline:1px dashed #9db6ef;}
 .pcms-insert--over{background:#eaf1ff;}
 .pcms-insert--over .pcms-insert__btn{opacity:1;background:#2f6feb;color:#fff;}
+.pcms-empty-canvas{margin:2rem;padding:3rem 1rem;border:2px dashed #c0c6cf;border-radius:12px;text-align:center;color:#6b7280;font-family:sans-serif;line-height:1.8;}
 `;
 
 export const EDITOR_RUNTIME = `

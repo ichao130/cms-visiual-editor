@@ -104,6 +104,11 @@ export function renderComposedPage(
       );
     }
   }
+  if (editable && instances.length === 0) {
+    parts.push(
+      `<div class="pcms-empty-canvas">このページにはまだセクションがありません。<br>下の「＋」からセクションを追加できます。</div>`,
+    );
+  }
   if (editable) parts.push(insertMarker(instances.length));
   const body = parts.join("\n");
 

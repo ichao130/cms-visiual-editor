@@ -523,3 +523,8 @@ button.pcms-danger { background: #b42318; color: #fff; border-color: #b42318; }
 .pcms-style__clear { font-size: 0.75rem; padding: 0.15rem 0.45rem; }
 .pcms-style__default { font-size: 0.78rem; color: var(--pcms-muted); }
 .pcms-style__row select { font: inherit; padding: 0.3rem 0.4rem; border: 1px solid var(--pcms-border); border-radius: 6px; }
+
+/* Copy / paste sections */
+.pcms-inline__copy { border: none; background: none; color: var(--pcms-accent); font-size: 0.78rem; padding: 0.1rem 0.4rem; cursor: pointer; }
+.pcms-inline__copy:hover { text-decoration: underline; }
+.pcms-sections__paste { width: 100%; margin-top: 0.5rem; font-size: 0.82rem; border-style: dashed; }

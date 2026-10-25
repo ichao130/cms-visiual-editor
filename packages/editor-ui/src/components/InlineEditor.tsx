@@ -18,6 +18,7 @@ interface InlineEditorProps {
   onFieldChange: (path: string, value: string) => void;
   onRepeatChange: (name: string, rows: Row[]) => void;
   onStyleChange: (patch: Partial<SectionStyle>) => void;
+  onCopy: () => void;
   onClose: () => void;
 }
 
@@ -39,6 +40,7 @@ export function InlineEditor({
   onFieldChange,
   onRepeatChange,
   onStyleChange,
+  onCopy,
   onClose,
 }: InlineEditorProps) {
   // A manual position set by dragging overrides the anchored position until the
@@ -131,6 +133,15 @@ export function InlineEditor({
           onMouseDown={onHeaderDown}
         >
           <span className="pcms-inline__title">{schema.label ?? schema.id}</span>
+          <button
+            type="button"
+            className="pcms-inline__copy"
+            onClick={onCopy}
+            onMouseDown={(e) => e.stopPropagation()}
+            title={t("sections.copy")}
+          >
+            {t("sections.copy")}
+          </button>
           <button
             type="button"
             className="pcms-inline__close"

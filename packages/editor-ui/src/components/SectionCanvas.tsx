@@ -18,6 +18,9 @@ interface SectionCanvasProps {
   onMove: (from: number, to: number) => void;
   onDelete: (id: string) => void;
   onAdd: (type: string) => void;
+  /** Paste the copied section (shown only when something is on the clipboard). */
+  onPaste?: () => void;
+  canPaste?: boolean;
 }
 
 /** Left-column canvas for a composed page: add / reorder / remove sections. */
@@ -30,6 +33,8 @@ export function SectionCanvas({
   onMove,
   onDelete,
   onAdd,
+  onPaste,
+  canPaste,
 }: SectionCanvasProps) {
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [addType, setAddType] = useState(catalog[0]?.type ?? "");
@@ -37,6 +42,7 @@ export function SectionCanvas({
   return (
     <nav className="pcms-sections" aria-label={t("sections.title")}>
       <h2 className="pcms-col__title">{t("sections.title")}</h2>
+      {instances.length === 0 && <p className="pcms-empty">{t("sections.emptyHint")}</p>}
       <ul>
         {instances.map((s, i) => (
           <li
@@ -97,6 +103,11 @@ export function SectionCanvas({
           {t("sections.add")}
         </button>
       </div>
+      {canPaste && onPaste && (
+        <button type="button" className="pcms-sections__paste" onClick={onPaste}>
+          {t("sections.paste")}
+        </button>
+      )}
     </nav>
   );
 }

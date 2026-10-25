@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { FieldValue, SectionSchema, SectionStyle } from "@pcms/shared";
+import type { FieldValue, SectionInstance, SectionSchema, SectionStyle } from "@pcms/shared";
 import { useSiteWorkspace } from "../state/SiteWorkspace.js";
 import type { ContentTypeDef, MenuItem, TaxonomyDef } from "@pcms/shared";
 import {
@@ -21,6 +21,7 @@ import {
   addInstance,
   duplicateInstance,
   moveInstance,
+  pasteInstance,
   removeInstance,
   setField,
   setInstanceField,
@@ -76,6 +77,7 @@ export function ThemeEditor() {
   // selected so its settings fall back to the right panel.
   const [inlineOpen, setInlineOpen] = useState(true);
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
+  const [clipboard, setClipboard] = useState<SectionInstance | null>(null);
   const mediaLib = useMediaLibrary(api);
 
   // Select the first target once the project is loaded.
@@ -266,6 +268,20 @@ export function ThemeEditor() {
     },
     [commit, doc, pageId, selectedId],
   );
+
+  const onCopyInstance = useCallback(() => {
+    if (selectedInstance) setClipboard(selectedInstance);
+  }, [selectedInstance]);
+
+  const onPasteInstance = useCallback(() => {
+    if (!clipboard) return;
+    const settings = pasteInstance(doc.settings, pageId, clipboard);
+    commit({ ...doc, settings });
+    const list = settings.pages[pageId]?.instances ?? [];
+    const added = list[list.length - 1];
+    if (added) setSelectedId(added.id);
+    setDirty(true);
+  }, [clipboard, doc, pageId, commit, setDirty]);
 
   const onInstanceStyle = useCallback(
     (patch: Partial<SectionStyle>) => {
@@ -552,6 +568,8 @@ export function ThemeEditor() {
             onMove={onMoveInstance}
             onDelete={onDeleteInstance}
             onAdd={onAddInstance}
+            onPaste={onPasteInstance}
+            canPaste={clipboard != null}
           />
         ) : (
           <SectionList
@@ -576,6 +594,7 @@ export function ThemeEditor() {
                 onFieldChange={onInstanceField}
                 onRepeatChange={onInstanceRepeat}
                 onStyleChange={onInstanceStyle}
+                onCopy={onCopyInstance}
                 onClose={() => setInlineOpen(false)}
               />
             ) : null

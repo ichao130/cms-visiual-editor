@@ -121,6 +121,29 @@ export function removeInstance(
   return withInstances(settings, pageId, (list) => list.filter((i) => i.id !== id));
 }
 
+/** Insert a fresh instance from a copied snapshot (new id, deep-copied data). */
+export function pasteInstance(
+  settings: SiteSettings,
+  pageId: string,
+  snapshot: SectionInstance,
+  at?: number,
+): SiteSettings {
+  const instance: SectionInstance = {
+    ...snapshot,
+    id: newInstanceId(snapshot.type),
+    fields: snapshot.fields ? { ...snapshot.fields } : undefined,
+    repeats: snapshot.repeats
+      ? (JSON.parse(JSON.stringify(snapshot.repeats)) as SectionInstance["repeats"])
+      : undefined,
+    style: snapshot.style ? { ...snapshot.style } : undefined,
+  };
+  return withInstances(settings, pageId, (list) => {
+    const next = [...list];
+    next.splice(at ?? next.length, 0, instance);
+    return next;
+  });
+}
+
 /** Duplicate an instance, inserting the copy right after the original. */
 export function duplicateInstance(
   settings: SiteSettings,
