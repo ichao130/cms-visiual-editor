@@ -9,12 +9,13 @@ import type {
   TaxonomyDef,
   ThemeConfig,
 } from "@pcms/shared";
-import { renderComposedPage, renderTemplate } from "./renderer.js";
+import { renderComposedPage, renderTemplate, RESPONSIVE_CSS } from "./renderer.js";
 import type { RenderScope, TermContext } from "./context.js";
 import { archivePagePath, archivePageUrl, paginate } from "./pagination.js";
 import {
   articleJsonLd,
   breadcrumbJsonLd,
+  injectHeadStyle,
   injectJsonLd,
   siteJsonLd,
   type Crumb,
@@ -84,7 +85,7 @@ export function generateSite(input: SiteInput): GeneratedSite {
   const siteLd = siteJsonLd(input.site);
   const home: Crumb = { name: input.site.name, url: "/" };
   const finish = (html: string, extra: object[]): string =>
-    injectJsonLd(html, [...siteLd, ...extra]);
+    injectHeadStyle(injectJsonLd(html, [...siteLd, ...extra]), RESPONSIVE_CSS);
   const typeLabel = (type: string): string =>
     input.contentTypes.find((t) => t.name === type)?.label ?? type;
 

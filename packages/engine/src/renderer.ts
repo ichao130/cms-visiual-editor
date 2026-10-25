@@ -92,15 +92,16 @@ export function renderComposedPage(
     };
     const inner = renderFragment(tpl, instScope);
     const styleAttr = sectionStyleAttr(inst.style);
+    const deviceCls = deviceHideClass(inst.style);
     if (editable) {
       parts.push(insertMarker(i));
       const hiddenCls = inst.hidden ? " pcms-section--hidden" : "";
       parts.push(
-        `<div class="pcms-section pcms-section--${inst.type}${hiddenCls}"${styleAttr} data-pcms-section="${inst.id}">${sectionTools(inst.id)}${inner}</div>`,
+        `<div class="pcms-section pcms-section--${inst.type}${hiddenCls}${deviceCls}"${styleAttr} data-pcms-section="${inst.id}">${sectionTools(inst.id)}${inner}</div>`,
       );
     } else {
       parts.push(
-        `<div class="pcms-section pcms-section--${inst.type}"${styleAttr}>${inner}</div>`,
+        `<div class="pcms-section pcms-section--${inst.type}${deviceCls}"${styleAttr}>${inner}</div>`,
       );
     }
   }
@@ -175,6 +176,22 @@ function sectionStyleAttr(style: SectionInstance["style"]): string {
 function cssColor(value: string): string {
   return value.replace(/[^#a-zA-Z0-9(),.%\s-]/g, "").trim();
 }
+
+/** Device-visibility class for a section ("" when shown on all devices). */
+function deviceHideClass(style: SectionInstance["style"]): string {
+  if (style?.hideOn === "mobile") return " pcms-hide-mobile";
+  if (style?.hideOn === "desktop") return " pcms-hide-desktop";
+  return "";
+}
+
+/**
+ * Utility CSS for per-section device visibility, injected into the published
+ * output (the editor shows these sections dimmed instead — see the preview CSS).
+ * The 640px breakpoint matches the editor's mobile preview width.
+ */
+export const RESPONSIVE_CSS =
+  "@media(max-width:640px){.pcms-hide-mobile{display:none!important}}" +
+  "@media(min-width:641px){.pcms-hide-desktop{display:none!important}}";
 
 /** Editor-only "+" marker inserted at a gap between composed sections. */
 function insertMarker(index: number): string {

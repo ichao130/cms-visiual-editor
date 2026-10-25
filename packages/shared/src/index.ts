@@ -116,6 +116,8 @@ export interface SectionStyle {
   textColor?: string;
   /** Vertical padding preset. */
   paddingY?: "none" | "sm" | "md" | "lg";
+  /** Hide the section on one device class in the published output. */
+  hideOn?: "mobile" | "desktop";
 }
 
 /** One section placed on a composed page. */

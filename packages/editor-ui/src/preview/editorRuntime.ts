@@ -26,6 +26,10 @@ body.pcms-dragging .pcms-insert{height:18px;outline:1px dashed #9db6ef;}
 .pcms-insert--over{background:#eaf1ff;}
 .pcms-insert--over .pcms-insert__btn{opacity:1;background:#2f6feb;color:#fff;}
 .pcms-empty-canvas{margin:2rem;padding:3rem 1rem;border:2px dashed #c0c6cf;border-radius:12px;text-align:center;color:#6b7280;font-family:sans-serif;line-height:1.8;}
+.pcms-section.pcms-hide-mobile,.pcms-section.pcms-hide-desktop{opacity:.55;}
+.pcms-section.pcms-hide-mobile::after,.pcms-section.pcms-hide-desktop::after{position:absolute;top:4px;left:4px;z-index:9;background:#111;color:#fff;font-size:11px;font-family:sans-serif;padding:2px 6px;border-radius:4px;}
+.pcms-section.pcms-hide-mobile::after{content:"📱 スマホで非表示";}
+.pcms-section.pcms-hide-desktop::after{content:"💻 PCで非表示";}
 `;
 
 export const EDITOR_RUNTIME = `

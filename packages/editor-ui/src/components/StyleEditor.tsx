@@ -7,6 +7,7 @@ interface Props {
 }
 
 type Padding = NonNullable<SectionStyle["paddingY"]>;
+type HideOn = NonNullable<SectionStyle["hideOn"]>;
 
 /** Per-section visual overrides: background, text color, vertical spacing. */
 export function StyleEditor({ style, onChange }: Props) {
@@ -37,6 +38,19 @@ export function StyleEditor({ style, onChange }: Props) {
           <option value="sm">{t("style.sm")}</option>
           <option value="md">{t("style.md")}</option>
           <option value="lg">{t("style.lg")}</option>
+        </select>
+      </label>
+      <label className="pcms-style__row">
+        <span className="pcms-style__label">{t("style.visibility")}</span>
+        <select
+          value={s.hideOn ?? ""}
+          onChange={(e) =>
+            onChange({ hideOn: e.target.value === "" ? undefined : (e.target.value as HideOn) })
+          }
+        >
+          <option value="">{t("style.allDevices")}</option>
+          <option value="mobile">{t("style.pcOnly")}</option>
+          <option value="desktop">{t("style.mobileOnly")}</option>
         </select>
       </label>
     </div>

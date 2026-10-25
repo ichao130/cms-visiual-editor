@@ -9,7 +9,7 @@ exports[`generateSite > matches the home page snapshot 1`] = `
     <title>テスト珈琲店</title>
     <link rel="stylesheet" href="/assets/style.css" >
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"テスト珈琲店","url":"https://example.test"}</script>
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"テスト珈琲店","url":"https://example.test"}</script></head>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"テスト珈琲店","url":"https://example.test"}</script><style>@media(max-width:640px){.pcms-hide-mobile{display:none!important}}@media(min-width:641px){.pcms-hide-desktop{display:none!important}}</style></head>
   <body>
     <header class="site-header">
       <a class="logo" href="/">テスト珈琲店</a>

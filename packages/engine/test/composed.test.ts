@@ -56,6 +56,8 @@ describe("renderComposedPage", () => {
     // section wrappers, no editor markers in published output
     expect(home).toContain('class="pcms-section pcms-section--hero"');
     expect(home).not.toContain("data-pcms-section");
+    // responsive utility CSS is injected into the head
+    expect(home).toContain(".pcms-hide-mobile{display:none");
   });
 
   it("marks instances and injects tools / insert markers in editable mode", () => {
@@ -96,6 +98,20 @@ describe("renderComposedPage", () => {
     expect(html).toContain("color:#fff");
     expect(html).toContain("padding-top:5rem");
     expect(html).toContain("padding-bottom:5rem");
+  });
+
+  it("adds a device-visibility class for hideOn", () => {
+    const html = renderComposedPage(
+      [
+        { id: "a", type: "hero", fields: {}, style: { hideOn: "mobile" } },
+        { id: "b", type: "hero", fields: {}, style: { hideOn: "desktop" } },
+      ],
+      sections,
+      { site: { name: "店" }, theme: {}, menus: {}, collections: {} },
+      {},
+    );
+    expect(html).toContain("pcms-hide-mobile");
+    expect(html).toContain("pcms-hide-desktop");
   });
 
   it("sanitizes a color value so it cannot break out of the attribute", () => {

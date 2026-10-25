@@ -71,6 +71,13 @@ export function breadcrumbJsonLd(crumbs: Crumb[], site: SiteConfig): object {
 }
 
 /** Insert JSON-LD <script> tags into a page's <head> (or end of document). */
+/** Add a `<style>` block to the document head (or prepend when there is none). */
+export function injectHeadStyle(html: string, css: string): string {
+  if (!css) return html;
+  const tag = `<style>${css}</style>`;
+  return html.includes("</head>") ? html.replace("</head>", `${tag}</head>`) : `${tag}${html}`;
+}
+
 export function injectJsonLd(html: string, objects: object[]): string {
   if (objects.length === 0) return html;
   const scripts = objects

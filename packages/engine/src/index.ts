@@ -12,6 +12,7 @@ export { renameSection } from "./section.js";
 export {
   renderTemplate,
   renderComposedPage,
+  RESPONSIVE_CSS,
   type RenderOptions,
   type ComposedScope,
 } from "./renderer.js";
