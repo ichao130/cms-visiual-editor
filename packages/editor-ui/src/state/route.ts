@@ -4,7 +4,7 @@
  * `setRoute` setter held by the shell.
  */
 
-export type SiteTab = "info" | "posts" | "pages" | "settings" | "theme";
+export type SiteTab = "info" | "posts" | "pages" | "forms" | "settings" | "theme";
 export type ThemeMode = "visual" | "code";
 
 export type Route =

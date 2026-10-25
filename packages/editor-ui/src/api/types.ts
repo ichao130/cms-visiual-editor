@@ -1,6 +1,8 @@
 import type {
   ContentItem,
   ContentTypeDef,
+  FormDef,
+  FormSubmission,
   MediaItem,
   MenuItem,
   SiteConfig,
@@ -89,6 +91,12 @@ export interface PcmsApi {
   renameThemeFile(from: string, to: string): Promise<void>;
   /** Discard the whole working copy — back to the original theme files. */
   resetTheme(): Promise<void>;
+
+  // Contact forms. The builder's definitions persist here; submissions are
+  // received by the Firebase function in production (sample data in the mock).
+  listForms(): Promise<FormDef[]>;
+  saveForms(forms: FormDef[]): Promise<void>;
+  listSubmissions(formId: string): Promise<FormSubmission[]>;
 }
 
 // ---------------------------------------------------------------------------

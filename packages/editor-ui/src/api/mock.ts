@@ -1,6 +1,8 @@
 import type {
   ContentItem,
   ContentTypeDef,
+  FormDef,
+  FormSubmission,
   MediaItem,
   MenuItem,
   SiteSettings,
@@ -56,6 +58,38 @@ const MEDIA_KEY = "pcms.mock.media";
 const TYPES_KEY = "pcms.mock.types";
 const TAX_KEY = "pcms.mock.taxonomies";
 const MENUS_KEY = "pcms.mock.menus";
+const FORMS_KEY = "pcms.mock.forms";
+
+const defaultForms: FormDef[] = [
+  {
+    id: "contact",
+    name: "お問い合わせ",
+    fields: [
+      { name: "name", label: "お名前", type: "text", required: true },
+      { name: "email", label: "メールアドレス", type: "email", required: true },
+      { name: "category", label: "ご用件", type: "select", options: ["予約", "取材", "その他"] },
+      { name: "message", label: "内容", type: "textarea", required: true },
+    ],
+    notifyEmails: ["owner@example.test"],
+    autoReply: true,
+    completionMessage: "お問い合わせありがとうございました。追ってご連絡します。",
+  },
+];
+
+const mockSubmissions: FormSubmission[] = [
+  { id: "s-1", formId: "contact", values: { name: "田中 花子", email: "tanaka@example.com", category: "予約", message: "テイクアウトは可能ですか？" }, receivedAt: "2026-10-22T10:12:00Z" },
+  { id: "s-2", formId: "contact", values: { name: "佐藤 健", email: "sato@example.com", category: "取材", message: "豆の卸売についてご相談したいです。" }, receivedAt: "2026-10-21T15:40:00Z" },
+  { id: "s-3", formId: "contact", values: { name: "鈴木 一郎", email: "suzuki@example.com", category: "その他", message: "店内でイベントはできますか？" }, receivedAt: "2026-10-20T09:05:00Z" },
+];
+
+function loadForms(): FormDef[] {
+  try {
+    const raw = localStorage.getItem(FORMS_KEY);
+    return raw ? (JSON.parse(raw) as FormDef[]) : defaultForms;
+  } catch {
+    return defaultForms;
+  }
+}
 
 const defaultMenus: Record<string, MenuItem[]> = {
   menu: [
@@ -476,6 +510,15 @@ export function createMockApi(): PcmsApi {
       } catch {
         /* ignore storage failures in the mock */
       }
+    },
+    async listForms(): Promise<FormDef[]> {
+      return loadForms();
+    },
+    async saveForms(forms: FormDef[]): Promise<void> {
+      saveJson(FORMS_KEY, forms);
+    },
+    async listSubmissions(formId: string): Promise<FormSubmission[]> {
+      return mockSubmissions.filter((s) => s.formId === formId);
     },
     async deleteContent(type: string, slug: string): Promise<void> {
       const next = loadContent().filter((i) => !(i.type === type && i.slug === slug));

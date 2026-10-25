@@ -293,3 +293,39 @@ export interface RepeatSchema {
   name: string;
   fields: FieldSchema[];
 }
+
+// ---------------------------------------------------------------------------
+// Contact forms (GUI form builder + received submissions)
+// ---------------------------------------------------------------------------
+
+export type FormFieldType = "text" | "email" | "textarea" | "tel" | "select" | "checkbox";
+
+export interface FormField {
+  /** Stable field key used in submissions and emails. */
+  name: string;
+  label: string;
+  type: FormFieldType;
+  required?: boolean;
+  /** Choices for the "select" type. */
+  options?: string[];
+}
+
+export interface FormDef {
+  id: string;
+  name: string;
+  fields: FormField[];
+  /** Notification recipients (複数宛先). */
+  notifyEmails: string[];
+  /** Send an auto-reply to the submitter. */
+  autoReply: boolean;
+  /** Message shown on the completion page. */
+  completionMessage: string;
+}
+
+export interface FormSubmission {
+  id: string;
+  formId: string;
+  values: Record<string, string>;
+  /** ISO timestamp of receipt. */
+  receivedAt: string;
+}

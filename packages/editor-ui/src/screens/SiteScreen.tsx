@@ -4,6 +4,7 @@ import { MediaContext, useMediaLibrary } from "../media/MediaContext.js";
 import { SiteInfoView } from "./site/SiteInfoView.js";
 import { PostsView } from "./site/PostsView.js";
 import { PagesView } from "./site/PagesView.js";
+import { FormsView } from "./site/FormsView.js";
 import { SiteSettingsView } from "./site/SiteSettingsView.js";
 import { ThemeView } from "./site/ThemeView.js";
 import { t, type MessageKey } from "../i18n.js";
@@ -18,6 +19,7 @@ const TABS: { id: SiteTab; label: MessageKey }[] = [
   { id: "info", label: "site.tab.info" },
   { id: "posts", label: "site.tab.posts" },
   { id: "pages", label: "site.tab.pages" },
+  { id: "forms", label: "site.tab.forms" },
   { id: "settings", label: "site.tab.settings" },
   { id: "theme", label: "site.tab.theme" },
 ];
@@ -49,6 +51,7 @@ export function SiteScreen({ api, route, onNavigate }: Props) {
           {tab === "info" && <SiteInfoView api={api} siteId={siteId} />}
           {tab === "posts" && <PostsView />}
           {tab === "pages" && <PagesView />}
+          {tab === "forms" && <FormsView api={api} />}
           {tab === "settings" && <SiteSettingsView />}
           {tab === "theme" && <ThemeView api={api} siteId={siteId} onNavigate={onNavigate} />}
         </section>

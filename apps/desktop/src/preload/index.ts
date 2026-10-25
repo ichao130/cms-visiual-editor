@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from "electron";
 import type {
   ContentItem,
   ContentTypeDef,
+  FormDef,
   MenuItem,
   SiteSettings,
   TaxonomyDef,
@@ -56,6 +57,9 @@ const api: PcmsApi = {
   renameThemeFile: (from: string, to: string) =>
     ipcRenderer.invoke("pcms:renameThemeFile", from, to),
   resetTheme: () => ipcRenderer.invoke("pcms:resetTheme"),
+  listForms: () => ipcRenderer.invoke("pcms:listForms"),
+  saveForms: (forms: FormDef[]) => ipcRenderer.invoke("pcms:saveForms", forms),
+  listSubmissions: (formId: string) => ipcRenderer.invoke("pcms:listSubmissions", formId),
 };
 
 contextBridge.exposeInMainWorld("pcms", api);

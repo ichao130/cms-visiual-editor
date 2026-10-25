@@ -7,6 +7,7 @@ import type {
   ThemeFileNode,
   ThemeSummary,
 } from "@pcms/editor-ui";
+import type { FormDef, FormSubmission } from "@pcms/shared";
 import type { ThemeBundle } from "@pcms/engine";
 import { renameSection } from "@pcms/engine";
 import { loadProject } from "./project.js";
@@ -121,4 +122,21 @@ export async function renameThemeFile(from: string, to: string): Promise<void> {
 
 export async function resetTheme(): Promise<void> {
   themeOverlay.clear();
+}
+
+// Contact forms. Stored in-session for the local build; the cloud receiver and
+// forms.json persistence are wired later.
+const formStore = new Map<string, FormDef>();
+
+export async function listForms(): Promise<FormDef[]> {
+  return [...formStore.values()];
+}
+
+export async function saveForms(forms: FormDef[]): Promise<void> {
+  formStore.clear();
+  for (const f of forms) formStore.set(f.id, f);
+}
+
+export async function listSubmissions(_formId: string): Promise<FormSubmission[]> {
+  return [];
 }

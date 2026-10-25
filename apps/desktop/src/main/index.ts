@@ -11,6 +11,7 @@ import {
 import type {
   ContentItem,
   ContentTypeDef,
+  FormDef,
   MenuItem,
   SiteSettings,
   TaxonomyDef,
@@ -48,6 +49,9 @@ import {
   deleteThemeFile,
   renameThemeFile,
   resetTheme,
+  listForms,
+  saveForms,
+  listSubmissions,
 } from "./shell.js";
 
 function createWindow(): BrowserWindow {
@@ -180,6 +184,9 @@ function registerIpc(): void {
     renameThemeFile(from, to),
   );
   ipcMain.handle("pcms:resetTheme", () => resetTheme());
+  ipcMain.handle("pcms:listForms", () => listForms());
+  ipcMain.handle("pcms:saveForms", (_event, forms: FormDef[]) => saveForms(forms));
+  ipcMain.handle("pcms:listSubmissions", (_event, formId: string) => listSubmissions(formId));
 }
 
 /**

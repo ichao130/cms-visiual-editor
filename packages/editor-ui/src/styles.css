@@ -479,3 +479,31 @@ button.pcms-danger { background: #b42318; color: #fff; border-color: #b42318; }
 .pcms-code { flex: 1; min-height: 0; overflow: hidden; }
 .pcms-code .cm-editor { height: 100%; }
 .pcms-code .cm-scroller { overflow: auto; }
+
+/* Forms */
+.pcms-formedit { padding: 1.25rem; }
+.pcms-formedit__tabs { margin-bottom: 1rem; }
+.pcms-formbuild { max-width: 640px; }
+.pcms-formbuild textarea, .pcms-formbuild input[type="text"], .pcms-formbuild .pcms-field input {
+  width: 100%; font: inherit; padding: 0.4rem 0.5rem; border: 1px solid var(--pcms-border); border-radius: 6px;
+}
+.pcms-formfields { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1.25rem; }
+.pcms-formfield { border: 1px solid var(--pcms-border); border-radius: 8px; padding: 0.5rem; }
+.pcms-formfield__row { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+.pcms-formfield__label { flex: 1; min-width: 120px; font: inherit; padding: 0.35rem 0.45rem; border: 1px solid var(--pcms-border); border-radius: 6px; }
+.pcms-formfield__row select { font: inherit; padding: 0.35rem 0.4rem; border: 1px solid var(--pcms-border); border-radius: 6px; }
+.pcms-formfield__req { display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.85rem; white-space: nowrap; }
+.pcms-formfield__row button { font-size: 0.8rem; padding: 0.2rem 0.45rem; }
+.pcms-formfield__del { color: #b42318; }
+.pcms-formfield__options { width: 100%; margin-top: 0.4rem; font: inherit; padding: 0.35rem 0.45rem; border: 1px solid var(--pcms-border); border-radius: 6px; }
+.pcms-addsection__btn { align-self: flex-start; }
+.pcms-formbuild__delete { margin-top: 1.5rem; }
+.pcms-formbuild .pcms-field { display: block; margin-bottom: 0.9rem; }
+.pcms-formbuild .pcms-field__label { display: block; font-size: 0.85rem; color: var(--pcms-muted); margin-bottom: 0.25rem; }
+
+.pcms-inbox { padding: 0.25rem; }
+.pcms-inbox__count { font-size: 0.9rem; }
+.pcms-inbox__scroll { overflow-x: auto; }
+.pcms-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.pcms-table th, .pcms-table td { border: 1px solid var(--pcms-border); padding: 0.4rem 0.6rem; text-align: left; vertical-align: top; }
+.pcms-table th { background: var(--pcms-panel); color: var(--pcms-muted); font-weight: 600; white-space: nowrap; }
