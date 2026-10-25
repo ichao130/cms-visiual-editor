@@ -7,6 +7,7 @@ import { PagesView } from "./site/PagesView.js";
 import { FormsView } from "./site/FormsView.js";
 import { SiteSettingsView } from "./site/SiteSettingsView.js";
 import { ThemeView } from "./site/ThemeView.js";
+import { PublishFlow } from "../components/PublishFlow.js";
 import { t, type MessageKey } from "../i18n.js";
 
 interface Props {
@@ -22,6 +23,7 @@ const TABS: { id: SiteTab; label: MessageKey }[] = [
   { id: "forms", label: "site.tab.forms" },
   { id: "settings", label: "site.tab.settings" },
   { id: "theme", label: "site.tab.theme" },
+  { id: "publish", label: "site.tab.publish" },
 ];
 
 /**
@@ -54,6 +56,12 @@ export function SiteScreen({ api, route, onNavigate }: Props) {
           {tab === "forms" && <FormsView api={api} />}
           {tab === "settings" && <SiteSettingsView />}
           {tab === "theme" && <ThemeView api={api} siteId={siteId} onNavigate={onNavigate} />}
+          {tab === "publish" && (
+            <div className="pcms-publishview">
+              <h1 className="pcms-page__title">{t("site.tab.publish")}</h1>
+              <PublishFlow api={api} />
+            </div>
+          )}
         </section>
       </div>
       {media.modal}

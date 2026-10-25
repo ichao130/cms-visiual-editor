@@ -21,6 +21,7 @@ const TAB_LABEL: Record<SiteTab, MessageKey> = {
   forms: "site.tab.forms",
   settings: "site.tab.settings",
   theme: "site.tab.theme",
+  publish: "site.tab.publish",
 };
 
 /** Clickable breadcrumb derived from the current route and loaded names. */

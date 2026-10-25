@@ -166,6 +166,7 @@ const ja = {
   "site.tab.forms": "フォーム",
   "site.tab.settings": "サイト設定",
   "site.tab.theme": "テーマ",
+  "site.tab.publish": "公開",
   "info.mockNote": "数値はサンプルです（本番はアナリティクスとお問い合わせ受信から表示）。",
   "info.visitsChart": "訪問数の推移",
   "info.recentInquiries": "最近のお問い合わせ",

@@ -507,3 +507,9 @@ button.pcms-danger { background: #b42318; color: #fff; border-color: #b42318; }
 .pcms-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
 .pcms-table th, .pcms-table td { border: 1px solid var(--pcms-border); padding: 0.4rem 0.6rem; text-align: left; vertical-align: top; }
 .pcms-table th { background: var(--pcms-panel); color: var(--pcms-muted); font-weight: 600; white-space: nowrap; }
+
+.pcms-publishview { padding: 1.5rem; max-width: 640px; overflow-y: auto; }
+.pcms-publishview .pcms-field { display: block; margin-bottom: 0.6rem; }
+.pcms-publishview .pcms-field__label { display: block; font-size: 0.85rem; color: var(--pcms-muted); margin-bottom: 0.2rem; }
+.pcms-publishview .pcms-field input { width: 100%; font: inherit; padding: 0.4rem 0.5rem; border: 1px solid var(--pcms-border); border-radius: 6px; }
+.pcms-publishview .pcms-publish__typerow label { white-space: nowrap; }
