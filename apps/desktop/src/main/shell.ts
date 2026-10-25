@@ -1,5 +1,6 @@
 import type {
   AccountView,
+  ProjectData,
   ProjectSummary,
   SiteStats,
   SiteSummary,
@@ -104,6 +105,43 @@ export async function readThemeFile(path: string): Promise<string> {
 export async function writeThemeFile(path: string, content: string): Promise<void> {
   // Working copy only — the original theme files on disk are left untouched.
   themeOverlay.set(path, content);
+}
+
+/**
+ * Overlay the code-editor working copy onto a loaded project's theme, so parts
+ * created or edited in the code editor show in the visual editor and preview.
+ * Applied to loadProject's result; the files on disk are untouched.
+ */
+export function applyThemeOverlay(project: ProjectData): ProjectData {
+  if (themeOverlay.size === 0) return project;
+  const theme: ThemeBundle = {
+    ...project.theme,
+    sections: { ...project.theme.sections },
+    templates: { ...project.theme.templates },
+  };
+  let previewCss = project.previewCss;
+  for (const [path, content] of themeOverlay) {
+    const sec = /^sections\/(.+)\.html$/.exec(path);
+    if (sec?.[1]) {
+      theme.sections = { ...theme.sections, [sec[1]]: content };
+      continue;
+    }
+    const tpl = /^templates\/(.+)\.html$/.exec(path);
+    if (tpl?.[1]) {
+      theme.templates = { ...theme.templates, [tpl[1]]: content };
+      continue;
+    }
+    if (path === "layout.html") theme.layout = content;
+    else if (path === "assets/style.css") previewCss = content;
+    else if (path === "theme.json") {
+      try {
+        theme.config = JSON.parse(content) as ThemeBundle["config"];
+      } catch {
+        /* keep the existing config on bad JSON */
+      }
+    }
+  }
+  return { ...project, theme, previewCss };
 }
 
 export async function deleteThemeFile(path: string): Promise<void> {

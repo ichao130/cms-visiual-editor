@@ -43,6 +43,7 @@ import {
   listSites,
   loadSiteStats,
   listThemes,
+  applyThemeOverlay,
   listThemeFiles,
   readThemeFile,
   writeThemeFile,
@@ -118,7 +119,8 @@ function runSmokeCheck(win: BrowserWindow): void {
 }
 
 function registerIpc(): void {
-  ipcMain.handle("pcms:loadProject", () => loadProject());
+  // Overlay the code-editor working copy so new/edited parts reflect in the app.
+  ipcMain.handle("pcms:loadProject", async () => applyThemeOverlay(await loadProject()));
   ipcMain.handle("pcms:saveDraft", (_event, settings: SiteSettings) =>
     saveDraft(settings),
   );
