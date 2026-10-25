@@ -528,3 +528,11 @@ button.pcms-danger { background: #b42318; color: #fff; border-color: #b42318; }
 .pcms-inline__copy { border: none; background: none; color: var(--pcms-accent); font-size: 0.78rem; padding: 0.1rem 0.4rem; cursor: pointer; }
 .pcms-inline__copy:hover { text-decoration: underline; }
 .pcms-sections__paste { width: 100%; margin-top: 0.5rem; font-size: 0.82rem; border-style: dashed; }
+
+/* Code editor: new-part template select + validation bar */
+.pcms-filetree__newbox { padding: 0.3rem 0.4rem 0.5rem; }
+.pcms-filetree__tplselect { width: 100%; margin-top: 0.3rem; font: inherit; font-size: 0.8rem; padding: 0.25rem 0.4rem; border: 1px solid var(--pcms-border); border-radius: 5px; }
+.pcms-codeissues { flex: none; max-height: 92px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.1rem; padding: 0.4rem 0.8rem; border-top: 1px solid var(--pcms-border); background: var(--pcms-panel); font-size: 0.8rem; }
+.pcms-codeissues__ok { color: #1a7f37; }
+.pcms-codeissues__item.is-error { color: #b42318; }
+.pcms-codeissues__item.is-warning { color: #9a6700; }

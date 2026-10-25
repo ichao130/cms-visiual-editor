@@ -224,6 +224,11 @@ const ja = {
   "code.resetConfirm": "テーマの変更をすべて破棄しますか？",
   "code.tag.new": "新規",
   "code.tag.edited": "編集",
+  "code.tpl.basic": "見出し＋本文",
+  "code.tpl.image": "画像＋テキスト",
+  "code.tpl.cta": "見出し＋ボタン",
+  "code.tpl.cards": "カード（繰り返し）",
+  "code.validOk": "問題は見つかりません",
 
   // Forms
   "forms.new": "新規フォーム",

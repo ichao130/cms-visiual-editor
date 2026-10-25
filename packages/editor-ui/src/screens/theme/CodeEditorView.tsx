@@ -1,22 +1,57 @@
-import { useCallback, useEffect, useState } from "react";
-import type { PcmsApi, ThemeFileNode } from "../../api/types.js";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { validateThemeHtml, type AiIssue } from "@pcms/engine";
+import type { PcmsApi, ThemeFileKind, ThemeFileNode } from "../../api/types.js";
 import { useSiteWorkspace } from "../../state/SiteWorkspace.js";
 import { CodeEditor } from "../../components/CodeEditor.js";
-import { t } from "../../i18n.js";
+import { t, type MessageKey } from "../../i18n.js";
 
 interface Props {
   api: PcmsApi;
 }
 
-const NEW_PART_TEMPLATE = (name: string) =>
-  `<section data-section="${name}" data-label="${name}">
-  <h2 data-field="heading" data-label="見出し">見出し</h2>
-  <p data-field="text" data-type="richtext" data-label="本文">本文をここに入力します。</p>
-</section>
-`;
+/** Starter templates offered when creating a new part. */
+const PART_TEMPLATES: { id: string; label: MessageKey; make: (name: string) => string }[] = [
+  {
+    id: "basic",
+    label: "code.tpl.basic",
+    make: (n) =>
+      `<section data-section="${n}" data-label="${n}">\n  <h2 data-field="heading" data-label="見出し">見出し</h2>\n  <p data-field="text" data-type="richtext" data-label="本文">本文をここに入力します。</p>\n</section>\n`,
+  },
+  {
+    id: "image",
+    label: "code.tpl.image",
+    make: (n) =>
+      `<section data-section="${n}" data-label="${n}">\n  <img data-field="image" data-label="画像" src="" alt="">\n  <h2 data-field="heading" data-label="見出し">見出し</h2>\n  <p data-field="text" data-type="richtext" data-label="本文">本文。</p>\n</section>\n`,
+  },
+  {
+    id: "cta",
+    label: "code.tpl.cta",
+    make: (n) =>
+      `<section data-section="${n}" data-label="${n}">\n  <h2 data-field="heading" data-label="見出し">見出し</h2>\n  <p data-field="lead" data-label="リード文">説明文をここに。</p>\n  <a data-field="cta_url" data-type="link" data-label="ボタンのリンク" href="#"><span data-field="cta_label" data-label="ボタンの文言">詳しく見る</span></a>\n</section>\n`,
+  },
+  {
+    id: "cards",
+    label: "code.tpl.cards",
+    make: (n) =>
+      `<section data-section="${n}" data-label="${n}">\n  <h2 data-field="heading" data-label="見出し">見出し</h2>\n  <div data-repeat="cards" data-label="カード">\n    <div>\n      <h3 data-field="title" data-label="タイトル">タイトル</h3>\n      <p data-field="body" data-label="本文">本文</p>\n    </div>\n  </div>\n</section>\n`,
+  },
+];
 
 const safeName = (raw: string): string =>
   raw.trim().replace(/[^a-z0-9-]/gi, "-").toLowerCase();
+
+/** Validate the active file where we can (HTML parts/templates, theme.json). */
+function validateFile(content: string, kind: ThemeFileKind | undefined): AiIssue[] {
+  if (kind === "html") return validateThemeHtml(content);
+  if (kind === "json") {
+    try {
+      JSON.parse(content);
+    } catch (e) {
+      return [{ level: "error", message: `JSON が不正です: ${(e as Error).message}` }];
+    }
+  }
+  return [];
+}
 
 /**
  * VSCode-style code editor for theme development / part authoring. Edits a theme
@@ -31,12 +66,14 @@ export function CodeEditorView({ api }: Props) {
   const [content, setContent] = useState("");
   const [dirty, setDirty] = useState(false);
   const [newName, setNewName] = useState<string | null>(null);
+  const [newTemplate, setNewTemplate] = useState<string>(PART_TEMPLATES[0]!.id);
   const [rename, setRename] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<"delete" | "reset" | null>(null);
 
   // The active node is derived from the current list, so its custom/edited flags
   // stay correct after a save/delete/reset refresh.
   const active = files.find((f) => f.path === activePath) ?? null;
+  const issues = useMemo(() => validateFile(content, active?.kind), [content, active?.kind]);
 
   const refreshFiles = useCallback(async () => {
     const list = await api.listThemeFiles();
@@ -86,7 +123,8 @@ export function CodeEditorView({ api }: Props) {
       return;
     }
     const path = `sections/${safe}.html`;
-    await api.writeThemeFile(path, NEW_PART_TEMPLATE(safe));
+    const tpl = PART_TEMPLATES.find((p) => p.id === newTemplate) ?? PART_TEMPLATES[0]!;
+    await api.writeThemeFile(path, tpl.make(safe));
     await refreshFiles();
     setActivePath(path);
     setNewName(null);
@@ -153,21 +191,34 @@ export function CodeEditorView({ api }: Props) {
           </button>
         </div>
         {newName != null && (
-          <div className="pcms-filetree__newrow">
-            <input
-              autoFocus
-              className="pcms-filetree__newinput"
-              value={newName}
-              placeholder={t("code.newPartPlaceholder")}
-              onChange={(e) => setNewName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") void createPart();
-                else if (e.key === "Escape") setNewName(null);
-              }}
-            />
-            <button className="pcms-primary" onClick={() => void createPart()}>
-              {t("code.create")}
-            </button>
+          <div className="pcms-filetree__newbox">
+            <div className="pcms-filetree__newrow">
+              <input
+                autoFocus
+                className="pcms-filetree__newinput"
+                value={newName}
+                placeholder={t("code.newPartPlaceholder")}
+                onChange={(e) => setNewName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void createPart();
+                  else if (e.key === "Escape") setNewName(null);
+                }}
+              />
+              <button className="pcms-primary" onClick={() => void createPart()}>
+                {t("code.create")}
+              </button>
+            </div>
+            <select
+              className="pcms-filetree__tplselect"
+              value={newTemplate}
+              onChange={(e) => setNewTemplate(e.target.value)}
+            >
+              {PART_TEMPLATES.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {t(p.label)}
+                </option>
+              ))}
+            </select>
           </div>
         )}
         {grouped.map(([dir, nodes]) => (
@@ -270,6 +321,19 @@ export function CodeEditorView({ api }: Props) {
           />
         ) : (
           <p className="pcms-empty">{t("code.pickHint")}</p>
+        )}
+        {active && (
+          <div className={`pcms-codeissues${issues.length ? " has-issues" : ""}`}>
+            {issues.length === 0 ? (
+              <span className="pcms-codeissues__ok">✓ {t("code.validOk")}</span>
+            ) : (
+              issues.map((iss, i) => (
+                <span key={i} className={`pcms-codeissues__item is-${iss.level}`}>
+                  {iss.level === "error" ? "⛔" : "⚠️"} {iss.message}
+                </span>
+              ))
+            )}
+          </div>
         )}
       </div>
     </div>
