@@ -42,7 +42,9 @@ import {
 import {
   loadAccount,
   listProjects,
+  createProject,
   listSites,
+  createSite,
   loadSiteStats,
   listThemes,
   applyThemeOverlay,
@@ -176,7 +178,11 @@ function registerIpc(): void {
   // App shell (local single-project view; cloud account/analytics wired later).
   ipcMain.handle("pcms:loadAccount", () => loadAccount());
   ipcMain.handle("pcms:listProjects", () => listProjects());
-  ipcMain.handle("pcms:listSites", (_event, _projectId: string) => listSites());
+  ipcMain.handle("pcms:createProject", (_event, name: string) => createProject(name));
+  ipcMain.handle("pcms:listSites", (_event, projectId: string) => listSites(projectId));
+  ipcMain.handle("pcms:createSite", (_event, projectId: string, name: string) =>
+    createSite(projectId, name),
+  );
   ipcMain.handle("pcms:loadSiteStats", (_event, _siteId: string) => loadSiteStats());
   ipcMain.handle("pcms:listThemes", () => listThemes());
   ipcMain.handle("pcms:listThemeFiles", () => listThemeFiles());

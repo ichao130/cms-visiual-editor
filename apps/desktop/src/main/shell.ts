@@ -1,3 +1,6 @@
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { app } from "electron";
 import type {
   AccountView,
   ProjectData,
@@ -13,6 +16,34 @@ import type { ThemeBundle } from "@pcms/engine";
 import { renameSection } from "@pcms/engine";
 import { loadProject } from "./project.js";
 
+/** The built-in local project/site, always present. */
+const LOCAL_PROJECT_ID = "local";
+
+interface ShellRegistry {
+  projects: ProjectSummary[];
+  sites: Record<string, SiteSummary[]>;
+}
+
+function registryPath(): string {
+  const dir = app.getPath("userData");
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+  return join(dir, "shell.json");
+}
+
+function loadRegistry(): ShellRegistry {
+  try {
+    const path = registryPath();
+    if (existsSync(path)) return JSON.parse(readFileSync(path, "utf8")) as ShellRegistry;
+  } catch {
+    /* fall through to empty registry */
+  }
+  return { projects: [], sites: {} };
+}
+
+function saveRegistry(reg: ShellRegistry): void {
+  writeFileSync(registryPath(), JSON.stringify(reg, null, 2), "utf8");
+}
+
 /**
  * App-shell data for the desktop build. This is a local, single-project view —
  * the cloud account, multi-project listing and analytics are wired later. Theme
@@ -27,10 +58,30 @@ export async function loadAccount(): Promise<AccountView> {
 }
 
 export async function listProjects(): Promise<ProjectSummary[]> {
-  return [{ id: "local", name: "ローカルプロジェクト", siteCount: 1 }];
+  const reg = loadRegistry();
+  const local: ProjectSummary = {
+    id: LOCAL_PROJECT_ID,
+    name: "ローカルプロジェクト",
+    siteCount: 1 + (reg.sites[LOCAL_PROJECT_ID]?.length ?? 0),
+  };
+  return [local, ...reg.projects].map((p) =>
+    p.id === LOCAL_PROJECT_ID ? p : { ...p, siteCount: reg.sites[p.id]?.length ?? 0 },
+  );
 }
 
-export async function listSites(): Promise<SiteSummary[]> {
+export async function createProject(name: string): Promise<ProjectSummary> {
+  const reg = loadRegistry();
+  const project: ProjectSummary = { id: `proj-${Date.now()}`, name, siteCount: 0 };
+  reg.projects.push(project);
+  saveRegistry(reg);
+  return project;
+}
+
+export async function listSites(projectId: string): Promise<SiteSummary[]> {
+  const reg = loadRegistry();
+  const created = reg.sites[projectId] ?? [];
+  if (projectId !== LOCAL_PROJECT_ID) return created;
+
   const project = await loadProject();
   const baseUrl = project.site.baseUrl ?? "";
   let domain = baseUrl;
@@ -47,7 +98,22 @@ export async function listSites(): Promise<SiteSummary[]> {
       published: false,
       stats: { visits: 0, inquiries: 0 },
     },
+    ...created,
   ];
+}
+
+export async function createSite(projectId: string, name: string): Promise<SiteSummary> {
+  const reg = loadRegistry();
+  const site: SiteSummary = {
+    id: `site-${Date.now()}`,
+    name,
+    domain: "",
+    published: false,
+    stats: { visits: 0, inquiries: 0 },
+  };
+  (reg.sites[projectId] ??= []).push(site);
+  saveRegistry(reg);
+  return site;
 }
 
 export async function loadSiteStats(): Promise<SiteStats> {

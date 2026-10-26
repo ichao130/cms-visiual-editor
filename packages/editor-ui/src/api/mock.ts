@@ -285,6 +285,40 @@ const mockSites: Record<string, SiteSummary[]> = {
   ],
 };
 
+/**
+ * Projects and sites the operator creates in the shell, persisted on top of the
+ * seed data above. (The theme editor still loads the one active site; new sites
+ * carry their own metadata until per-site storage is wired.)
+ */
+const CREATED_KEY = "pcms.mock.created";
+interface CreatedShell {
+  projects: ProjectSummary[];
+  sites: Record<string, SiteSummary[]>;
+}
+
+function loadCreated(): CreatedShell {
+  try {
+    const raw = localStorage.getItem(CREATED_KEY);
+    if (raw) return JSON.parse(raw) as CreatedShell;
+  } catch {
+    /* ignore storage failures in the mock */
+  }
+  return { projects: [], sites: {} };
+}
+
+function allProjects(): ProjectSummary[] {
+  const created = loadCreated();
+  return [...mockProjects, ...created.projects].map((p) => ({
+    ...p,
+    siteCount: (mockSites[p.id]?.length ?? 0) + (created.sites[p.id]?.length ?? 0),
+  }));
+}
+
+function sitesFor(projectId: string): SiteSummary[] {
+  const created = loadCreated();
+  return [...(mockSites[projectId] ?? []), ...(created.sites[projectId] ?? [])];
+}
+
 /** The site that the theme editor actually loads/edits (loadProject). */
 const ACTIVE_SITE_ID = "site-cafe";
 
@@ -459,10 +493,30 @@ export function createMockApi(): PcmsApi {
       return mockAccount;
     },
     async listProjects(): Promise<ProjectSummary[]> {
-      return mockProjects;
+      return allProjects();
+    },
+    async createProject(name: string): Promise<ProjectSummary> {
+      const created = loadCreated();
+      const project: ProjectSummary = { id: `proj-${Date.now()}`, name, siteCount: 0 };
+      created.projects.push(project);
+      saveJson(CREATED_KEY, created);
+      return project;
     },
     async listSites(projectId: string): Promise<SiteSummary[]> {
-      return mockSites[projectId] ?? [];
+      return sitesFor(projectId);
+    },
+    async createSite(projectId: string, name: string): Promise<SiteSummary> {
+      const created = loadCreated();
+      const site: SiteSummary = {
+        id: `site-${Date.now()}`,
+        name,
+        domain: "",
+        published: false,
+        stats: { visits: 0, inquiries: 0 },
+      };
+      (created.sites[projectId] ??= []).push(site);
+      saveJson(CREATED_KEY, created);
+      return site;
     },
     async loadSiteStats(siteId: string): Promise<SiteStats> {
       // Only the active (real) site has data; others are empty until published.

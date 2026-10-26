@@ -76,7 +76,11 @@ export interface PcmsApi {
   // build; the real data would come from the cloud account + each site's files.
   loadAccount(): Promise<AccountView>;
   listProjects(): Promise<ProjectSummary[]>;
+  /** Create a project; returns its summary. */
+  createProject(name: string): Promise<ProjectSummary>;
   listSites(projectId: string): Promise<SiteSummary[]>;
+  /** Create a site under a project; returns its summary. */
+  createSite(projectId: string, name: string): Promise<SiteSummary>;
   loadSiteStats(siteId: string): Promise<SiteStats>;
   listThemes(): Promise<ThemeSummary[]>;
 

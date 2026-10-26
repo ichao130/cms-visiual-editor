@@ -1,16 +1,19 @@
 import { useEffect, useState } from "react";
 import type { AccountView, PcmsApi, ProjectSummary } from "../api/types.js";
 import type { Route } from "../state/route.js";
+import { CreateCard } from "../components/CreateCard.js";
 import { t } from "../i18n.js";
 
 interface Props {
   api: PcmsApi;
   account: AccountView | null;
   onNavigate: (route: Route) => void;
+  /** Tell the shell to reload its project/site index after a change. */
+  onShellChange: () => void;
 }
 
 /** Dashboard: the operator's projects plus their account summary. */
-export function DashboardScreen({ api, account, onNavigate }: Props) {
+export function DashboardScreen({ api, account, onNavigate, onShellChange }: Props) {
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
 
   useEffect(() => {
@@ -20,6 +23,13 @@ export function DashboardScreen({ api, account, onNavigate }: Props) {
       active = false;
     };
   }, [api]);
+
+  const onCreate = (name: string) => {
+    void api.createProject(name).then((project) => {
+      onShellChange();
+      onNavigate({ screen: "project", projectId: project.id });
+    });
+  };
 
   return (
     <div className="pcms-page">
@@ -38,9 +48,11 @@ export function DashboardScreen({ api, account, onNavigate }: Props) {
               </span>
             </button>
           ))}
-          <button className="pcms-card pcms-card--add" disabled title={t("common.comingSoon")}>
-            ＋ {t("dashboard.newProject")}
-          </button>
+          <CreateCard
+            label={t("dashboard.newProject")}
+            placeholder={t("dashboard.newName")}
+            onCreate={onCreate}
+          />
         </div>
       </div>
 

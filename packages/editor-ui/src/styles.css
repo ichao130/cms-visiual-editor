@@ -375,6 +375,9 @@ button.pcms-danger { color: #b42318; border-color: #f0c2bc; }
 .pcms-card__meta { font-size: 0.82rem; color: var(--pcms-muted); }
 .pcms-card__stats { font-size: 0.8rem; color: var(--pcms-muted); }
 .pcms-card--add { align-items: center; justify-content: center; color: var(--pcms-muted); border-style: dashed; }
+.pcms-card--form { gap: 0.5rem; border-style: dashed; }
+.pcms-card--form input { width: 100%; box-sizing: border-box; font: inherit; padding: 0.4rem 0.5rem; border: 1px solid var(--pcms-border); border-radius: 6px; }
+.pcms-card__formactions { display: flex; gap: 0.4rem; }
 
 .pcms-badge { font-size: 0.72rem; padding: 0.1rem 0.5rem; border-radius: 999px; }
 .pcms-badge.is-live { background: #e6f4ea; color: #1a7f37; }

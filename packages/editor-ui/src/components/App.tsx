@@ -29,6 +29,9 @@ export function App({ api }: AppProps) {
   const [account, setAccount] = useState<AccountView | null>(null);
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [siteIndex, setSiteIndex] = useState<Map<string, SiteEntry>>(new Map());
+  // Bumped after creating a project/site so the breadcrumb index + counts reload.
+  const [shellVersion, setShellVersion] = useState(0);
+  const reloadShell = useCallback(() => setShellVersion((v) => v + 1), []);
 
   // The open site's unsaved state, reported up by the workspace, so navigating
   // away from the site can warn before the document (and its edits) unmount.
@@ -64,7 +67,7 @@ export function App({ api }: AppProps) {
     return () => {
       active = false;
     };
-  }, [api]);
+  }, [api, shellVersion]);
 
   const projectName = useCallback(
     (id: string) => projects.find((p) => p.id === id)?.name ?? id,
@@ -77,16 +80,30 @@ export function App({ api }: AppProps) {
   const screen = useMemo(() => {
     switch (route.screen) {
       case "dashboard":
-        return <DashboardScreen api={api} account={account} onNavigate={navigate} />;
+        return (
+          <DashboardScreen
+            api={api}
+            account={account}
+            onNavigate={navigate}
+            onShellChange={reloadShell}
+          />
+        );
       case "project":
-        return <ProjectScreen api={api} projectId={route.projectId} onNavigate={navigate} />;
+        return (
+          <ProjectScreen
+            api={api}
+            projectId={route.projectId}
+            onNavigate={navigate}
+            onShellChange={reloadShell}
+          />
+        );
       case "site":
         return <SiteScreen api={api} route={route} onNavigate={navigate} />;
       case "themeEditor":
         return <ThemeEditorScreen api={api} route={route} onNavigate={navigate} />;
     }
     // `locale` is a dep so screens re-render (re-run t()) on a language switch.
-  }, [route, api, account, locale, navigate]);
+  }, [route, api, account, locale, navigate, reloadShell]);
 
   // The workspace is keyed by site so switching sites reloads its document.
   const body =

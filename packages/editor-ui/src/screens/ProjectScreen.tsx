@@ -1,16 +1,19 @@
 import { useEffect, useState } from "react";
 import type { PcmsApi, SiteSummary } from "../api/types.js";
 import type { Route } from "../state/route.js";
+import { CreateCard } from "../components/CreateCard.js";
 import { t } from "../i18n.js";
 
 interface Props {
   api: PcmsApi;
   projectId: string;
   onNavigate: (route: Route) => void;
+  /** Tell the shell to reload its project/site index after a change. */
+  onShellChange: () => void;
 }
 
 /** Project: the sites it contains, plus project-level basic settings. */
-export function ProjectScreen({ api, projectId, onNavigate }: Props) {
+export function ProjectScreen({ api, projectId, onNavigate, onShellChange }: Props) {
   const [sites, setSites] = useState<SiteSummary[]>([]);
 
   useEffect(() => {
@@ -20,6 +23,13 @@ export function ProjectScreen({ api, projectId, onNavigate }: Props) {
       active = false;
     };
   }, [api, projectId]);
+
+  const onCreate = (name: string) => {
+    void api.createSite(projectId, name).then((site) => {
+      onShellChange();
+      onNavigate({ screen: "site", siteId: site.id, tab: "info" });
+    });
+  };
 
   return (
     <div className="pcms-page">
@@ -42,9 +52,11 @@ export function ProjectScreen({ api, projectId, onNavigate }: Props) {
               </span>
             </button>
           ))}
-          <button className="pcms-card pcms-card--add" disabled title={t("common.comingSoon")}>
-            ＋ {t("project.newSite")}
-          </button>
+          <CreateCard
+            label={t("project.newSite")}
+            placeholder={t("project.newName")}
+            onCreate={onCreate}
+          />
         </div>
       </div>
 
