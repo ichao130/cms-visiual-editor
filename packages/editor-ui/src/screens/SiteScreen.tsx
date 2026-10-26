@@ -14,7 +14,17 @@ import { PublishFlow } from "../components/PublishFlow.js";
 import { ContentTypeManager } from "../components/ContentTypeManager.js";
 import { TaxonomyManager } from "../components/TaxonomyManager.js";
 import { MenuManager } from "../components/MenuManager.js";
+import { SiteSaveBar } from "../components/SiteSaveBar.js";
 import { t, type MessageKey } from "../i18n.js";
+
+/** Tabs that edit the shared workspace document and share the save bar. */
+const SAVEBAR_TABS: ReadonlySet<SiteTab> = new Set<SiteTab>([
+  "posts",
+  "pages",
+  "types",
+  "taxonomies",
+  "menus",
+]);
 
 interface Props {
   api: PcmsApi;
@@ -119,6 +129,8 @@ export function SiteScreen({ api, route, onNavigate }: Props) {
           ))}
         </nav>
         <section className="pcms-sitecontent">
+          {SAVEBAR_TABS.has(tab) && <SiteSaveBar />}
+          <div className="pcms-sitecontent__body">
           {tab === "info" && <SiteInfoView api={api} siteId={siteId} />}
           {tab === "posts" && <PostsView />}
           {tab === "pages" && <PagesView />}
@@ -142,6 +154,7 @@ export function SiteScreen({ api, route, onNavigate }: Props) {
               <PublishFlow api={api} />
             </div>
           )}
+          </div>
         </section>
       </div>
       {media.modal}

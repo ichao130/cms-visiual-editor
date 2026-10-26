@@ -393,7 +393,14 @@ button.pcms-danger { color: #b42318; border-color: #f0c2bc; }
 .pcms-subnav { width: 180px; flex: none; border-right: 1px solid var(--pcms-border); background: var(--pcms-panel); padding: 0.75rem; display: flex; flex-direction: column; gap: 0.2rem; }
 .pcms-subnav__item { text-align: left; border: none; background: none; padding: 0.5rem 0.6rem; border-radius: 6px; }
 .pcms-subnav__item.is-active { background: #eaf1ff; color: var(--pcms-accent); font-weight: 600; }
-.pcms-sitecontent { flex: 1; min-height: 0; overflow-y: auto; }
+.pcms-sitecontent { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.pcms-sitecontent__body { flex: 1; min-height: 0; overflow-y: auto; }
+
+/* Persistent workspace save bar (above the editing tabs) */
+.pcms-savebar { flex: none; display: flex; align-items: center; gap: 0.4rem; padding: 0.5rem 1.5rem; border-bottom: 1px solid var(--pcms-border); background: var(--pcms-panel); }
+.pcms-savebar__spacer { flex: 1; }
+.pcms-savebar__state { font-size: 0.82rem; color: var(--pcms-muted); }
+.pcms-savebar__state.is-dirty { color: var(--pcms-accent); font-weight: 600; }
 
 /* Site info */
 .pcms-info { padding: 1.5rem; }
@@ -607,7 +614,7 @@ button.pcms-danger { background: #b42318; color: #fff; border-color: #b42318; }
 
 /* ===== Responsive: phone ===== */
 @media (max-width: 560px) {
-  .pcms-page__main, .pcms-info, .pcms-themeview, .pcms-publishview, .pcms-settingsview, .pcms-structpage, .pcms-formedit, .pcms-formedit__tabs { padding-left: 1rem; padding-right: 1rem; }
+  .pcms-page__main, .pcms-info, .pcms-themeview, .pcms-publishview, .pcms-settingsview, .pcms-structpage, .pcms-savebar, .pcms-formedit, .pcms-formedit__tabs { padding-left: 1rem; padding-right: 1rem; }
   .pcms-cards { grid-template-columns: 1fr; }
   .pcms-topbar__account { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .pcms-toolbar { flex-wrap: wrap; row-gap: 0.3rem; }

@@ -9,7 +9,7 @@ const PAGE_TYPE = "page";
 
 /** Fixed pages, shown and created as a hierarchy (parent/child). */
 export function PagesView() {
-  const { doc, commit, setDirty, dirty, save } = useSiteWorkspace();
+  const { doc, commit, setDirty } = useSiteWorkspace();
   const [selected, setSelected] = useState<string | null>(null);
   const [newOpen, setNewOpen] = useState(false);
 
@@ -72,9 +72,6 @@ export function PagesView() {
           <div className="pcms-listhead__actions">
             <button className="pcms-primary" onClick={() => setNewOpen(true)}>
               ＋ {t("pages.new")}
-            </button>
-            <button onClick={save} disabled={!dirty}>
-              {dirty ? t("common.save") : t("common.saved")}
             </button>
           </div>
         </div>

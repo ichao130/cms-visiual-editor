@@ -7,7 +7,7 @@ import { t } from "../../i18n.js";
 
 /** Posts (and custom post types). Pages live in their own view. */
 export function PostsView() {
-  const { doc, commit, setDirty, dirty, save } = useSiteWorkspace();
+  const { doc, commit, setDirty } = useSiteWorkspace();
   const [selected, setSelected] = useState<{ type: string; slug: string } | null>(null);
   const [newOpen, setNewOpen] = useState(false);
 
@@ -32,9 +32,6 @@ export function PostsView() {
           <div className="pcms-listhead__actions">
             <button className="pcms-primary" onClick={() => setNewOpen(true)}>
               ＋ {t("content.new")}
-            </button>
-            <button onClick={save} disabled={!dirty}>
-              {dirty ? t("common.save") : t("common.saved")}
             </button>
           </div>
         </div>
