@@ -1,4 +1,5 @@
 import { useSiteWorkspace } from "../../state/SiteWorkspace.js";
+import { useToast } from "../../state/ToastContext.js";
 import {
   findItem,
   removeContent,
@@ -19,8 +20,11 @@ interface Props {
 /** Editing form for one content item, wired to the shared site workspace. */
 export function ContentEditorPanel({ type, slug, onDeleted }: Props) {
   const { api, doc, commit, setDirty } = useSiteWorkspace();
+  const toast = useToast();
   const item = findItem(doc, type, slug);
   if (!item) return <p className="pcms-empty">{t("content.notFound")}</p>;
+
+  const title = String(item.fields.title ?? slug);
 
   const onChange = (key: string, value: string) => {
     commit(setContentField(doc, type, slug, key, value), `content:${type}/${slug}:${key}`);
@@ -35,6 +39,7 @@ export function ContentEditorPanel({ type, slug, onDeleted }: Props) {
     void api.deleteContent(type, slug).then(() => {
       commit(removeContent(doc, type, slug));
       setDirty(true);
+      toast(t("toast.contentDeleted").replace("{name}", title));
       onDeleted();
     });
   };

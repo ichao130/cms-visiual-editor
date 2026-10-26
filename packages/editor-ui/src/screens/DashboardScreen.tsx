@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { AccountView, PcmsApi, ProjectSummary } from "../api/types.js";
 import type { Route } from "../state/route.js";
 import { CreateCard } from "../components/CreateCard.js";
+import { useToast } from "../state/ToastContext.js";
 import { t } from "../i18n.js";
 
 interface Props {
@@ -15,6 +16,7 @@ interface Props {
 /** Dashboard: the operator's projects plus their account summary. */
 export function DashboardScreen({ api, account, onNavigate, onShellChange }: Props) {
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
+  const toast = useToast();
 
   useEffect(() => {
     let active = true;
@@ -27,6 +29,7 @@ export function DashboardScreen({ api, account, onNavigate, onShellChange }: Pro
   const onCreate = (name: string) => {
     void api.createProject(name).then((project) => {
       onShellChange();
+      toast(t("toast.projectCreated").replace("{name}", name));
       onNavigate({ screen: "project", projectId: project.id });
     });
   };

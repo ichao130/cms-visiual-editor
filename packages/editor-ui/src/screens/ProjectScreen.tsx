@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { PcmsApi, SiteSummary } from "../api/types.js";
 import type { Route } from "../state/route.js";
 import { CreateCard } from "../components/CreateCard.js";
+import { useToast } from "../state/ToastContext.js";
 import { t } from "../i18n.js";
 
 interface Props {
@@ -15,6 +16,7 @@ interface Props {
 /** Project: the sites it contains, plus project-level basic settings. */
 export function ProjectScreen({ api, projectId, onNavigate, onShellChange }: Props) {
   const [sites, setSites] = useState<SiteSummary[]>([]);
+  const toast = useToast();
 
   useEffect(() => {
     let active = true;
@@ -27,6 +29,7 @@ export function ProjectScreen({ api, projectId, onNavigate, onShellChange }: Pro
   const onCreate = (name: string) => {
     void api.createSite(projectId, name).then((site) => {
       onShellChange();
+      toast(t("toast.siteCreated").replace("{name}", name));
       onNavigate({ screen: "site", siteId: site.id, tab: "info" });
     });
   };

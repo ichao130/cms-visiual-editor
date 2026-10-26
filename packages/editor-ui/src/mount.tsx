@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import type { PcmsApi } from "./api/types.js";
 import { App } from "./components/App.js";
 import { ErrorBoundary } from "./components/ErrorBoundary.js";
+import { ToastProvider } from "./state/ToastContext.js";
 import "./styles.css";
 
 /**
@@ -15,7 +16,9 @@ export function mount(container: HTMLElement, api: PcmsApi): () => void {
   root.render(
     <StrictMode>
       <ErrorBoundary>
-        <App api={api} />
+        <ToastProvider>
+          <App api={api} />
+        </ToastProvider>
       </ErrorBoundary>
     </StrictMode>,
   );
