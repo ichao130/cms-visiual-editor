@@ -275,6 +275,11 @@ button.pcms-danger { color: #b42318; border-color: #f0c2bc; }
 .pcms-modal__panel--wide { width: min(880px, 94vw); }
 .pcms-modal__actions { display: flex; justify-content: flex-end; margin-top: 1rem; }
 
+/* Site-structure pages (content types / taxonomies / menus) */
+.pcms-structpage { padding: 1.5rem; max-width: 960px; overflow-y: auto; }
+.pcms-structpage--narrow { max-width: 560px; }
+.pcms-structpage__hint { margin: -0.5rem 0 1.25rem; color: var(--pcms-muted); font-size: 0.85rem; }
+
 /* Content type manager */
 .pcms-types { display: grid; grid-template-columns: 220px 1fr; gap: 1rem; }
 .pcms-types__list { display: flex; flex-direction: column; gap: 0.3rem; border-right: 1px solid var(--pcms-border); padding-right: 0.75rem; }
@@ -583,6 +588,10 @@ button.pcms-danger { background: #b42318; color: #fff; border-color: #b42318; }
   .pcms-contentpane { flex-direction: column; }
   .pcms-contentpane__list { width: auto; max-height: 42vh; border-right: none; border-bottom: 1px solid var(--pcms-border); }
 
+  /* Site-structure pages: type/taxonomy list stacks above the detail */
+  .pcms-types { grid-template-columns: 1fr; }
+  .pcms-types__list { border-right: none; border-bottom: 1px solid var(--pcms-border); padding-right: 0; padding-bottom: 0.75rem; }
+
   /* Theme editor (visual): columns stack vertically and scroll */
   .pcms-columns, .pcms-columns--inline { grid-template-columns: 1fr; overflow-y: auto; }
   .pcms-sections, .pcms-settings { border: none; border-bottom: 1px solid var(--pcms-border); }
@@ -598,7 +607,7 @@ button.pcms-danger { background: #b42318; color: #fff; border-color: #b42318; }
 
 /* ===== Responsive: phone ===== */
 @media (max-width: 560px) {
-  .pcms-page__main, .pcms-info, .pcms-themeview, .pcms-publishview, .pcms-settingsview, .pcms-formedit, .pcms-formedit__tabs { padding-left: 1rem; padding-right: 1rem; }
+  .pcms-page__main, .pcms-info, .pcms-themeview, .pcms-publishview, .pcms-settingsview, .pcms-structpage, .pcms-formedit, .pcms-formedit__tabs { padding-left: 1rem; padding-right: 1rem; }
   .pcms-cards { grid-template-columns: 1fr; }
   .pcms-topbar__account { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .pcms-toolbar { flex-wrap: wrap; row-gap: 0.3rem; }

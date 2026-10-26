@@ -1,16 +1,14 @@
 import { useState } from "react";
 import type { MenuItem } from "@pcms/shared";
-import { useDialog } from "../state/useDialog.js";
 import { t } from "../i18n.js";
 
 interface MenuManagerProps {
   menus: Record<string, MenuItem[]>;
   onCommit: (name: string, items: MenuItem[]) => void;
-  onClose: () => void;
 }
 
 /** Edit navigation menus (label + URL, add / remove / reorder). */
-export function MenuManager({ menus, onCommit, onClose }: MenuManagerProps) {
+export function MenuManager({ menus, onCommit }: MenuManagerProps) {
   const names = Object.keys(menus).length ? Object.keys(menus) : ["menu"];
   const [selected, setSelected] = useState(names[0] as string);
   const items = menus[selected] ?? [];
@@ -30,21 +28,12 @@ export function MenuManager({ menus, onCommit, onClose }: MenuManagerProps) {
     onCommit(selected, next);
   };
 
-  const ref = useDialog<HTMLDivElement>(onClose);
-
   return (
-    <div className="pcms-modal" role="dialog" aria-modal="true" aria-label={t("menu.title")}>
-      <div className="pcms-modal__backdrop" onClick={onClose} />
-      <div className="pcms-modal__panel pcms-modal__panel--narrow" ref={ref} tabIndex={-1}>
-        <header className="pcms-modal__head">
-          <h2>{t("menu.title")}</h2>
-          <div className="pcms-modal__spacer" />
-          <button type="button" onClick={onClose} aria-label={t("media.close")}>
-            ✕
-          </button>
-        </header>
+    <div className="pcms-structpage pcms-structpage--narrow">
+      <h1 className="pcms-page__title">{t("menu.title")}</h1>
+      <p className="pcms-structpage__hint">{t("menu.hint")}</p>
 
-        {names.length > 1 && (
+      {names.length > 1 && (
           <label className="pcms-field">
             <span className="pcms-field__label">{t("menu.pick")}</span>
             <select value={selected} onChange={(e) => setSelected(e.target.value)}>
@@ -87,7 +76,6 @@ export function MenuManager({ menus, onCommit, onClose }: MenuManagerProps) {
         <button type="button" className="pcms-types__addfield" onClick={add}>
           {t("menu.add")}
         </button>
-      </div>
     </div>
   );
 }

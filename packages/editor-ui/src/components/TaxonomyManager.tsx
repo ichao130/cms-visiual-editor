@@ -1,23 +1,16 @@
 import { useState } from "react";
 import type { ContentTypeDef, TaxonomyDef } from "@pcms/shared";
 import { slugify } from "../state/editorState.js";
-import { useDialog } from "../state/useDialog.js";
 import { t } from "../i18n.js";
 
 interface TaxonomyManagerProps {
   taxonomies: TaxonomyDef[];
   contentTypes: ContentTypeDef[];
   onCommit: (taxonomies: TaxonomyDef[]) => void;
-  onClose: () => void;
 }
 
 /** GUI to define classifications (categories / tags / custom). */
-export function TaxonomyManager({
-  taxonomies,
-  contentTypes,
-  onCommit,
-  onClose,
-}: TaxonomyManagerProps) {
+export function TaxonomyManager({ taxonomies, contentTypes, onCommit }: TaxonomyManagerProps) {
   const [selected, setSelected] = useState(taxonomies[0]?.name ?? "");
   const [newLabel, setNewLabel] = useState("");
 
@@ -51,21 +44,12 @@ export function TaxonomyManager({
     update(current.name, { types });
   };
 
-  const ref = useDialog<HTMLDivElement>(onClose);
-
   return (
-    <div className="pcms-modal" role="dialog" aria-modal="true" aria-label={t("tax.title")}>
-      <div className="pcms-modal__backdrop" onClick={onClose} />
-      <div className="pcms-modal__panel pcms-modal__panel--wide" ref={ref} tabIndex={-1}>
-        <header className="pcms-modal__head">
-          <h2>{t("tax.title")}</h2>
-          <div className="pcms-modal__spacer" />
-          <button type="button" onClick={onClose} aria-label={t("media.close")}>
-            ✕
-          </button>
-        </header>
+    <div className="pcms-structpage">
+      <h1 className="pcms-page__title">{t("tax.title")}</h1>
+      <p className="pcms-structpage__hint">{t("tax.hint")}</p>
 
-        <div className="pcms-types">
+      <div className="pcms-types">
           <div className="pcms-types__list">
             {taxonomies.map((tx) => (
               <button
@@ -149,7 +133,6 @@ export function TaxonomyManager({
             </div>
           )}
         </div>
-      </div>
     </div>
   );
 }

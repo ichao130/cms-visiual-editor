@@ -1,13 +1,11 @@
 import { useState } from "react";
 import type { ContentTypeDef, FieldDef, FieldType } from "@pcms/shared";
 import { slugify } from "../state/editorState.js";
-import { useDialog } from "../state/useDialog.js";
 import { t } from "../i18n.js";
 
 interface ContentTypeManagerProps {
   types: ContentTypeDef[];
   onCommit: (types: ContentTypeDef[]) => void;
-  onClose: () => void;
 }
 
 const BUILTIN = new Set(["post", "page"]);
@@ -24,7 +22,7 @@ const FIELD_TYPES: FieldType[] = [
 ];
 
 /** GUI to define custom post types and their fields (content-types.json). */
-export function ContentTypeManager({ types, onCommit, onClose }: ContentTypeManagerProps) {
+export function ContentTypeManager({ types, onCommit }: ContentTypeManagerProps) {
   const [selected, setSelected] = useState(types[0]?.name ?? "");
   const [newLabel, setNewLabel] = useState("");
 
@@ -89,21 +87,12 @@ export function ContentTypeManager({ types, onCommit, onClose }: ContentTypeMana
     setFields(current.name, fields);
   };
 
-  const ref = useDialog<HTMLDivElement>(onClose);
-
   return (
-    <div className="pcms-modal" role="dialog" aria-modal="true" aria-label={t("types.title")}>
-      <div className="pcms-modal__backdrop" onClick={onClose} />
-      <div className="pcms-modal__panel pcms-modal__panel--wide" ref={ref} tabIndex={-1}>
-        <header className="pcms-modal__head">
-          <h2>{t("types.title")}</h2>
-          <div className="pcms-modal__spacer" />
-          <button type="button" onClick={onClose} aria-label={t("media.close")}>
-            ✕
-          </button>
-        </header>
+    <div className="pcms-structpage">
+      <h1 className="pcms-page__title">{t("types.title")}</h1>
+      <p className="pcms-structpage__hint">{t("types.hint")}</p>
 
-        <div className="pcms-types">
+      <div className="pcms-types">
           <div className="pcms-types__list">
             {types.map((tp) => (
               <button
@@ -228,7 +217,6 @@ export function ContentTypeManager({ types, onCommit, onClose }: ContentTypeMana
             </div>
           )}
         </div>
-      </div>
     </div>
   );
 }

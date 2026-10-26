@@ -1,4 +1,3 @@
-import { useState } from "react";
 import type { ContentTypeDef, MenuItem, TaxonomyDef } from "@pcms/shared";
 import type { PcmsApi } from "../api/types.js";
 import type { Route, SiteTab } from "../state/route.js";
@@ -23,9 +22,6 @@ interface Props {
   onNavigate: (route: Route) => void;
 }
 
-/** A dialog opened from the site nav (site structure / media). */
-type ManagerKey = "types" | "taxonomies" | "menus";
-
 type NavItem =
   | { kind: "tab"; id: SiteTab; label: MessageKey }
   | { kind: "action"; key: string; label: MessageKey };
@@ -48,9 +44,9 @@ const NAV: NavGroup[] = [
   {
     heading: "nav.group.structure",
     items: [
-      { kind: "action", key: "types", label: "site.tab.types" },
-      { kind: "action", key: "taxonomies", label: "site.tab.taxonomies" },
-      { kind: "action", key: "menus", label: "site.tab.menus" },
+      { kind: "tab", id: "types", label: "site.tab.types" },
+      { kind: "tab", id: "taxonomies", label: "site.tab.taxonomies" },
+      { kind: "tab", id: "menus", label: "site.tab.menus" },
     ],
   },
   {
@@ -66,19 +62,18 @@ const NAV: NavGroup[] = [
 
 /**
  * A site's workspace: a grouped left sub-nav (overview / content / structure /
- * operations / design / settings), content on the right. Site-structure
- * managers and the media library open from the nav. Rendered inside a
- * SiteWorkspaceProvider, so everything shares one document.
+ * operations / design / settings), content on the right. The site-structure
+ * tabs (content types / taxonomies / menus) are full pages; the media library
+ * opens from the nav as a picker. Rendered inside a SiteWorkspaceProvider, so
+ * everything shares one document.
  */
 export function SiteScreen({ api, route, onNavigate }: Props) {
   const media = useMediaLibrary(api);
   const { doc, commit, setDirty } = useSiteWorkspace();
   const { siteId, tab } = route;
-  const [manager, setManager] = useState<ManagerKey | null>(null);
 
   const onAction = (key: string) => {
     if (key === "media") media.value.openLibrary();
-    else setManager(key as ManagerKey);
   };
 
   const onTypesCommit = (types: ContentTypeDef[]) => {
@@ -127,6 +122,17 @@ export function SiteScreen({ api, route, onNavigate }: Props) {
           {tab === "info" && <SiteInfoView api={api} siteId={siteId} />}
           {tab === "posts" && <PostsView />}
           {tab === "pages" && <PagesView />}
+          {tab === "types" && (
+            <ContentTypeManager types={doc.contentTypes} onCommit={onTypesCommit} />
+          )}
+          {tab === "taxonomies" && (
+            <TaxonomyManager
+              taxonomies={doc.taxonomies}
+              contentTypes={doc.contentTypes}
+              onCommit={onTaxCommit}
+            />
+          )}
+          {tab === "menus" && <MenuManager menus={doc.menus} onCommit={onMenuCommit} />}
           {tab === "forms" && <FormsView api={api} />}
           {tab === "settings" && <SiteSettingsView />}
           {tab === "theme" && <ThemeView api={api} siteId={siteId} onNavigate={onNavigate} />}
@@ -138,25 +144,6 @@ export function SiteScreen({ api, route, onNavigate }: Props) {
           )}
         </section>
       </div>
-
-      {manager === "types" && (
-        <ContentTypeManager
-          types={doc.contentTypes}
-          onCommit={onTypesCommit}
-          onClose={() => setManager(null)}
-        />
-      )}
-      {manager === "taxonomies" && (
-        <TaxonomyManager
-          taxonomies={doc.taxonomies}
-          contentTypes={doc.contentTypes}
-          onCommit={onTaxCommit}
-          onClose={() => setManager(null)}
-        />
-      )}
-      {manager === "menus" && (
-        <MenuManager menus={doc.menus} onCommit={onMenuCommit} onClose={() => setManager(null)} />
-      )}
       {media.modal}
     </MediaContext.Provider>
   );
