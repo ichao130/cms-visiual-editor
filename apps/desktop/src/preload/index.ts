@@ -49,9 +49,12 @@ const api: PcmsApi = {
   loadAccount: () => ipcRenderer.invoke("pcms:loadAccount"),
   listProjects: () => ipcRenderer.invoke("pcms:listProjects"),
   createProject: (name: string) => ipcRenderer.invoke("pcms:createProject", name),
+  deleteProject: (projectId: string) => ipcRenderer.invoke("pcms:deleteProject", projectId),
   listSites: (projectId: string) => ipcRenderer.invoke("pcms:listSites", projectId),
   createSite: (projectId: string, name: string) =>
     ipcRenderer.invoke("pcms:createSite", projectId, name),
+  deleteSite: (projectId: string, siteId: string) =>
+    ipcRenderer.invoke("pcms:deleteSite", projectId, siteId),
   loadSiteStats: (siteId: string) => ipcRenderer.invoke("pcms:loadSiteStats", siteId),
   listThemes: () => ipcRenderer.invoke("pcms:listThemes"),
   listThemeFiles: () => ipcRenderer.invoke("pcms:listThemeFiles"),

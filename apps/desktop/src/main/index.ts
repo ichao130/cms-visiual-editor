@@ -43,8 +43,10 @@ import {
   loadAccount,
   listProjects,
   createProject,
+  deleteProject,
   listSites,
   createSite,
+  deleteSite,
   loadSiteStats,
   listThemes,
   applyThemeOverlay,
@@ -179,9 +181,13 @@ function registerIpc(): void {
   ipcMain.handle("pcms:loadAccount", () => loadAccount());
   ipcMain.handle("pcms:listProjects", () => listProjects());
   ipcMain.handle("pcms:createProject", (_event, name: string) => createProject(name));
+  ipcMain.handle("pcms:deleteProject", (_event, projectId: string) => deleteProject(projectId));
   ipcMain.handle("pcms:listSites", (_event, projectId: string) => listSites(projectId));
   ipcMain.handle("pcms:createSite", (_event, projectId: string, name: string) =>
     createSite(projectId, name),
+  );
+  ipcMain.handle("pcms:deleteSite", (_event, projectId: string, siteId: string) =>
+    deleteSite(projectId, siteId),
   );
   ipcMain.handle("pcms:loadSiteStats", (_event, _siteId: string) => loadSiteStats());
   ipcMain.handle("pcms:listThemes", () => listThemes());

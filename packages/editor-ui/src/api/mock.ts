@@ -294,6 +294,9 @@ const CREATED_KEY = "pcms.mock.created";
 interface CreatedShell {
   projects: ProjectSummary[];
   sites: Record<string, SiteSummary[]>;
+  /** Tombstones for deleted seed entities (created ones are removed outright). */
+  deletedProjects?: string[];
+  deletedSites?: string[];
 }
 
 function loadCreated(): CreatedShell {
@@ -306,17 +309,20 @@ function loadCreated(): CreatedShell {
   return { projects: [], sites: {} };
 }
 
-function allProjects(): ProjectSummary[] {
-  const created = loadCreated();
-  return [...mockProjects, ...created.projects].map((p) => ({
-    ...p,
-    siteCount: (mockSites[p.id]?.length ?? 0) + (created.sites[p.id]?.length ?? 0),
-  }));
-}
-
 function sitesFor(projectId: string): SiteSummary[] {
   const created = loadCreated();
-  return [...(mockSites[projectId] ?? []), ...(created.sites[projectId] ?? [])];
+  const deleted = new Set(created.deletedSites ?? []);
+  return [...(mockSites[projectId] ?? []), ...(created.sites[projectId] ?? [])].filter(
+    (s) => !deleted.has(s.id),
+  );
+}
+
+function allProjects(): ProjectSummary[] {
+  const created = loadCreated();
+  const deleted = new Set(created.deletedProjects ?? []);
+  return [...mockProjects, ...created.projects]
+    .filter((p) => !deleted.has(p.id))
+    .map((p) => ({ ...p, siteCount: sitesFor(p.id).length }));
 }
 
 /** The site that the theme editor actually loads/edits (loadProject). */
@@ -502,6 +508,15 @@ export function createMockApi(): PcmsApi {
       saveJson(CREATED_KEY, created);
       return project;
     },
+    async deleteProject(projectId: string): Promise<void> {
+      const created = loadCreated();
+      const wasCreated = created.projects.some((p) => p.id === projectId);
+      created.projects = created.projects.filter((p) => p.id !== projectId);
+      if (!wasCreated) {
+        created.deletedProjects = [...new Set([...(created.deletedProjects ?? []), projectId])];
+      }
+      saveJson(CREATED_KEY, created);
+    },
     async listSites(projectId: string): Promise<SiteSummary[]> {
       return sitesFor(projectId);
     },
@@ -517,6 +532,16 @@ export function createMockApi(): PcmsApi {
       (created.sites[projectId] ??= []).push(site);
       saveJson(CREATED_KEY, created);
       return site;
+    },
+    async deleteSite(projectId: string, siteId: string): Promise<void> {
+      const created = loadCreated();
+      const list = created.sites[projectId] ?? [];
+      const wasCreated = list.some((s) => s.id === siteId);
+      created.sites[projectId] = list.filter((s) => s.id !== siteId);
+      if (!wasCreated) {
+        created.deletedSites = [...new Set([...(created.deletedSites ?? []), siteId])];
+      }
+      saveJson(CREATED_KEY, created);
     },
     async loadSiteStats(siteId: string): Promise<SiteStats> {
       // Only the active (real) site has data; others are empty until published.

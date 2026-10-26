@@ -34,22 +34,41 @@ export function DashboardScreen({ api, account, onNavigate, onShellChange }: Pro
     });
   };
 
+  const onDelete = (project: ProjectSummary) => {
+    if (!window.confirm(t("project.deleteConfirm").replace("{name}", project.name))) return;
+    void api.deleteProject(project.id).then(() => {
+      setProjects((list) => list.filter((p) => p.id !== project.id));
+      onShellChange();
+      toast(t("toast.projectDeleted").replace("{name}", project.name));
+    });
+  };
+
   return (
     <div className="pcms-page">
       <div className="pcms-page__main">
         <h1 className="pcms-page__title">{t("dashboard.projects")}</h1>
         <div className="pcms-cards">
           {projects.map((p) => (
-            <button
-              key={p.id}
-              className="pcms-card"
-              onClick={() => onNavigate({ screen: "project", projectId: p.id })}
-            >
-              <span className="pcms-card__title">{p.name}</span>
-              <span className="pcms-card__meta">
-                {p.siteCount} {t("dashboard.sites")}
-              </span>
-            </button>
+            <div key={p.id} className="pcms-cardwrap">
+              <button
+                className="pcms-card"
+                onClick={() => onNavigate({ screen: "project", projectId: p.id })}
+              >
+                <span className="pcms-card__title">{p.name}</span>
+                <span className="pcms-card__meta">
+                  {p.siteCount} {t("dashboard.sites")}
+                </span>
+              </button>
+              <button
+                type="button"
+                className="pcms-carddelete"
+                title={t("common.delete")}
+                aria-label={t("common.delete")}
+                onClick={() => onDelete(p)}
+              >
+                ✕
+              </button>
+            </div>
           ))}
           <CreateCard
             label={t("dashboard.newProject")}

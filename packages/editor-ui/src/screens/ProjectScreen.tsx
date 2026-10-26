@@ -34,26 +34,45 @@ export function ProjectScreen({ api, projectId, onNavigate, onShellChange }: Pro
     });
   };
 
+  const onDelete = (site: SiteSummary) => {
+    if (!window.confirm(t("site.deleteConfirm").replace("{name}", site.name))) return;
+    void api.deleteSite(projectId, site.id).then(() => {
+      setSites((list) => list.filter((s) => s.id !== site.id));
+      onShellChange();
+      toast(t("toast.siteDeleted").replace("{name}", site.name));
+    });
+  };
+
   return (
     <div className="pcms-page">
       <div className="pcms-page__main">
         <h1 className="pcms-page__title">{t("project.sites")}</h1>
         <div className="pcms-cards">
           {sites.map((s) => (
-            <button
-              key={s.id}
-              className="pcms-card"
-              onClick={() => onNavigate({ screen: "site", siteId: s.id, tab: "info" })}
-            >
-              <span className="pcms-card__title">{s.name}</span>
-              <span className="pcms-card__meta">{s.domain}</span>
-              <span className={`pcms-badge ${s.published ? "is-live" : "is-draft"}`}>
-                {s.published ? t("site.published") : t("site.draft")}
-              </span>
-              <span className="pcms-card__stats">
-                {t("site.stat.visits")}: {s.stats.visits.toLocaleString()} ・ {t("site.stat.inquiries")}: {s.stats.inquiries}
-              </span>
-            </button>
+            <div key={s.id} className="pcms-cardwrap">
+              <button
+                className="pcms-card"
+                onClick={() => onNavigate({ screen: "site", siteId: s.id, tab: "info" })}
+              >
+                <span className="pcms-card__title">{s.name}</span>
+                <span className="pcms-card__meta">{s.domain}</span>
+                <span className={`pcms-badge ${s.published ? "is-live" : "is-draft"}`}>
+                  {s.published ? t("site.published") : t("site.draft")}
+                </span>
+                <span className="pcms-card__stats">
+                  {t("site.stat.visits")}: {s.stats.visits.toLocaleString()} ・ {t("site.stat.inquiries")}: {s.stats.inquiries}
+                </span>
+              </button>
+              <button
+                type="button"
+                className="pcms-carddelete"
+                title={t("common.delete")}
+                aria-label={t("common.delete")}
+                onClick={() => onDelete(s)}
+              >
+                ✕
+              </button>
+            </div>
           ))}
           <CreateCard
             label={t("project.newSite")}
