@@ -13,12 +13,14 @@ import type {
   ContentTypeDef,
   FormDef,
   MenuItem,
+  SiteConfig,
   SiteSettings,
   TaxonomyDef,
 } from "@pcms/shared";
 import type { MediaUpload } from "@pcms/editor-ui";
 import {
   loadProject,
+  saveSite,
   saveDraft,
   saveContent,
   saveContentTypes,
@@ -121,6 +123,7 @@ function runSmokeCheck(win: BrowserWindow): void {
 function registerIpc(): void {
   // Overlay the code-editor working copy so new/edited parts reflect in the app.
   ipcMain.handle("pcms:loadProject", async () => applyThemeOverlay(await loadProject()));
+  ipcMain.handle("pcms:saveSite", (_event, site: SiteConfig) => saveSite(site));
   ipcMain.handle("pcms:saveDraft", (_event, settings: SiteSettings) =>
     saveDraft(settings),
   );

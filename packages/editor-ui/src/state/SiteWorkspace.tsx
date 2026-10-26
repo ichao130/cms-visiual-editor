@@ -11,6 +11,7 @@ import { useEditorHistory } from "./history.js";
 import { initialState, type EditorState } from "./editorState.js";
 
 const EMPTY_STATE: EditorState = {
+  site: { name: "" },
   settings: { pages: {} },
   content: [],
   contentTypes: [],
@@ -92,6 +93,7 @@ export function SiteWorkspaceProvider({ api, siteId, onDirtyChange, children }: 
 
   const save = useCallback(() => {
     void Promise.all([
+      api.saveSite(doc.site),
       api.saveDraft(doc.settings),
       api.saveContent(doc.content),
       api.saveContentTypes(doc.contentTypes),

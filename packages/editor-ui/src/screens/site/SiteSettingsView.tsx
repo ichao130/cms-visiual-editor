@@ -1,34 +1,44 @@
-import { useState } from "react";
+import type { SiteConfig } from "@pcms/shared";
 import { useSiteWorkspace } from "../../state/SiteWorkspace.js";
 import { t } from "../../i18n.js";
 
 /**
- * Site settings (site.json). The values come from the loaded project; wiring
- * the write path (site.json persistence) to main/preload is a later step, so
- * edits here are kept in the view for now (noted below).
+ * Site settings (site.json): name, base URL, permalink. Edits go into the
+ * shared workspace document, so the site save bar persists them (via
+ * api.saveSite) and undo/redo covers them like any other change.
  */
 export function SiteSettingsView() {
-  const { project } = useSiteWorkspace();
-  const [name, setName] = useState(project.site.name);
-  const [baseUrl, setBaseUrl] = useState(project.site.baseUrl);
-  const [permalink, setPermalink] = useState(project.site.permalink);
+  const { doc, commit, setDirty } = useSiteWorkspace();
+  const site = doc.site;
+
+  const update = (patch: Partial<SiteConfig>) => {
+    commit({ ...doc, site: { ...site, ...patch } });
+    setDirty(true);
+  };
 
   return (
     <div className="pcms-settingsview">
       <h1 className="pcms-page__title">{t("site.tab.settings")}</h1>
-      <p className="pcms-note">{t("siteSettings.note")}</p>
 
       <label className="pcms-field">
         <span className="pcms-field__label">{t("siteSettings.name")}</span>
-        <input value={name} onChange={(e) => setName(e.target.value)} />
+        <input value={site.name} onChange={(e) => update({ name: e.target.value })} />
       </label>
       <label className="pcms-field">
         <span className="pcms-field__label">{t("siteSettings.baseUrl")}</span>
-        <input value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} />
+        <input
+          value={site.baseUrl ?? ""}
+          onChange={(e) => update({ baseUrl: e.target.value })}
+          placeholder="https://example.com"
+        />
       </label>
       <label className="pcms-field">
         <span className="pcms-field__label">{t("siteSettings.permalink")}</span>
-        <input value={permalink} onChange={(e) => setPermalink(e.target.value)} />
+        <input
+          value={site.permalink ?? ""}
+          onChange={(e) => update({ permalink: e.target.value })}
+          placeholder="/:type/:slug/"
+        />
       </label>
     </div>
   );

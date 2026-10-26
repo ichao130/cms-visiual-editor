@@ -35,6 +35,8 @@ export interface ProjectData {
  */
 export interface PcmsApi {
   loadProject(): Promise<ProjectData>;
+  /** Persist the site-wide config (site.json): name, base URL, permalink, etc. */
+  saveSite(site: SiteConfig): Promise<void>;
   /** Persist the operator's page edits (settings.json). */
   saveDraft(settings: SiteSettings): Promise<void>;
   /** Persist content items (content/<type>/<slug>.md). */

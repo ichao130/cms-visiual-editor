@@ -24,6 +24,7 @@ const SAVEBAR_TABS: ReadonlySet<SiteTab> = new Set<SiteTab>([
   "types",
   "taxonomies",
   "menus",
+  "settings",
 ]);
 
 interface Props {

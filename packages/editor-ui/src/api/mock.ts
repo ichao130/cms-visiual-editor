@@ -5,6 +5,7 @@ import type {
   FormSubmission,
   MediaItem,
   MenuItem,
+  SiteConfig,
   SiteSettings,
   TaxonomyDef,
 } from "@pcms/shared";
@@ -52,6 +53,7 @@ import secText from "../../../../themes/sample-cafe/sections/text.html?raw";
 import themeJson from "../../../../themes/sample-cafe/theme.json";
 import previewCss from "../../../../themes/sample-cafe/assets/style.css?raw";
 
+const SITE_KEY = "pcms.mock.site";
 const DRAFT_KEY = "pcms.mock.draft";
 const CONTENT_KEY = "pcms.mock.content";
 const MEDIA_KEY = "pcms.mock.media";
@@ -163,6 +165,21 @@ const defaultSettings: SiteSettings = {
     },
   },
 };
+
+const defaultSite: SiteConfig = {
+  name: "テスト珈琲店",
+  baseUrl: "https://example.test",
+  permalink: "/:type/:slug/",
+};
+
+function loadSite(): SiteConfig {
+  try {
+    const raw = localStorage.getItem(SITE_KEY);
+    return raw ? (JSON.parse(raw) as SiteConfig) : defaultSite;
+  } catch {
+    return defaultSite;
+  }
+}
 
 function loadDraft(): SiteSettings | null {
   try {
@@ -367,11 +384,7 @@ export function createMockApi(): PcmsApi {
   return {
     async loadProject(): Promise<ProjectData> {
       return {
-        site: {
-          name: "テスト珈琲店",
-          baseUrl: "https://example.test",
-          permalink: "/:type/:slug/",
-        },
+        site: loadSite(),
         settings: loadDraft() ?? defaultSettings,
         theme: buildTheme(),
         content: loadContent(),
@@ -380,6 +393,9 @@ export function createMockApi(): PcmsApi {
         taxonomies: loadTaxonomies(),
         previewCss: mergedThemeFiles()["assets/style.css"] ?? previewCss,
       };
+    },
+    async saveSite(site: SiteConfig): Promise<void> {
+      saveJson(SITE_KEY, site);
     },
     async saveDraft(settings: SiteSettings): Promise<void> {
       try {

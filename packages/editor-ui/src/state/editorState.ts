@@ -4,16 +4,19 @@ import type {
   FieldDef,
   FieldValue,
   MenuItem,
+  SiteConfig,
   SiteSettings,
   TaxonomyDef,
 } from "@pcms/shared";
 import type { ProjectData } from "../api/types.js";
 
 /**
- * The full undoable document: page settings, content items and content-type
- * definitions. Keeping them under one history gives a single undo/redo stack.
+ * The full undoable document: site config, page settings, content items and
+ * content-type definitions. Keeping them under one history gives a single
+ * undo/redo stack.
  */
 export interface EditorState {
+  site: SiteConfig;
   settings: SiteSettings;
   content: ContentItem[];
   contentTypes: ContentTypeDef[];
@@ -23,6 +26,7 @@ export interface EditorState {
 
 export function initialState(project: ProjectData): EditorState {
   return {
+    site: project.site,
     settings: project.settings,
     content: project.content,
     contentTypes: project.contentTypes,

@@ -4,6 +4,7 @@ import type {
   ContentTypeDef,
   FormDef,
   MenuItem,
+  SiteConfig,
   SiteSettings,
   TaxonomyDef,
 } from "@pcms/shared";
@@ -17,6 +18,7 @@ import type { DeployConfigInput, MediaUpload, PcmsApi } from "@pcms/editor-ui";
  */
 const api: PcmsApi = {
   loadProject: () => ipcRenderer.invoke("pcms:loadProject"),
+  saveSite: (site: SiteConfig) => ipcRenderer.invoke("pcms:saveSite", site),
   saveDraft: (settings: SiteSettings) =>
     ipcRenderer.invoke("pcms:saveDraft", settings),
   saveContent: (content: ContentItem[]) =>

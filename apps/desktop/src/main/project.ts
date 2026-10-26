@@ -14,6 +14,7 @@ import type {
   FieldValue,
   MediaItem,
   MenuItem,
+  SiteConfig,
   SiteSettings,
   TaxonomyDef,
 } from "@pcms/shared";
@@ -47,6 +48,10 @@ function siteDir(): string {
 
 function settingsPath(): string {
   return join(siteDir(), "settings.json");
+}
+
+function sitePath(): string {
+  return join(siteDir(), "site.json");
 }
 
 function contentDir(): string {
@@ -241,13 +246,29 @@ function loadSettings(): SiteSettings {
   }
 }
 
+const defaultSite: SiteConfig = {
+  name: "テスト珈琲店",
+  baseUrl: "https://example.test",
+  permalink: "/:type/:slug/",
+};
+
+function loadSite(): SiteConfig {
+  const path = sitePath();
+  if (!existsSync(path)) return defaultSite;
+  try {
+    return JSON.parse(readFileSync(path, "utf8")) as SiteConfig;
+  } catch {
+    return defaultSite;
+  }
+}
+
+export function saveSite(site: SiteConfig): void {
+  writeFileSync(sitePath(), JSON.stringify(site, null, 2), "utf8");
+}
+
 export function loadProject(): ProjectData {
   return {
-    site: {
-      name: "テスト珈琲店",
-      baseUrl: "https://example.test",
-      permalink: "/:type/:slug/",
-    },
+    site: loadSite(),
     settings: loadSettings(),
     theme: {
       config: JSON.parse(readTheme("theme.json")),
