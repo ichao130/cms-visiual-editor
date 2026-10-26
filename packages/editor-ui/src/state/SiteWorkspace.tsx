@@ -54,12 +54,21 @@ interface ProviderProps {
   api: PcmsApi;
   /** Site id — remount (via key) to load a different site. */
   siteId: string;
+  /** Report unsaved state up to the shell (for a leave-site navigation guard). */
+  onDirtyChange?: (dirty: boolean) => void;
   children: ReactNode;
 }
 
-export function SiteWorkspaceProvider({ api, siteId, children }: ProviderProps) {
+export function SiteWorkspaceProvider({ api, siteId, onDirtyChange, children }: ProviderProps) {
   const [project, setProject] = useState<ProjectData | null>(null);
   const [dirty, setDirty] = useState(false);
+
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+  }, [dirty, onDirtyChange]);
+
+  // On unmount the document (and its unsaved edits) go away, so clear the flag.
+  useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
   const { doc, commit, undo, redo, reset, canUndo, canRedo } =
     useEditorHistory<EditorState>(EMPTY_STATE);
 

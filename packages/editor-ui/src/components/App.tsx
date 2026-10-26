@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AccountView, PcmsApi, ProjectSummary, SiteSummary } from "../api/types.js";
-import { INITIAL_ROUTE, type Route } from "../state/route.js";
+import { INITIAL_ROUTE, routeSiteId, type Route } from "../state/route.js";
 import { SiteWorkspaceProvider } from "../state/SiteWorkspace.js";
 import { Breadcrumb } from "./Breadcrumb.js";
 import { DashboardScreen } from "../screens/DashboardScreen.js";
@@ -29,6 +29,24 @@ export function App({ api }: AppProps) {
   const [account, setAccount] = useState<AccountView | null>(null);
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [siteIndex, setSiteIndex] = useState<Map<string, SiteEntry>>(new Map());
+
+  // The open site's unsaved state, reported up by the workspace, so navigating
+  // away from the site can warn before the document (and its edits) unmount.
+  const dirtyRef = useRef(false);
+  const onDirtyChange = useCallback((dirty: boolean) => {
+    dirtyRef.current = dirty;
+  }, []);
+  // A ref mirrors the current route so `navigate` stays identity-stable and the
+  // confirm() runs outside setRoute (keeping the state updater pure).
+  const routeRef = useRef(route);
+  routeRef.current = route;
+  const navigate = useCallback((next: Route) => {
+    const current = routeRef.current;
+    const leavingSite =
+      routeSiteId(current) != null && routeSiteId(next) !== routeSiteId(current);
+    if (leavingSite && dirtyRef.current && !window.confirm(t("nav.unsavedConfirm"))) return;
+    setRoute(next);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -59,21 +77,26 @@ export function App({ api }: AppProps) {
   const screen = useMemo(() => {
     switch (route.screen) {
       case "dashboard":
-        return <DashboardScreen api={api} account={account} onNavigate={setRoute} />;
+        return <DashboardScreen api={api} account={account} onNavigate={navigate} />;
       case "project":
-        return <ProjectScreen api={api} projectId={route.projectId} onNavigate={setRoute} />;
+        return <ProjectScreen api={api} projectId={route.projectId} onNavigate={navigate} />;
       case "site":
-        return <SiteScreen api={api} route={route} onNavigate={setRoute} />;
+        return <SiteScreen api={api} route={route} onNavigate={navigate} />;
       case "themeEditor":
-        return <ThemeEditorScreen api={api} route={route} onNavigate={setRoute} />;
+        return <ThemeEditorScreen api={api} route={route} onNavigate={navigate} />;
     }
     // `locale` is a dep so screens re-render (re-run t()) on a language switch.
-  }, [route, api, account, locale]);
+  }, [route, api, account, locale, navigate]);
 
   // The workspace is keyed by site so switching sites reloads its document.
   const body =
     siteId != null ? (
-      <SiteWorkspaceProvider key={siteId} api={api} siteId={siteId}>
+      <SiteWorkspaceProvider
+        key={siteId}
+        api={api}
+        siteId={siteId}
+        onDirtyChange={onDirtyChange}
+      >
         {screen}
       </SiteWorkspaceProvider>
     ) : (
@@ -83,14 +106,14 @@ export function App({ api }: AppProps) {
   return (
     <div className="pcms-shell">
       <header className="pcms-topbar">
-        <button className="pcms-topbar__brand" onClick={() => setRoute(INITIAL_ROUTE)}>
+        <button className="pcms-topbar__brand" onClick={() => navigate(INITIAL_ROUTE)}>
           pcms
         </button>
         <Breadcrumb
           route={route}
           projectNameOf={projectName}
           siteEntryOf={siteEntry}
-          onNavigate={setRoute}
+          onNavigate={navigate}
         />
         <div className="pcms-topbar__spacer" />
         <div className="pcms-langtoggle" role="group" aria-label="language">
@@ -110,7 +133,7 @@ export function App({ api }: AppProps) {
         {account && (
           <button
             className="pcms-topbar__account"
-            onClick={() => setRoute(INITIAL_ROUTE)}
+            onClick={() => navigate(INITIAL_ROUTE)}
             title={t("account.title")}
           >
             {account.name}
