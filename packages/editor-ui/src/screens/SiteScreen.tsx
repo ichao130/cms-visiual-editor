@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import type { ContentTypeDef, MenuItem, TaxonomyDef } from "@pcms/shared";
 import type { PcmsApi } from "../api/types.js";
 import type { Route, SiteTab } from "../state/route.js";
@@ -80,12 +81,42 @@ const NAV: NavGroup[] = [
  */
 export function SiteScreen({ api, route, onNavigate }: Props) {
   const media = useMediaLibrary(api);
-  const { doc, commit, setDirty } = useSiteWorkspace();
+  const { doc, commit, setDirty, dirty, save, undo, redo, canUndo, canRedo } = useSiteWorkspace();
   const { siteId, tab } = route;
 
   const onAction = (key: string) => {
     if (key === "media") media.value.openLibrary();
   };
+
+  // Keyboard shortcuts for the editing tabs: Cmd/Ctrl+S saves the workspace;
+  // Cmd/Ctrl+Z / Shift+Cmd+Z (or Ctrl+Y) undo/redo, but only when focus is not
+  // in a text field so the field keeps its own native undo.
+  const editing = SAVEBAR_TABS.has(tab);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey)) return;
+      const key = e.key.toLowerCase();
+      if (key === "s") {
+        e.preventDefault();
+        if (editing && dirty) save();
+        return;
+      }
+      if (!editing) return;
+      const el = document.activeElement as HTMLElement | null;
+      if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)) {
+        return;
+      }
+      if (key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        if (canUndo) undo();
+      } else if ((key === "z" && e.shiftKey) || key === "y") {
+        e.preventDefault();
+        if (canRedo) redo();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [editing, dirty, save, undo, redo, canUndo, canRedo]);
 
   const onTypesCommit = (types: ContentTypeDef[]) => {
     commit({ ...doc, contentTypes: types });

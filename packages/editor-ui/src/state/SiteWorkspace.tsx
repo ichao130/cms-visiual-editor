@@ -102,6 +102,17 @@ export function SiteWorkspaceProvider({ api, siteId, onDirtyChange, children }: 
     ]).then(() => setDirty(false));
   }, [api, doc]);
 
+  // Undo/redo move the document away from what was last saved, so they mark the
+  // workspace dirty (callers already guard on canUndo/canRedo).
+  const undoDirty = useCallback(() => {
+    undo();
+    setDirty(true);
+  }, [undo]);
+  const redoDirty = useCallback(() => {
+    redo();
+    setDirty(true);
+  }, [redo]);
+
   if (!project) {
     return <div className="pcms-loading">読み込み中…</div>;
   }
@@ -111,8 +122,8 @@ export function SiteWorkspaceProvider({ api, siteId, onDirtyChange, children }: 
     project,
     doc,
     commit,
-    undo,
-    redo,
+    undo: undoDirty,
+    redo: redoDirty,
     canUndo,
     canRedo,
     dirty,
