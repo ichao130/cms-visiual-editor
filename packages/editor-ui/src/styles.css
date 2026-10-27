@@ -385,9 +385,11 @@ button.pcms-danger { color: #b42318; border-color: #f0c2bc; }
 .pcms-card__stats { font-size: 0.8rem; color: var(--pcms-muted); }
 .pcms-cardwrap { position: relative; display: flex; }
 .pcms-cardwrap .pcms-card { flex: 1; }
-.pcms-carddelete { position: absolute; top: 0.4rem; right: 0.4rem; width: 1.5rem; height: 1.5rem; display: flex; align-items: center; justify-content: center; border: 1px solid var(--pcms-border); border-radius: 6px; background: var(--pcms-panel); color: var(--pcms-muted); font-size: 0.75rem; cursor: pointer; opacity: 0; transition: opacity 0.12s; }
-.pcms-cardwrap:hover .pcms-carddelete, .pcms-carddelete:focus-visible { opacity: 1; }
-.pcms-carddelete:hover { color: #a61b1b; border-color: #a61b1b; }
+.pcms-cardactions { position: absolute; top: 0.4rem; right: 0.4rem; display: flex; gap: 0.25rem; opacity: 0; transition: opacity 0.12s; }
+.pcms-cardaction { width: 1.5rem; height: 1.5rem; display: flex; align-items: center; justify-content: center; border: 1px solid var(--pcms-border); border-radius: 6px; background: var(--pcms-panel); color: var(--pcms-muted); font-size: 0.75rem; cursor: pointer; }
+.pcms-cardwrap:hover .pcms-cardactions, .pcms-cardactions:focus-within { opacity: 1; }
+.pcms-cardaction:hover { color: var(--pcms-text); border-color: var(--pcms-accent); }
+.pcms-cardaction:last-child:hover { color: #a61b1b; border-color: #a61b1b; }
 .pcms-card--add { align-items: center; justify-content: center; color: var(--pcms-muted); border-style: dashed; }
 .pcms-card--form { gap: 0.5rem; border-style: dashed; }
 .pcms-card--form input { width: 100%; box-sizing: border-box; font: inherit; padding: 0.4rem 0.5rem; border: 1px solid var(--pcms-border); border-radius: 6px; }

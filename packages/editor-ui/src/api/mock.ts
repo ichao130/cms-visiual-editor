@@ -297,6 +297,9 @@ interface CreatedShell {
   /** Tombstones for deleted seed entities (created ones are removed outright). */
   deletedProjects?: string[];
   deletedSites?: string[];
+  /** Name overrides (seed entities are immutable; created ones use these too). */
+  projectNames?: Record<string, string>;
+  siteNames?: Record<string, string>;
 }
 
 function loadCreated(): CreatedShell {
@@ -312,17 +315,22 @@ function loadCreated(): CreatedShell {
 function sitesFor(projectId: string): SiteSummary[] {
   const created = loadCreated();
   const deleted = new Set(created.deletedSites ?? []);
-  return [...(mockSites[projectId] ?? []), ...(created.sites[projectId] ?? [])].filter(
-    (s) => !deleted.has(s.id),
-  );
+  const names = created.siteNames ?? {};
+  return [...(mockSites[projectId] ?? []), ...(created.sites[projectId] ?? [])]
+    .filter((s) => !deleted.has(s.id))
+    .map((s) => {
+      const name = names[s.id];
+      return name ? { ...s, name } : s;
+    });
 }
 
 function allProjects(): ProjectSummary[] {
   const created = loadCreated();
   const deleted = new Set(created.deletedProjects ?? []);
+  const names = created.projectNames ?? {};
   return [...mockProjects, ...created.projects]
     .filter((p) => !deleted.has(p.id))
-    .map((p) => ({ ...p, siteCount: sitesFor(p.id).length }));
+    .map((p) => ({ ...p, name: names[p.id] ?? p.name, siteCount: sitesFor(p.id).length }));
 }
 
 /** The site that the theme editor actually loads/edits (loadProject). */
@@ -517,6 +525,11 @@ export function createMockApi(): PcmsApi {
       }
       saveJson(CREATED_KEY, created);
     },
+    async renameProject(projectId: string, name: string): Promise<void> {
+      const created = loadCreated();
+      (created.projectNames ??= {})[projectId] = name;
+      saveJson(CREATED_KEY, created);
+    },
     async listSites(projectId: string): Promise<SiteSummary[]> {
       return sitesFor(projectId);
     },
@@ -541,6 +554,11 @@ export function createMockApi(): PcmsApi {
       if (!wasCreated) {
         created.deletedSites = [...new Set([...(created.deletedSites ?? []), siteId])];
       }
+      saveJson(CREATED_KEY, created);
+    },
+    async renameSite(_projectId: string, siteId: string, name: string): Promise<void> {
+      const created = loadCreated();
+      (created.siteNames ??= {})[siteId] = name;
       saveJson(CREATED_KEY, created);
     },
     async loadSiteStats(siteId: string): Promise<SiteStats> {

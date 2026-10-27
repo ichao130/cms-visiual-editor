@@ -80,11 +80,15 @@ export interface PcmsApi {
   createProject(name: string): Promise<ProjectSummary>;
   /** Delete a project (and drop it from the listing). */
   deleteProject(projectId: string): Promise<void>;
+  /** Rename a project. */
+  renameProject(projectId: string, name: string): Promise<void>;
   listSites(projectId: string): Promise<SiteSummary[]>;
   /** Create a site under a project; returns its summary. */
   createSite(projectId: string, name: string): Promise<SiteSummary>;
   /** Delete a site from a project. */
   deleteSite(projectId: string, siteId: string): Promise<void>;
+  /** Rename a site. */
+  renameSite(projectId: string, siteId: string, name: string): Promise<void>;
   loadSiteStats(siteId: string): Promise<SiteStats>;
   listThemes(): Promise<ThemeSummary[]>;
 

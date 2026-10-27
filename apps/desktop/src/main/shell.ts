@@ -25,6 +25,9 @@ interface ShellRegistry {
   /** Tombstones for the built-in local project/site. */
   deletedProjects?: string[];
   deletedSites?: string[];
+  /** Name overrides (the built-in entities are derived; created ones use these too). */
+  projectNames?: Record<string, string>;
+  siteNames?: Record<string, string>;
 }
 
 function registryPath(): string {
@@ -62,7 +65,12 @@ export async function loadAccount(): Promise<AccountView> {
 
 async function sitesForProject(reg: ShellRegistry, projectId: string): Promise<SiteSummary[]> {
   const deleted = new Set(reg.deletedSites ?? []);
-  const created = (reg.sites[projectId] ?? []).filter((s) => !deleted.has(s.id));
+  const names = reg.siteNames ?? {};
+  const rename = (s: SiteSummary): SiteSummary => {
+    const name = names[s.id];
+    return name ? { ...s, name } : s;
+  };
+  const created = (reg.sites[projectId] ?? []).filter((s) => !deleted.has(s.id)).map(rename);
   if (projectId !== LOCAL_PROJECT_ID) return created;
 
   const project = await loadProject();
@@ -80,16 +88,21 @@ async function sitesForProject(reg: ShellRegistry, projectId: string): Promise<S
     published: false,
     stats: { visits: 0, inquiries: 0 },
   };
-  return deleted.has(local.id) ? created : [local, ...created];
+  return deleted.has(local.id) ? created : [rename(local), ...created];
 }
 
 export async function listProjects(): Promise<ProjectSummary[]> {
   const reg = loadRegistry();
   const deleted = new Set(reg.deletedProjects ?? []);
+  const names = reg.projectNames ?? {};
   const local: ProjectSummary = { id: LOCAL_PROJECT_ID, name: "ローカルプロジェクト", siteCount: 0 };
   const projects = [local, ...reg.projects].filter((p) => !deleted.has(p.id));
   return Promise.all(
-    projects.map(async (p) => ({ ...p, siteCount: (await sitesForProject(reg, p.id)).length })),
+    projects.map(async (p) => ({
+      ...p,
+      name: names[p.id] ?? p.name,
+      siteCount: (await sitesForProject(reg, p.id)).length,
+    })),
   );
 }
 
@@ -108,6 +121,12 @@ export async function deleteProject(projectId: string): Promise<void> {
   if (!wasCreated) {
     reg.deletedProjects = [...new Set([...(reg.deletedProjects ?? []), projectId])];
   }
+  saveRegistry(reg);
+}
+
+export async function renameProject(projectId: string, name: string): Promise<void> {
+  const reg = loadRegistry();
+  (reg.projectNames ??= {})[projectId] = name;
   saveRegistry(reg);
 }
 
@@ -137,6 +156,12 @@ export async function deleteSite(projectId: string, siteId: string): Promise<voi
   if (!wasCreated) {
     reg.deletedSites = [...new Set([...(reg.deletedSites ?? []), siteId])];
   }
+  saveRegistry(reg);
+}
+
+export async function renameSite(_projectId: string, siteId: string, name: string): Promise<void> {
+  const reg = loadRegistry();
+  (reg.siteNames ??= {})[siteId] = name;
   saveRegistry(reg);
 }
 

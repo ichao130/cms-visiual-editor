@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { PcmsApi, SiteSummary } from "../api/types.js";
 import type { Route } from "../state/route.js";
 import { CreateCard } from "../components/CreateCard.js";
+import { CardRenameForm } from "../components/CardRenameForm.js";
 import { useToast } from "../state/ToastContext.js";
 import { t } from "../i18n.js";
 
@@ -16,6 +17,7 @@ interface Props {
 /** Project: the sites it contains, plus project-level basic settings. */
 export function ProjectScreen({ api, projectId, onNavigate, onShellChange }: Props) {
   const [sites, setSites] = useState<SiteSummary[]>([]);
+  const [renaming, setRenaming] = useState<string | null>(null);
   const toast = useToast();
 
   useEffect(() => {
@@ -43,37 +45,67 @@ export function ProjectScreen({ api, projectId, onNavigate, onShellChange }: Pro
     });
   };
 
+  const onRename = (site: SiteSummary, name: string) => {
+    setRenaming(null);
+    void api.renameSite(projectId, site.id, name).then(() => {
+      setSites((list) => list.map((s) => (s.id === site.id ? { ...s, name } : s)));
+      onShellChange();
+      toast(t("toast.siteRenamed").replace("{name}", name));
+    });
+  };
+
   return (
     <div className="pcms-page">
       <div className="pcms-page__main">
         <h1 className="pcms-page__title">{t("project.sites")}</h1>
         <div className="pcms-cards">
-          {sites.map((s) => (
-            <div key={s.id} className="pcms-cardwrap">
-              <button
-                className="pcms-card"
-                onClick={() => onNavigate({ screen: "site", siteId: s.id, tab: "info" })}
-              >
-                <span className="pcms-card__title">{s.name}</span>
-                <span className="pcms-card__meta">{s.domain}</span>
-                <span className={`pcms-badge ${s.published ? "is-live" : "is-draft"}`}>
-                  {s.published ? t("site.published") : t("site.draft")}
-                </span>
-                <span className="pcms-card__stats">
-                  {t("site.stat.visits")}: {s.stats.visits.toLocaleString()} ・ {t("site.stat.inquiries")}: {s.stats.inquiries}
-                </span>
-              </button>
-              <button
-                type="button"
-                className="pcms-carddelete"
-                title={t("common.delete")}
-                aria-label={t("common.delete")}
-                onClick={() => onDelete(s)}
-              >
-                ✕
-              </button>
-            </div>
-          ))}
+          {sites.map((s) =>
+            renaming === s.id ? (
+              <div key={s.id} className="pcms-cardwrap">
+                <CardRenameForm
+                  initial={s.name}
+                  onRename={(name) => onRename(s, name)}
+                  onCancel={() => setRenaming(null)}
+                />
+              </div>
+            ) : (
+              <div key={s.id} className="pcms-cardwrap">
+                <button
+                  className="pcms-card"
+                  onClick={() => onNavigate({ screen: "site", siteId: s.id, tab: "info" })}
+                >
+                  <span className="pcms-card__title">{s.name}</span>
+                  <span className="pcms-card__meta">{s.domain}</span>
+                  <span className={`pcms-badge ${s.published ? "is-live" : "is-draft"}`}>
+                    {s.published ? t("site.published") : t("site.draft")}
+                  </span>
+                  <span className="pcms-card__stats">
+                    {t("site.stat.visits")}: {s.stats.visits.toLocaleString()} ・ {t("site.stat.inquiries")}: {s.stats.inquiries}
+                  </span>
+                </button>
+                <div className="pcms-cardactions">
+                  <button
+                    type="button"
+                    className="pcms-cardaction"
+                    title={t("common.rename")}
+                    aria-label={t("common.rename")}
+                    onClick={() => setRenaming(s.id)}
+                  >
+                    ✎
+                  </button>
+                  <button
+                    type="button"
+                    className="pcms-cardaction"
+                    title={t("common.delete")}
+                    aria-label={t("common.delete")}
+                    onClick={() => onDelete(s)}
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            ),
+          )}
           <CreateCard
             label={t("project.newSite")}
             placeholder={t("project.newName")}
