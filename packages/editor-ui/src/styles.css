@@ -443,6 +443,9 @@ button.pcms-danger { color: #b42318; border-color: #f0c2bc; }
 .pcms-contentpane__editor { flex: 1; min-height: 0; overflow-y: auto; }
 .pcms-listhead { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 1rem; }
 .pcms-listhead__actions { display: flex; gap: 0.4rem; }
+.pcms-listsearch { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; }
+.pcms-listsearch__input { flex: 1; padding: 0.4rem 0.6rem; border: 1px solid var(--pcms-border); border-radius: 6px; font: inherit; }
+.pcms-listsearch__count { color: var(--pcms-muted); font-size: 0.8rem; white-space: nowrap; }
 .pcms-typegroup { margin-bottom: 1rem; }
 .pcms-typegroup__title { font-size: 0.8rem; color: var(--pcms-muted); margin: 0 0 0.4rem; }
 .pcms-itemlist { list-style: none; margin: 0; padding: 0; }

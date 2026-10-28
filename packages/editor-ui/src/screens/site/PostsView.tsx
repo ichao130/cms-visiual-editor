@@ -10,9 +10,17 @@ export function PostsView() {
   const { doc, commit, setDirty } = useSiteWorkspace();
   const [selected, setSelected] = useState<{ type: string; slug: string } | null>(null);
   const [newOpen, setNewOpen] = useState(false);
+  const [query, setQuery] = useState("");
 
   const postTypes = doc.contentTypes.filter((tp) => tp.name !== "page");
-  const posts = doc.content.filter((i) => i.type !== "page");
+  const q = query.trim().toLowerCase();
+  const posts = doc.content.filter((i) => {
+    if (i.type === "page") return false;
+    if (!q) return true;
+    const title = String(i.fields.title ?? "").toLowerCase();
+    return title.includes(q) || i.slug.toLowerCase().includes(q);
+  });
+  const matchCount = posts.length;
 
   const onCreate = (type: string, title: string, slug: string) => {
     let unique = slug;
@@ -36,8 +44,29 @@ export function PostsView() {
           </div>
         </div>
 
+        <div className="pcms-listsearch">
+          <input
+            type="search"
+            className="pcms-listsearch__input"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={t("content.search")}
+          />
+          {q && (
+            <span className="pcms-listsearch__count">
+              {t("content.matchCount").replace("{count}", String(matchCount))}
+            </span>
+          )}
+        </div>
+
+        {q && matchCount === 0 ? (
+          <p className="pcms-empty">{t("content.noMatch")}</p>
+        ) : null}
+
         {postTypes.map((tp) => {
           const items = posts.filter((i) => i.type === tp.name);
+          // While filtering, hide type groups that have no match.
+          if (q && items.length === 0) return null;
           return (
             <div key={tp.name} className="pcms-typegroup">
               <h2 className="pcms-typegroup__title">{tp.label ?? tp.name}</h2>
