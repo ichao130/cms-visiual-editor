@@ -49,6 +49,17 @@ describe("generateSite", () => {
     }
   });
 
+  it("emits a canonical URL (and og:url) matching each page's own path", () => {
+    const expectCanonical = (path: string, url: string) => {
+      const head = files[path]!.slice(0, files[path]!.indexOf("</head>"));
+      expect(head, path).toContain(`<link rel="canonical" href="${url}">`);
+      expect(head, path).toContain(`<meta property="og:url" content="${url}">`);
+    };
+    expectCanonical("index.html", "https://example.test/");
+    expectCanonical("post/open/index.html", "https://example.test/post/open/");
+    expectCanonical("page/about/index.html", "https://example.test/page/about/");
+  });
+
   it("lists theme assets to copy", () => {
     expect(assets).toEqual(["assets/style.css"]);
   });

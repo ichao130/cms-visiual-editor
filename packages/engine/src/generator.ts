@@ -86,10 +86,11 @@ export function generateSite(input: SiteInput): GeneratedSite {
   const siteLd = siteJsonLd(input.site);
   const siteMeta = siteHeadMeta(input.site);
   const home: Crumb = { name: input.site.name, url: "/" };
-  const finish = (html: string, extra: object[]): string =>
+  // `path` is the page's own output path, used to emit its canonical URL.
+  const finish = (path: string, html: string, extra: object[]): string =>
     injectHeadMeta(
       injectHeadStyle(injectJsonLd(html, [...siteLd, ...extra]), RESPONSIVE_CSS),
-      siteMeta,
+      siteMeta + pageHeadMeta(path, input.site),
     );
   const typeLabel = (type: string): string =>
     input.contentTypes.find((t) => t.name === type)?.label ?? type;
@@ -119,9 +120,8 @@ export function generateSite(input: SiteInput): GeneratedSite {
         ...(opts.term ? { term: opts.term } : {}),
       };
       const html = renderTemplate(opts.template, scope, { layout });
-      files[archivePagePath(opts.baseUrl, n)] = finish(html, [
-        breadcrumbJsonLd(opts.crumbs, input.site),
-      ]);
+      const outPath = archivePagePath(opts.baseUrl, n);
+      files[outPath] = finish(outPath, html, [breadcrumbJsonLd(opts.crumbs, input.site)]);
     }
   };
 
@@ -139,7 +139,8 @@ export function generateSite(input: SiteInput): GeneratedSite {
       const scope: RenderScope = { ...baseScope, page };
       html = renderTemplate(template, scope, { layout });
     }
-    files[pagePathForId(id)] = finish(html, []);
+    const outPath = pagePathForId(id);
+    files[outPath] = finish(outPath, html, []);
   }
 
   // 2. A page per content item (with Article + breadcrumb structured data).
@@ -150,7 +151,8 @@ export function generateSite(input: SiteInput): GeneratedSite {
     const scope: RenderScope = { ...baseScope, page, item };
     const html = renderTemplate(template, scope, { layout });
     const url = itemUrl(item, input.site);
-    files[itemPath(item, input.site)] = finish(html, [
+    const outPath = itemPath(item, input.site);
+    files[outPath] = finish(outPath, html, [
       articleJsonLd(item, input.site, url),
       breadcrumbJsonLd(
         [
@@ -358,6 +360,18 @@ function verificationMetaName(provider: string): string {
  * search-engine verification tags. Emitted on every page; per-page overrides
  * would come from the content's own SEO fields (not yet wired).
  */
+/**
+ * Per-page `<head>` meta: the canonical URL (and matching og:url) for this
+ * output path. Needs an absolute base URL, so it is omitted until site.baseUrl
+ * is set (a relative canonical would be worse than none).
+ */
+function pageHeadMeta(path: string, site: SiteConfig): string {
+  const base = (site.baseUrl ?? "").replace(/\/+$/, "");
+  if (!base) return "";
+  const url = escapeXml(urlForPath(path, base));
+  return `<link rel="canonical" href="${url}"><meta property="og:url" content="${url}">`;
+}
+
 function siteHeadMeta(site: SiteConfig): string {
   const tags: string[] = [
     `<meta property="og:site_name" content="${escapeXml(site.name)}">`,
