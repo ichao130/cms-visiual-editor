@@ -86,11 +86,12 @@ export function generateSite(input: SiteInput): GeneratedSite {
   const siteLd = siteJsonLd(input.site);
   const siteMeta = siteHeadMeta(input.site);
   const home: Crumb = { name: input.site.name, url: "/" };
-  // `path` is the page's own output path, used to emit its canonical URL.
-  const finish = (path: string, html: string, extra: object[]): string =>
+  // `path` is the page's own output path (for its canonical URL). `desc`, when
+  // given, overrides the site's default description on this page only.
+  const finish = (path: string, html: string, extra: object[], desc?: string): string =>
     injectHeadMeta(
       injectHeadStyle(injectJsonLd(html, [...siteLd, ...extra]), RESPONSIVE_CSS),
-      siteMeta + pageHeadMeta(path, input.site),
+      (desc ? siteHeadMeta(input.site, desc) : siteMeta) + pageHeadMeta(path, input.site),
     );
   const typeLabel = (type: string): string =>
     input.contentTypes.find((t) => t.name === type)?.label ?? type;
@@ -152,9 +153,12 @@ export function generateSite(input: SiteInput): GeneratedSite {
     const html = renderTemplate(template, scope, { layout });
     const url = itemUrl(item, input.site);
     const outPath = itemPath(item, input.site);
-    files[outPath] = finish(outPath, html, [
-      articleJsonLd(item, input.site, url),
-      breadcrumbJsonLd(
+    files[outPath] = finish(
+      outPath,
+      html,
+      [
+        articleJsonLd(item, input.site, url),
+        breadcrumbJsonLd(
         [
           home,
           { name: typeLabel(item.type), url: `/${item.type}/` },
@@ -162,7 +166,9 @@ export function generateSite(input: SiteInput): GeneratedSite {
         ],
         input.site,
       ),
-    ]);
+      ],
+      itemDescription(item),
+    );
   }
 
   // 3. Type archives (article listings), paginated.
@@ -209,6 +215,13 @@ export function generateSite(input: SiteInput): GeneratedSite {
 
 function itemUrl(item: ContentItem, site: SiteConfig): string {
   return "/" + itemPath(item, site).replace(/index\.html$/, "");
+}
+
+/** A content item's own meta description, from a description/excerpt field. */
+function itemDescription(item: ContentItem): string | undefined {
+  const value = item.fields.description ?? item.fields.excerpt;
+  const text = typeof value === "string" ? value.trim() : "";
+  return text || undefined;
 }
 
 function termBuckets(
@@ -372,14 +385,15 @@ function pageHeadMeta(path: string, site: SiteConfig): string {
   return `<link rel="canonical" href="${url}"><meta property="og:url" content="${url}">`;
 }
 
-function siteHeadMeta(site: SiteConfig): string {
+function siteHeadMeta(site: SiteConfig, descOverride?: string): string {
   const tags: string[] = [
     `<meta property="og:site_name" content="${escapeXml(site.name)}">`,
     `<meta property="og:type" content="website">`,
   ];
   const og = site.ogpDefault;
-  if (og?.description) {
-    const desc = escapeXml(og.description);
+  const description = descOverride ?? og?.description;
+  if (description) {
+    const desc = escapeXml(description);
     tags.push(`<meta name="description" content="${desc}">`);
     tags.push(`<meta property="og:description" content="${desc}">`);
   }

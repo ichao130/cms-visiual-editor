@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { generateSite } from "../src/index.js";
-import { sampleInput } from "./fixtures.js";
+import { sampleInput, sampleSite, sampleTheme } from "./fixtures.js";
 
 describe("generateSite", () => {
   const { files, assets } = generateSite(sampleInput());
@@ -78,5 +78,31 @@ describe("generateSite", () => {
 
   it("matches the home page snapshot", () => {
     expect(files["index.html"]).toMatchSnapshot();
+  });
+
+  it("overrides the description with a content item's own on its page only", () => {
+    const out = generateSite({
+      site: sampleSite(),
+      settings: { pages: {} },
+      contentTypes: [],
+      content: [
+        {
+          type: "post",
+          slug: "seo",
+          fields: { title: "SEO記事", description: "この記事だけの説明文。" },
+          body: "<p>本文</p>",
+        },
+        { type: "post", slug: "plain", fields: { title: "説明なし" }, body: "<p>本文</p>" },
+      ],
+      theme: sampleTheme(),
+    });
+    const itemHead = out.files["post/seo/index.html"]!.split("</head>")[0]!;
+    expect(itemHead).toContain('<meta name="description" content="この記事だけの説明文。">');
+    expect(itemHead).toContain('<meta property="og:description" content="この記事だけの説明文。">');
+    // The page-level description replaces the site default, not duplicates it.
+    expect(itemHead).not.toContain("駅前の小さな自家焙煎珈琲店です。");
+    // A page without its own description keeps the site default.
+    const plainHead = out.files["post/plain/index.html"]!.split("</head>")[0]!;
+    expect(plainHead).toContain('<meta name="description" content="駅前の小さな自家焙煎珈琲店です。">');
   });
 });
