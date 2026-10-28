@@ -12,6 +12,8 @@ import type { MediaItem } from "@pcms/shared";
 import type { PcmsApi } from "../api/types.js";
 import { importImages } from "./import.js";
 import { MediaLibrary } from "../components/MediaLibrary.js";
+import { useToast } from "../state/ToastContext.js";
+import { t } from "../i18n.js";
 
 export interface MediaContextValue {
   media: MediaItem[];
@@ -52,6 +54,7 @@ export function useMediaLibrary(api: PcmsApi): {
   const [importing, setImporting] = useState(false);
   const [mode, setMode] = useState<"closed" | "browse" | "pick">("closed");
   const resolverRef = useRef<((path: string | null) => void) | null>(null);
+  const toast = useToast();
 
   useEffect(() => {
     let active = true;
@@ -75,6 +78,15 @@ export function useMediaLibrary(api: PcmsApi): {
       setImporting(false);
     }
   }, [api]);
+
+  const deleteMedia = useCallback(
+    async (item: MediaItem) => {
+      await api.deleteMedia(item.path);
+      setMedia((prev) => prev.filter((m) => m.path !== item.path));
+      toast(t("toast.mediaDeleted").replace("{name}", item.fileName));
+    },
+    [api, toast],
+  );
 
   const openLibrary = useCallback(() => setMode("browse"), []);
 
@@ -111,6 +123,7 @@ export function useMediaLibrary(api: PcmsApi): {
         importing={importing}
         onImport={runImport}
         onSelect={mode === "pick" ? (item) => settle(item.path) : undefined}
+        onDelete={mode === "browse" ? deleteMedia : undefined}
         onClose={() => settle(null)}
       />
     );

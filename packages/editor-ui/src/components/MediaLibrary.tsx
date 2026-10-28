@@ -7,6 +7,8 @@ interface MediaLibraryProps {
   importing: boolean;
   /** When set, a "選択" action is shown on each item (picker mode). */
   onSelect?: (item: MediaItem) => void;
+  /** When set, a delete action is shown on each item (browse mode). */
+  onDelete?: (item: MediaItem) => void;
   onImport: () => void;
   onClose: () => void;
 }
@@ -16,10 +18,16 @@ export function MediaLibrary({
   media,
   importing,
   onSelect,
+  onDelete,
   onImport,
   onClose,
 }: MediaLibraryProps) {
   const ref = useDialog<HTMLDivElement>(onClose);
+  const confirmDelete = (item: MediaItem) => {
+    if (window.confirm(t("media.deleteConfirm").replace("{name}", item.fileName))) {
+      onDelete?.(item);
+    }
+  };
   return (
     <div className="pcms-modal" role="dialog" aria-modal="true" aria-label={t("media.title")}>
       <div className="pcms-modal__backdrop" onClick={onClose} />
@@ -50,6 +58,17 @@ export function MediaLibrary({
                 >
                   <img src={item.dataUrl} alt={item.fileName} />
                 </button>
+                {onDelete && (
+                  <button
+                    type="button"
+                    className="pcms-media__delete"
+                    onClick={() => confirmDelete(item)}
+                    aria-label={t("media.delete")}
+                    title={t("media.delete")}
+                  >
+                    ✕
+                  </button>
+                )}
                 <span className="pcms-media__name">{item.fileName}</span>
               </li>
             ))}

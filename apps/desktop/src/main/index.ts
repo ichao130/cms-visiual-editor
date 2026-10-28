@@ -29,6 +29,7 @@ import {
   deleteContent,
   listMedia,
   saveMedia,
+  deleteMedia,
 } from "./project.js";
 import {
   getDeployConfig,
@@ -153,6 +154,7 @@ function registerIpc(): void {
   ipcMain.handle("pcms:saveMedia", (_event, files: MediaUpload[]) =>
     saveMedia(files),
   );
+  ipcMain.handle("pcms:deleteMedia", (_event, path: string) => deleteMedia(path));
 
   ipcMain.handle("pcms:getDeployConfig", () => getDeployConfig());
   ipcMain.handle("pcms:setDeployConfig", (_event, config: DeployConfigInput) =>

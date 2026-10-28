@@ -6,7 +6,7 @@ import {
   readdirSync,
   unlinkSync,
 } from "node:fs";
-import { join, resolve } from "node:path";
+import { basename, join, resolve } from "node:path";
 import { app } from "electron";
 import type {
   ContentItem,
@@ -366,4 +366,10 @@ export function saveMedia(files: MediaUpload[]): MediaItem[] {
     const item = mediaItemFromBytes(f.fileName, bytes);
     return { ...item, width: f.width, height: f.height };
   });
+}
+
+export function deleteMedia(path: string): void {
+  // Only ever touch a file inside the media dir (strip any directory part).
+  const file = join(mediaDir(), basename(path));
+  if (existsSync(file)) unlinkSync(file);
 }

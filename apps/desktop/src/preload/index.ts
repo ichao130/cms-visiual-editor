@@ -33,6 +33,7 @@ const api: PcmsApi = {
     ipcRenderer.invoke("pcms:deleteContent", type, slug),
   listMedia: () => ipcRenderer.invoke("pcms:listMedia"),
   saveMedia: (files: MediaUpload[]) => ipcRenderer.invoke("pcms:saveMedia", files),
+  deleteMedia: (path: string) => ipcRenderer.invoke("pcms:deleteMedia", path),
   getDeployConfig: () => ipcRenderer.invoke("pcms:getDeployConfig"),
   setDeployConfig: (config: DeployConfigInput) =>
     ipcRenderer.invoke("pcms:setDeployConfig", config),

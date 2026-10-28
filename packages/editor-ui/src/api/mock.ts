@@ -659,5 +659,13 @@ export function createMockApi(): PcmsApi {
       }
       return saved;
     },
+    async deleteMedia(path: string): Promise<void> {
+      const kept = loadMedia().filter((m) => m.path !== path);
+      try {
+        localStorage.setItem(MEDIA_KEY, JSON.stringify(kept));
+      } catch {
+        /* ignore storage failures in the mock */
+      }
+    },
   };
 }
