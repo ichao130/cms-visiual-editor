@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { MediaItem } from "@pcms/shared";
 import { useDialog } from "../state/useDialog.js";
 import { t } from "../i18n.js";
@@ -23,6 +24,9 @@ export function MediaLibrary({
   onClose,
 }: MediaLibraryProps) {
   const ref = useDialog<HTMLDivElement>(onClose);
+  const [query, setQuery] = useState("");
+  const q = query.trim().toLowerCase();
+  const shown = q ? media.filter((m) => m.fileName.toLowerCase().includes(q)) : media;
   const confirmDelete = (item: MediaItem) => {
     if (window.confirm(t("media.deleteConfirm").replace("{name}", item.fileName))) {
       onDelete?.(item);
@@ -46,33 +50,46 @@ export function MediaLibrary({
         {media.length === 0 ? (
           <p className="pcms-empty pcms-media__empty">{t("media.empty")}</p>
         ) : (
-          <ul className="pcms-media__grid">
-            {media.map((item) => (
-              <li key={item.path} className="pcms-media__item">
-                <button
-                  type="button"
-                  className="pcms-media__pick"
-                  onClick={() => onSelect?.(item)}
-                  disabled={!onSelect}
-                  title={item.fileName}
-                >
-                  <img src={item.dataUrl} alt={item.fileName} />
-                </button>
-                {onDelete && (
-                  <button
-                    type="button"
-                    className="pcms-media__delete"
-                    onClick={() => confirmDelete(item)}
-                    aria-label={t("media.delete")}
-                    title={t("media.delete")}
-                  >
-                    ✕
-                  </button>
-                )}
-                <span className="pcms-media__name">{item.fileName}</span>
-              </li>
-            ))}
-          </ul>
+          <>
+            <input
+              type="search"
+              className="pcms-media__search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={t("media.search")}
+            />
+            {shown.length === 0 ? (
+              <p className="pcms-empty pcms-media__empty">{t("media.noMatch")}</p>
+            ) : (
+              <ul className="pcms-media__grid">
+                {shown.map((item) => (
+                  <li key={item.path} className="pcms-media__item">
+                    <button
+                      type="button"
+                      className="pcms-media__pick"
+                      onClick={() => onSelect?.(item)}
+                      disabled={!onSelect}
+                      title={item.fileName}
+                    >
+                      <img src={item.dataUrl} alt={item.fileName} />
+                    </button>
+                    {onDelete && (
+                      <button
+                        type="button"
+                        className="pcms-media__delete"
+                        onClick={() => confirmDelete(item)}
+                        aria-label={t("media.delete")}
+                        title={t("media.delete")}
+                      >
+                        ✕
+                      </button>
+                    )}
+                    <span className="pcms-media__name">{item.fileName}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
         )}
       </div>
     </div>

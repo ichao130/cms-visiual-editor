@@ -62,6 +62,8 @@ const ja = {
   "media.clear": "クリア",
   "media.delete": "削除",
   "media.deleteConfirm": "「{name}」を削除しますか？この画像を使っているページは表示が崩れる場合があります。",
+  "media.search": "ファイル名で絞り込み",
+  "media.noMatch": "一致する画像がありません。",
   "toolbar.new": "＋新規",
   "toolbar.ai": "AI",
   "ai.title": "AIアシスト（下書き・提案）",
