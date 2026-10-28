@@ -8,6 +8,7 @@ import type {
   PublishReport,
 } from "../api/types.js";
 import { t } from "../i18n.js";
+import { useToast } from "../state/ToastContext.js";
 
 /**
  * The publish flow body (target config, pre-check, publish, rollback), without
@@ -15,6 +16,7 @@ import { t } from "../i18n.js";
  * modal from the theme editor.
  */
 export function PublishFlow({ api }: { api: PcmsApi }) {
+  const toast = useToast();
   const [config, setConfig] = useState<DeployConfigView | null>(null);
   const [history, setHistory] = useState<PublishHistoryEntry[]>([]);
   const [preview, setPreview] = useState<PublishPreview | null>(null);
@@ -78,6 +80,11 @@ export function PublishFlow({ api }: { api: PcmsApi }) {
       setReport(r);
       setPreview(null);
       setHistory(await api.listPublishHistory());
+      if (r.blocked) toast(t("publish.blocked"), "error");
+      else if (r.ok) toast(t("publish.done"));
+      else toast(t("publish.failed"), "error");
+    } catch {
+      toast(t("publish.failed"), "error");
     } finally {
       setBusy("");
     }
@@ -87,8 +94,12 @@ export function PublishFlow({ api }: { api: PcmsApi }) {
     if (!window.confirm(t("publish.rollback") + "？")) return;
     setBusy("publish");
     try {
-      setReport(await api.rollbackPublish(id));
+      const r = await api.rollbackPublish(id);
+      setReport(r);
       setHistory(await api.listPublishHistory());
+      toast(r.ok ? t("toast.restored") : t("toast.rollbackFailed"), r.ok ? "info" : "error");
+    } catch {
+      toast(t("toast.rollbackFailed"), "error");
     } finally {
       setBusy("");
     }
