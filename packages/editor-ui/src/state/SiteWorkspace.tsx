@@ -9,6 +9,8 @@ import {
 import type { PcmsApi, ProjectData } from "../api/types.js";
 import { useEditorHistory } from "./history.js";
 import { initialState, type EditorState } from "./editorState.js";
+import { useToast } from "./ToastContext.js";
+import { t } from "../i18n.js";
 
 const EMPTY_STATE: EditorState = {
   site: { name: "" },
@@ -63,6 +65,7 @@ interface ProviderProps {
 export function SiteWorkspaceProvider({ api, siteId, onDirtyChange, children }: ProviderProps) {
   const [project, setProject] = useState<ProjectData | null>(null);
   const [dirty, setDirty] = useState(false);
+  const toast = useToast();
 
   useEffect(() => {
     onDirtyChange?.(dirty);
@@ -99,8 +102,13 @@ export function SiteWorkspaceProvider({ api, siteId, onDirtyChange, children }: 
       api.saveContentTypes(doc.contentTypes),
       api.saveMenus(doc.menus),
       api.saveTaxonomies(doc.taxonomies),
-    ]).then(() => setDirty(false));
-  }, [api, doc]);
+    ])
+      .then(() => {
+        setDirty(false);
+        toast(t("toast.saved"));
+      })
+      .catch(() => toast(t("toast.saveFailed"), "error"));
+  }, [api, doc, toast]);
 
   // Undo/redo move the document away from what was last saved, so they mark the
   // workspace dirty (callers already guard on canUndo/canRedo).
