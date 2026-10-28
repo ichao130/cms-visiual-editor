@@ -275,6 +275,7 @@ button.pcms-aibtn { background: #6b46c1; color: #fff; border-color: #6b46c1; }
 button.pcms-danger { color: #b42318; border-color: #f0c2bc; }
 
 .pcms-settings__head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.pcms-settings__headactions { display: flex; gap: 0.4rem; }
 .pcms-field__req { color: #b42318; font-style: normal; font-size: 0.7rem; margin-left: 0.3rem; }
 .pcms-field__desc { color: var(--pcms-muted); font-size: 0.72rem; }
 .pcms-field__checkbox { width: auto; }

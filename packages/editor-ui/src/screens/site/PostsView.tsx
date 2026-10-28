@@ -102,6 +102,7 @@ export function PostsView() {
             type={selected.type}
             slug={selected.slug}
             onDeleted={() => setSelected(null)}
+            onDuplicated={(type, slug) => setSelected({ type, slug })}
           />
         ) : (
           <aside className="pcms-settings">

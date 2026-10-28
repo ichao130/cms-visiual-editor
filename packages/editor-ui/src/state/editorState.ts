@@ -156,6 +156,37 @@ export function slugExists(state: EditorState, type: string, slug: string): bool
   return state.content.some((i) => i.type === type && i.slug === slug);
 }
 
+/** Make `base` unique within a type by appending -2, -3, … when it is taken. */
+export function uniqueSlug(state: EditorState, type: string, base: string): string {
+  let slug = base;
+  let n = 2;
+  while (slugExists(state, type, slug)) slug = `${base}-${n++}`;
+  return slug;
+}
+
+/**
+ * Copy a content item under a new unique slug, placing the copy right after the
+ * original. Fields (including assigned terms) and body carry over; the title
+ * gets a copy suffix. Returns the new state and the copy's slug so the caller
+ * can select it.
+ */
+export function duplicateContent(
+  state: EditorState,
+  type: string,
+  slug: string,
+  titleSuffix: string,
+): { state: EditorState; slug: string } {
+  const src = findItem(state, type, slug);
+  if (!src) return { state, slug };
+  const newSlug = uniqueSlug(state, type, `${slug}-copy`);
+  const title = `${String(src.fields.title ?? slug)}${titleSuffix}`;
+  const copy: ContentItem = { ...src, slug: newSlug, fields: { ...src.fields, title } };
+  const idx = state.content.findIndex((i) => i.type === type && i.slug === slug);
+  const content = [...state.content];
+  content.splice(idx + 1, 0, copy);
+  return { state: { ...state, content }, slug: newSlug };
+}
+
 /** Create a content item of a type, seeding defaults from its field defs. */
 export function createContent(
   state: EditorState,

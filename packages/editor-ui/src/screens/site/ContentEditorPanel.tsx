@@ -1,6 +1,7 @@
 import { useSiteWorkspace } from "../../state/SiteWorkspace.js";
 import { useToast } from "../../state/ToastContext.js";
 import {
+  duplicateContent,
   findItem,
   removeContent,
   setContentField,
@@ -15,10 +16,11 @@ interface Props {
   type: string;
   slug: string;
   onDeleted: () => void;
+  onDuplicated?: (type: string, slug: string) => void;
 }
 
 /** Editing form for one content item, wired to the shared site workspace. */
-export function ContentEditorPanel({ type, slug, onDeleted }: Props) {
+export function ContentEditorPanel({ type, slug, onDeleted, onDuplicated }: Props) {
   const { api, doc, commit, setDirty } = useSiteWorkspace();
   const toast = useToast();
   const item = findItem(doc, type, slug);
@@ -43,6 +45,13 @@ export function ContentEditorPanel({ type, slug, onDeleted }: Props) {
       onDeleted();
     });
   };
+  const onDuplicate = () => {
+    const { state, slug: newSlug } = duplicateContent(doc, type, slug, t("content.copySuffix"));
+    commit(state);
+    setDirty(true);
+    toast(t("toast.contentDuplicated").replace("{name}", title));
+    onDuplicated?.(type, newSlug);
+  };
 
   return (
     <ContentForm
@@ -51,6 +60,7 @@ export function ContentEditorPanel({ type, slug, onDeleted }: Props) {
       taxonomies={taxonomiesFor(doc, type)}
       onChange={onChange}
       onTermsChange={onTermsChange}
+      onDuplicate={onDuplicate}
       onDelete={onDelete}
     />
   );

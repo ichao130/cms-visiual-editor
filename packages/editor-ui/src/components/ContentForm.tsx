@@ -15,6 +15,7 @@ interface ContentFormProps {
   taxonomies: TaxonomyDef[];
   onChange: (key: string, value: string) => void;
   onTermsChange: (taxonomy: string, terms: string[]) => void;
+  onDuplicate?: () => void;
   onDelete: () => void;
 }
 
@@ -31,6 +32,7 @@ export function ContentForm({
   taxonomies,
   onChange,
   onTermsChange,
+  onDuplicate,
   onDelete,
 }: ContentFormProps) {
   const fields = def?.fields ?? fallbackFields(item);
@@ -45,9 +47,16 @@ export function ContentForm({
         <h2 className="pcms-col__title">
           {t("content.title")}：{def?.label ?? item.type}
         </h2>
-        <button type="button" className="pcms-danger" onClick={onDelete}>
-          {t("content.delete")}
-        </button>
+        <div className="pcms-settings__headactions">
+          {onDuplicate && (
+            <button type="button" onClick={onDuplicate}>
+              {t("content.duplicate")}
+            </button>
+          )}
+          <button type="button" className="pcms-danger" onClick={onDelete}>
+            {t("content.delete")}
+          </button>
+        </div>
       </div>
 
       {fields

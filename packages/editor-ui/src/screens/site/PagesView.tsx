@@ -87,7 +87,12 @@ export function PagesView() {
 
       <div className="pcms-contentpane__editor">
         {selected ? (
-          <ContentEditorPanel type={PAGE_TYPE} slug={selected} onDeleted={() => setSelected(null)} />
+          <ContentEditorPanel
+            type={PAGE_TYPE}
+            slug={selected}
+            onDeleted={() => setSelected(null)}
+            onDuplicated={(_type, slug) => setSelected(slug)}
+          />
         ) : (
           <aside className="pcms-settings">
             <p className="pcms-empty">{t("content.pickHint")}</p>
