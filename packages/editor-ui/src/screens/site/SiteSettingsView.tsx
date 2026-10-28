@@ -1,6 +1,40 @@
 import type { SiteConfig } from "@pcms/shared";
 import { useSiteWorkspace } from "../../state/SiteWorkspace.js";
+import { useMedia } from "../../media/MediaContext.js";
 import { t } from "../../i18n.js";
+
+/** A path input paired with a thumbnail preview and the media-library picker. */
+function ImageField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const media = useMedia();
+  const preview = media.resolveUrl(value || undefined);
+  return (
+    <div className="pcms-field">
+      <span className="pcms-field__label">{label}</span>
+      <div className="pcms-imagefield">
+        {preview && <img className="pcms-imagefield__thumb" src={preview} alt="" />}
+        <input value={value} onChange={(e) => onChange(e.target.value)} placeholder="media/..." />
+        <button
+          type="button"
+          onClick={() => {
+            void media.pickImage().then((path) => {
+              if (path) onChange(path);
+            });
+          }}
+        >
+          {t("siteSettings.pickImage")}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 /**
  * Site settings (site.json): name, base URL, permalink, logo, archive page
@@ -54,14 +88,11 @@ export function SiteSettingsView() {
           placeholder="/:type/:slug/"
         />
       </label>
-      <label className="pcms-field">
-        <span className="pcms-field__label">{t("siteSettings.logo")}</span>
-        <input
-          value={site.logo ?? ""}
-          onChange={(e) => update({ logo: e.target.value })}
-          placeholder="media/logo.svg"
-        />
-      </label>
+      <ImageField
+        label={t("siteSettings.logo")}
+        value={site.logo ?? ""}
+        onChange={(v) => update({ logo: v || undefined })}
+      />
       <label className="pcms-field">
         <span className="pcms-field__label">{t("siteSettings.archivePageSize")}</span>
         <input
@@ -77,14 +108,11 @@ export function SiteSettingsView() {
       </label>
 
       <h2 className="pcms-settingsview__section">{t("siteSettings.section.ogp")}</h2>
-      <label className="pcms-field">
-        <span className="pcms-field__label">{t("siteSettings.ogpImage")}</span>
-        <input
-          value={site.ogpDefault?.image ?? ""}
-          onChange={(e) => updateOgp({ image: e.target.value || undefined })}
-          placeholder="media/ogp.png"
-        />
-      </label>
+      <ImageField
+        label={t("siteSettings.ogpImage")}
+        value={site.ogpDefault?.image ?? ""}
+        onChange={(v) => updateOgp({ image: v || undefined })}
+      />
       <label className="pcms-field">
         <span className="pcms-field__label">{t("siteSettings.ogpDescription")}</span>
         <textarea

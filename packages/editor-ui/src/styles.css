@@ -465,6 +465,10 @@ button.pcms-danger { color: #b42318; border-color: #f0c2bc; }
 .pcms-settingsview__section { font-size: 0.95rem; margin: 1.6rem 0 0.4rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--pcms-border); }
 .pcms-settingsview__section:first-of-type { margin-top: 1rem; }
 .pcms-field__hint { font-size: 0.8rem; color: var(--pcms-muted); margin: 0 0 0.6rem; }
+.pcms-imagefield { display: flex; gap: 0.5rem; align-items: center; }
+.pcms-imagefield input { flex: 1; width: auto; }
+.pcms-imagefield__thumb { width: 40px; height: 40px; object-fit: cover; border-radius: 6px; border: 1px solid var(--pcms-border); flex: none; }
+.pcms-imagefield button { white-space: nowrap; }
 
 /* Theme view */
 .pcms-themeview { padding: 1.5rem; }

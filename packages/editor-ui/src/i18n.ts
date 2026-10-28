@@ -242,6 +242,7 @@ const ja = {
   "siteSettings.verifyGoogle": "Google Search Console の確認コード",
   "siteSettings.verifyBing": "Bing Webmaster の確認コード",
   "siteSettings.verificationHint": "各検索エンジンの管理画面で発行されるコードを貼り付けると、出力HTMLの先頭に確認用のmetaタグを入れます。",
+  "siteSettings.pickImage": "画像を選ぶ",
   "theme.openEditor": "テーマエディタを開く",
   "theme.importFigma": "Figmaから取り込み",
   "theme.current": "使用中",
