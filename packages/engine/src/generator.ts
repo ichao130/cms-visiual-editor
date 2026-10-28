@@ -379,7 +379,9 @@ function siteHeadMeta(site: SiteConfig): string {
   ];
   const og = site.ogpDefault;
   if (og?.description) {
-    tags.push(`<meta property="og:description" content="${escapeXml(og.description)}">`);
+    const desc = escapeXml(og.description);
+    tags.push(`<meta name="description" content="${desc}">`);
+    tags.push(`<meta property="og:description" content="${desc}">`);
   }
   if (og?.image) {
     const baseUrl = (site.baseUrl ?? "").replace(/\/+$/, "");
@@ -390,6 +392,11 @@ function siteHeadMeta(site: SiteConfig): string {
         : baseUrl + (og.image.startsWith("/") ? og.image : `/${og.image}`);
     tags.push(`<meta property="og:image" content="${escapeXml(img)}">`);
   }
+  // Twitter uses a large image card when an OGP image is available, else a
+  // plain summary. Pairs with the og:* tags above.
+  tags.push(
+    `<meta name="twitter:card" content="${og?.image ? "summary_large_image" : "summary"}">`,
+  );
   for (const [provider, token] of Object.entries(site.verificationTags ?? {})) {
     if (token) {
       tags.push(

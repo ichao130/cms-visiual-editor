@@ -46,6 +46,11 @@ describe("generateSite", () => {
       expect(head, path).toContain(
         '<meta name="google-site-verification" content="test-google-token">',
       );
+      expect(head, path).toContain(
+        '<meta name="description" content="駅前の小さな自家焙煎珈琲店です。">',
+      );
+      // The sample site has an OGP image, so the large-image card is used.
+      expect(head, path).toContain('<meta name="twitter:card" content="summary_large_image">');
     }
   });
 
