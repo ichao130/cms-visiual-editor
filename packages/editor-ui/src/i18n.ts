@@ -110,6 +110,7 @@ const ja = {
   "publish.saveTarget": "公開先を保存",
   "publish.preview": "公開前チェック",
   "publish.run": "公開する",
+  "publish.confirmRun": "この内容で公開しますか？サーバー上のファイルが更新されます。",
   "publish.running": "公開中…",
   "publish.checking": "チェック中…",
   "publish.history": "公開履歴",

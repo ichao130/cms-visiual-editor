@@ -74,6 +74,7 @@ export function PublishFlow({ api }: { api: PcmsApi }) {
   };
 
   const runPublish = async () => {
+    if (!window.confirm(t("publish.confirmRun"))) return;
     setBusy("publish");
     try {
       const r = await api.publishSite();
