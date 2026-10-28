@@ -241,6 +241,7 @@ const ja = {
   "content.noMatch": "一致する投稿がありません。",
   "content.matchCount": "{count} 件",
   "pages.new": "ページを追加",
+  "pages.noMatch": "一致するページがありません。",
   "pages.addChild": "子ページを追加",
   "pages.newTitle": "新しいページ",
   "siteSettings.note": "site.json の項目。評価版では保存の配線は後日。",

@@ -12,10 +12,19 @@ export function PagesView() {
   const { doc, commit, setDirty } = useSiteWorkspace();
   const [selected, setSelected] = useState<string | null>(null);
   const [newOpen, setNewOpen] = useState(false);
+  const [query, setQuery] = useState("");
 
   const pages = doc.content.filter((i) => i.type === PAGE_TYPE);
   const childrenOf = (parent: string | undefined) =>
     pages.filter((p) => (p.parent ?? undefined) === parent);
+
+  // While filtering, the parent/child tree is not useful, so show a flat list
+  // of the pages whose title or slug matches.
+  const q = query.trim().toLowerCase();
+  const matches = pages.filter((p) => {
+    const title = String(p.fields.title ?? "").toLowerCase();
+    return title.includes(q) || p.slug.toLowerCase().includes(q);
+  });
 
   const pageTypes = doc.contentTypes.filter((tp) => tp.name === PAGE_TYPE);
 
@@ -76,8 +85,43 @@ export function PagesView() {
           </div>
         </div>
 
+        {pages.length > 0 && (
+          <div className="pcms-listsearch">
+            <input
+              type="search"
+              className="pcms-listsearch__input"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={t("content.search")}
+            />
+            {q && (
+              <span className="pcms-listsearch__count">
+                {t("content.matchCount").replace("{count}", String(matches.length))}
+              </span>
+            )}
+          </div>
+        )}
+
         {pages.length === 0 ? (
           <p className="pcms-empty">{t("content.none")}</p>
+        ) : q ? (
+          matches.length === 0 ? (
+            <p className="pcms-empty">{t("pages.noMatch")}</p>
+          ) : (
+            <ul className="pcms-itemlist">
+              {matches.map((p) => (
+                <li key={p.slug}>
+                  <button
+                    className={`pcms-itemlist__row${selected === p.slug ? " is-selected" : ""}`}
+                    onClick={() => setSelected(p.slug)}
+                  >
+                    <span className="pcms-itemlist__title">{String(p.fields.title ?? p.slug)}</span>
+                    <span className="pcms-itemlist__slug">/{p.slug}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )
         ) : (
           <div className="pcms-tree">
             <Tree parent={undefined} depth={0} />
