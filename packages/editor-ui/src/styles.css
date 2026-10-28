@@ -460,7 +460,11 @@ button.pcms-danger { color: #b42318; border-color: #f0c2bc; }
 .pcms-tree__add { font-size: 0.75rem; color: var(--pcms-accent); border: none; background: none; }
 
 .pcms-settingsview { padding: 1.5rem; max-width: 560px; }
-.pcms-settingsview input { width: 100%; font: inherit; padding: 0.4rem 0.5rem; border: 1px solid var(--pcms-border); border-radius: 6px; }
+.pcms-settingsview input, .pcms-settingsview textarea { width: 100%; font: inherit; padding: 0.4rem 0.5rem; border: 1px solid var(--pcms-border); border-radius: 6px; }
+.pcms-settingsview textarea { resize: vertical; }
+.pcms-settingsview__section { font-size: 0.95rem; margin: 1.6rem 0 0.4rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--pcms-border); }
+.pcms-settingsview__section:first-of-type { margin-top: 1rem; }
+.pcms-field__hint { font-size: 0.8rem; color: var(--pcms-muted); margin: 0 0 0.6rem; }
 
 /* Theme view */
 .pcms-themeview { padding: 1.5rem; }

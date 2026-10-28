@@ -3,9 +3,11 @@ import { useSiteWorkspace } from "../../state/SiteWorkspace.js";
 import { t } from "../../i18n.js";
 
 /**
- * Site settings (site.json): name, base URL, permalink. Edits go into the
+ * Site settings (site.json): name, base URL, permalink, logo, archive page
+ * size, OGP defaults and search-engine verification tags. Edits go into the
  * shared workspace document, so the site save bar persists them (via
- * api.saveSite) and undo/redo covers them like any other change.
+ * api.saveSite) and undo/redo covers them like any other change. The OGP and
+ * verification values are emitted into every generated page's <head>.
  */
 export function SiteSettingsView() {
   const { doc, commit, setDirty } = useSiteWorkspace();
@@ -16,10 +18,22 @@ export function SiteSettingsView() {
     setDirty(true);
   };
 
+  const updateOgp = (patch: Partial<NonNullable<SiteConfig["ogpDefault"]>>) => {
+    update({ ogpDefault: { ...site.ogpDefault, ...patch } });
+  };
+
+  const updateVerification = (provider: string, value: string) => {
+    const next = { ...site.verificationTags };
+    if (value) next[provider] = value;
+    else delete next[provider];
+    update({ verificationTags: next });
+  };
+
   return (
     <div className="pcms-settingsview">
       <h1 className="pcms-page__title">{t("site.tab.settings")}</h1>
 
+      <h2 className="pcms-settingsview__section">{t("siteSettings.section.basic")}</h2>
       <label className="pcms-field">
         <span className="pcms-field__label">{t("siteSettings.name")}</span>
         <input value={site.name} onChange={(e) => update({ name: e.target.value })} />
@@ -38,6 +52,62 @@ export function SiteSettingsView() {
           value={site.permalink ?? ""}
           onChange={(e) => update({ permalink: e.target.value })}
           placeholder="/:type/:slug/"
+        />
+      </label>
+      <label className="pcms-field">
+        <span className="pcms-field__label">{t("siteSettings.logo")}</span>
+        <input
+          value={site.logo ?? ""}
+          onChange={(e) => update({ logo: e.target.value })}
+          placeholder="media/logo.svg"
+        />
+      </label>
+      <label className="pcms-field">
+        <span className="pcms-field__label">{t("siteSettings.archivePageSize")}</span>
+        <input
+          type="number"
+          min={1}
+          value={site.archivePageSize ?? ""}
+          onChange={(e) => {
+            const n = Number.parseInt(e.target.value, 10);
+            update({ archivePageSize: Number.isFinite(n) && n > 0 ? n : undefined });
+          }}
+          placeholder="10"
+        />
+      </label>
+
+      <h2 className="pcms-settingsview__section">{t("siteSettings.section.ogp")}</h2>
+      <label className="pcms-field">
+        <span className="pcms-field__label">{t("siteSettings.ogpImage")}</span>
+        <input
+          value={site.ogpDefault?.image ?? ""}
+          onChange={(e) => updateOgp({ image: e.target.value || undefined })}
+          placeholder="media/ogp.png"
+        />
+      </label>
+      <label className="pcms-field">
+        <span className="pcms-field__label">{t("siteSettings.ogpDescription")}</span>
+        <textarea
+          value={site.ogpDefault?.description ?? ""}
+          onChange={(e) => updateOgp({ description: e.target.value || undefined })}
+          rows={2}
+        />
+      </label>
+
+      <h2 className="pcms-settingsview__section">{t("siteSettings.section.verification")}</h2>
+      <p className="pcms-field__hint">{t("siteSettings.verificationHint")}</p>
+      <label className="pcms-field">
+        <span className="pcms-field__label">{t("siteSettings.verifyGoogle")}</span>
+        <input
+          value={site.verificationTags?.google ?? ""}
+          onChange={(e) => updateVerification("google", e.target.value)}
+        />
+      </label>
+      <label className="pcms-field">
+        <span className="pcms-field__label">{t("siteSettings.verifyBing")}</span>
+        <input
+          value={site.verificationTags?.bing ?? ""}
+          onChange={(e) => updateVerification("bing", e.target.value)}
         />
       </label>
     </div>

@@ -15,6 +15,7 @@ import { archivePagePath, archivePageUrl, paginate } from "./pagination.js";
 import {
   articleJsonLd,
   breadcrumbJsonLd,
+  injectHeadMeta,
   injectHeadStyle,
   injectJsonLd,
   siteJsonLd,
@@ -83,9 +84,13 @@ export function generateSite(input: SiteInput): GeneratedSite {
   };
 
   const siteLd = siteJsonLd(input.site);
+  const siteMeta = siteHeadMeta(input.site);
   const home: Crumb = { name: input.site.name, url: "/" };
   const finish = (html: string, extra: object[]): string =>
-    injectHeadStyle(injectJsonLd(html, [...siteLd, ...extra]), RESPONSIVE_CSS);
+    injectHeadMeta(
+      injectHeadStyle(injectJsonLd(html, [...siteLd, ...extra]), RESPONSIVE_CSS),
+      siteMeta,
+    );
   const typeLabel = (type: string): string =>
     input.contentTypes.find((t) => t.name === type)?.label ?? type;
 
@@ -339,6 +344,46 @@ function build404(site: SiteConfig): string {
 <body><h1>ページが見つかりません</h1><p><a href="/">トップへ戻る</a></p></body>
 </html>
 `;
+}
+
+/** Meta-tag name for a verification provider key (CLAUDE.md: SEO auto output). */
+function verificationMetaName(provider: string): string {
+  if (provider === "google") return "google-site-verification";
+  if (provider === "bing") return "msvalidate.01";
+  return provider;
+}
+
+/**
+ * Site-wide `<head>` meta: Open Graph defaults (site.json ogpDefault) and
+ * search-engine verification tags. Emitted on every page; per-page overrides
+ * would come from the content's own SEO fields (not yet wired).
+ */
+function siteHeadMeta(site: SiteConfig): string {
+  const tags: string[] = [
+    `<meta property="og:site_name" content="${escapeXml(site.name)}">`,
+    `<meta property="og:type" content="website">`,
+  ];
+  const og = site.ogpDefault;
+  if (og?.description) {
+    tags.push(`<meta property="og:description" content="${escapeXml(og.description)}">`);
+  }
+  if (og?.image) {
+    const baseUrl = (site.baseUrl ?? "").replace(/\/+$/, "");
+    const img = /^https?:/i.test(og.image)
+      ? og.image
+      : baseUrl === ""
+        ? og.image
+        : baseUrl + (og.image.startsWith("/") ? og.image : `/${og.image}`);
+    tags.push(`<meta property="og:image" content="${escapeXml(img)}">`);
+  }
+  for (const [provider, token] of Object.entries(site.verificationTags ?? {})) {
+    if (token) {
+      tags.push(
+        `<meta name="${escapeXml(verificationMetaName(provider))}" content="${escapeXml(token)}">`,
+      );
+    }
+  }
+  return tags.join("");
 }
 
 function escapeXml(text: string): string {

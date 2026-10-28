@@ -35,6 +35,11 @@ export function sampleSite(): SiteConfig {
     name: "テスト珈琲店",
     baseUrl: "https://example.test",
     permalink: "/:type/:slug/",
+    ogpDefault: {
+      image: "/media/sample-beans.svg",
+      description: "駅前の小さな自家焙煎珈琲店です。",
+    },
+    verificationTags: { google: "test-google-token" },
   };
 }
 

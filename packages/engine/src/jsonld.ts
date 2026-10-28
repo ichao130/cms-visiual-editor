@@ -78,6 +78,12 @@ export function injectHeadStyle(html: string, css: string): string {
   return html.includes("</head>") ? html.replace("</head>", `${tag}</head>`) : `${tag}${html}`;
 }
 
+/** Add site-level `<meta>` tags (OGP defaults, verification) to the head. */
+export function injectHeadMeta(html: string, meta: string): string {
+  if (!meta) return html;
+  return html.includes("</head>") ? html.replace("</head>", `${meta}</head>`) : `${meta}${html}`;
+}
+
 export function injectJsonLd(html: string, objects: object[]): string {
   if (objects.length === 0) return html;
   const scripts = objects

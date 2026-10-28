@@ -31,6 +31,24 @@ describe("generateSite", () => {
     expect(post).toContain("開店しました"); // title bound
   });
 
+  it("emits OGP defaults and verification tags in every page head", () => {
+    for (const [path, html] of Object.entries(files)) {
+      if (!path.endsWith(".html") || path === "404.html") continue;
+      const head = html.slice(0, html.indexOf("</head>"));
+      expect(head, path).toContain('<meta property="og:site_name" content="テスト珈琲店">');
+      expect(head, path).toContain('<meta property="og:type" content="website">');
+      expect(head, path).toContain(
+        '<meta property="og:description" content="駅前の小さな自家焙煎珈琲店です。">',
+      );
+      expect(head, path).toContain(
+        '<meta property="og:image" content="https://example.test/media/sample-beans.svg">',
+      );
+      expect(head, path).toContain(
+        '<meta name="google-site-verification" content="test-google-token">',
+      );
+    }
+  });
+
   it("lists theme assets to copy", () => {
     expect(assets).toEqual(["assets/style.css"]);
   });
