@@ -150,7 +150,11 @@ function FormBuilder({
       ...form,
       fields: [
         ...form.fields,
-        { name: `field${form.fields.length + 1}`, label: t("forms.newField"), type: "text" },
+        {
+          name: uniqueFieldName(form.fields.map((f) => f.name)),
+          label: t("forms.newField"),
+          type: "text",
+        },
       ],
     });
 
@@ -315,6 +319,18 @@ function Inbox({ api, form }: { api: PcmsApi; form: FormDef }) {
       )}
     </div>
   );
+}
+
+/**
+ * A `fieldN` name not already taken. Field names are the submission keys, so a
+ * duplicate would make two fields overwrite each other's value — using the
+ * count alone collides after a field is removed, so scan for the first free n.
+ */
+export function uniqueFieldName(existing: string[]): string {
+  const taken = new Set(existing);
+  let n = existing.length + 1;
+  while (taken.has(`field${n}`)) n++;
+  return `field${n}`;
 }
 
 function buildCsv(form: FormDef, rows: FormSubmission[]): string {
