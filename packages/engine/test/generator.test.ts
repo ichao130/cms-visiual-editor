@@ -36,7 +36,6 @@ describe("generateSite", () => {
       if (!path.endsWith(".html") || path === "404.html") continue;
       const head = html.slice(0, html.indexOf("</head>"));
       expect(head, path).toContain('<meta property="og:site_name" content="テスト珈琲店">');
-      expect(head, path).toContain('<meta property="og:type" content="website">');
       expect(head, path).toContain(
         '<meta property="og:description" content="駅前の小さな自家焙煎珈琲店です。">',
       );
@@ -52,6 +51,13 @@ describe("generateSite", () => {
       // The sample site has an OGP image, so the large-image card is used.
       expect(head, path).toContain('<meta name="twitter:card" content="summary_large_image">');
     }
+  });
+
+  it("marks content item pages as og:type=article, other pages as website", () => {
+    const head = (p: string) => files[p]!.slice(0, files[p]!.indexOf("</head>"));
+    expect(head("post/open/index.html")).toContain('<meta property="og:type" content="article">');
+    expect(head("page/about/index.html")).toContain('<meta property="og:type" content="article">');
+    expect(head("index.html")).toContain('<meta property="og:type" content="website">');
   });
 
   it("emits a canonical URL (and og:url) matching each page's own path", () => {

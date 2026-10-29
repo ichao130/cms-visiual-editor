@@ -86,12 +86,12 @@ export function generateSite(input: SiteInput): GeneratedSite {
   const siteLd = siteJsonLd(input.site);
   const siteMeta = siteHeadMeta(input.site);
   const home: Crumb = { name: input.site.name, url: "/" };
-  // `path` is the page's own output path (for its canonical URL). `desc`, when
-  // given, overrides the site's default description on this page only.
-  const finish = (path: string, html: string, extra: object[], desc?: string): string =>
+  // `path` is the page's own output path (for its canonical URL). `opts` carries
+  // per-page head overrides (description, og:type) applied to this page only.
+  const finish = (path: string, html: string, extra: object[], opts?: PageMetaOpts): string =>
     injectHeadMeta(
       injectHeadStyle(injectJsonLd(html, [...siteLd, ...extra]), RESPONSIVE_CSS),
-      (desc ? siteHeadMeta(input.site, desc) : siteMeta) + pageHeadMeta(path, input.site),
+      (opts ? siteHeadMeta(input.site, opts) : siteMeta) + pageHeadMeta(path, input.site),
     );
   const typeLabel = (type: string): string =>
     input.contentTypes.find((t) => t.name === type)?.label ?? type;
@@ -167,7 +167,7 @@ export function generateSite(input: SiteInput): GeneratedSite {
         input.site,
       ),
       ],
-      itemDescription(item),
+      { description: itemDescription(item), ogType: "article" },
     );
   }
 
@@ -369,11 +369,6 @@ function verificationMetaName(provider: string): string {
 }
 
 /**
- * Site-wide `<head>` meta: Open Graph defaults (site.json ogpDefault) and
- * search-engine verification tags. Emitted on every page; per-page overrides
- * would come from the content's own SEO fields (not yet wired).
- */
-/**
  * Per-page `<head>` meta: the canonical URL (and matching og:url) for this
  * output path. Needs an absolute base URL, so it is omitted until site.baseUrl
  * is set (a relative canonical would be worse than none).
@@ -385,13 +380,25 @@ function pageHeadMeta(path: string, site: SiteConfig): string {
   return `<link rel="canonical" href="${url}"><meta property="og:url" content="${url}">`;
 }
 
-function siteHeadMeta(site: SiteConfig, descOverride?: string): string {
+/** Per-page overrides for the `<head>` meta (content pages supply these). */
+interface PageMetaOpts {
+  description?: string;
+  /** Open Graph object type; defaults to "website". */
+  ogType?: string;
+}
+
+/**
+ * Site-wide `<head>` meta: Open Graph defaults (site.json ogpDefault) and
+ * search-engine verification tags. Emitted on every page; `opts` overrides the
+ * description and og:type for content pages.
+ */
+function siteHeadMeta(site: SiteConfig, opts?: PageMetaOpts): string {
   const tags: string[] = [
     `<meta property="og:site_name" content="${escapeXml(site.name)}">`,
-    `<meta property="og:type" content="website">`,
+    `<meta property="og:type" content="${escapeXml(opts?.ogType ?? "website")}">`,
   ];
   const og = site.ogpDefault;
-  const description = descOverride ?? og?.description;
+  const description = opts?.description ?? og?.description;
   if (description) {
     const desc = escapeXml(description);
     tags.push(`<meta name="description" content="${desc}">`);
