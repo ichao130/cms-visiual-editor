@@ -239,6 +239,7 @@ const ja = {
   "content.duplicate": "複製",
   "content.copySuffix": "（コピー）",
   "content.status": "公開状態",
+  "content.status.all": "すべて",
   "content.status.published": "公開",
   "content.status.draft": "下書き",
   "content.search": "タイトルやスラッグで絞り込み",

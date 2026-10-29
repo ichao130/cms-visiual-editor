@@ -11,11 +11,15 @@ export function PostsView() {
   const [selected, setSelected] = useState<{ type: string; slug: string } | null>(null);
   const [newOpen, setNewOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [status, setStatus] = useState<"all" | "published" | "draft">("all");
 
   const postTypes = doc.contentTypes.filter((tp) => tp.name !== "page");
   const q = query.trim().toLowerCase();
+  const filtering = q !== "" || status !== "all";
   const posts = doc.content.filter((i) => {
     if (i.type === "page") return false;
+    const itemStatus = i.status ?? "published";
+    if (status !== "all" && itemStatus !== status) return false;
     if (!q) return true;
     const title = String(i.fields.title ?? "").toLowerCase();
     return title.includes(q) || i.slug.toLowerCase().includes(q);
@@ -52,21 +56,31 @@ export function PostsView() {
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t("content.search")}
           />
-          {q && (
+          <select
+            className="pcms-listsearch__status"
+            value={status}
+            onChange={(e) => setStatus(e.target.value as "all" | "published" | "draft")}
+            aria-label={t("content.status")}
+          >
+            <option value="all">{t("content.status.all")}</option>
+            <option value="published">{t("content.status.published")}</option>
+            <option value="draft">{t("content.status.draft")}</option>
+          </select>
+          {filtering && (
             <span className="pcms-listsearch__count">
               {t("content.matchCount").replace("{count}", String(matchCount))}
             </span>
           )}
         </div>
 
-        {q && matchCount === 0 ? (
+        {filtering && matchCount === 0 ? (
           <p className="pcms-empty">{t("content.noMatch")}</p>
         ) : null}
 
         {postTypes.map((tp) => {
           const items = posts.filter((i) => i.type === tp.name);
           // While filtering, hide type groups that have no match.
-          if (q && items.length === 0) return null;
+          if (filtering && items.length === 0) return null;
           return (
             <div key={tp.name} className="pcms-typegroup">
               <h2 className="pcms-typegroup__title">{tp.label ?? tp.name}</h2>
