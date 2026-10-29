@@ -7,6 +7,7 @@ import type {
 } from "@pcms/shared";
 import { ContentField } from "./ContentField.js";
 import { TaxonomyInput } from "./TaxonomyInput.js";
+import { AiSeoAssist } from "./AiSeoAssist.js";
 import { t } from "../i18n.js";
 
 interface ContentFormProps {
@@ -17,6 +18,8 @@ interface ContentFormProps {
   onTermsChange: (taxonomy: string, terms: string[]) => void;
   onStatusChange: (status: "draft" | "published") => void;
   onNoindexChange?: (noindex: boolean) => void;
+  /** AI assist for the meta description (suggest + apply). */
+  aiSeo?: { suggest: () => Promise<string>; apply: (text: string) => void };
   onDuplicate?: () => void;
   onDelete: () => void;
 }
@@ -36,6 +39,7 @@ export function ContentForm({
   onTermsChange,
   onStatusChange,
   onNoindexChange,
+  aiSeo,
   onDuplicate,
   onDelete,
 }: ContentFormProps) {
@@ -97,18 +101,23 @@ export function ContentForm({
         </div>
       )}
 
-      {onNoindexChange && (
+      {(onNoindexChange || aiSeo) && (
         <div className="pcms-seosection">
           <h3 className="pcms-types__fieldshead">{t("content.seo")}</h3>
-          <label className="pcms-checkrow">
-            <input
-              type="checkbox"
-              checked={item.noindex ?? false}
-              onChange={(e) => onNoindexChange(e.target.checked)}
-            />
-            <span>{t("content.noindex")}</span>
-          </label>
-          <p className="pcms-fieldhint">{t("content.noindex.hint")}</p>
+          {aiSeo && <AiSeoAssist suggest={aiSeo.suggest} onApply={aiSeo.apply} />}
+          {onNoindexChange && (
+            <>
+              <label className="pcms-checkrow">
+                <input
+                  type="checkbox"
+                  checked={item.noindex ?? false}
+                  onChange={(e) => onNoindexChange(e.target.checked)}
+                />
+                <span>{t("content.noindex")}</span>
+              </label>
+              <p className="pcms-fieldhint">{t("content.noindex.hint")}</p>
+            </>
+          )}
         </div>
       )}
     </aside>

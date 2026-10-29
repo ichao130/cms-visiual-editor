@@ -46,6 +46,14 @@ export function ContentEditorPanel({ type, slug, onDeleted, onDuplicated }: Prop
     commit(setContentNoindex(doc, type, slug, noindex));
     setDirty(true);
   };
+  const aiSeo = {
+    suggest: () => api.aiSeo(title, item.body).then((r) => r.description),
+    apply: (text: string) => {
+      commit(setContentField(doc, type, slug, "description", text));
+      setDirty(true);
+      toast(t("toast.aiApplied"));
+    },
+  };
   const onDelete = () => {
     if (!window.confirm(t("content.deleteConfirm"))) return;
     void api.deleteContent(type, slug).then(() => {
@@ -72,6 +80,7 @@ export function ContentEditorPanel({ type, slug, onDeleted, onDuplicated }: Prop
       onTermsChange={onTermsChange}
       onStatusChange={onStatusChange}
       onNoindexChange={onNoindexChange}
+      aiSeo={aiSeo}
       onDuplicate={onDuplicate}
       onDelete={onDelete}
     />
