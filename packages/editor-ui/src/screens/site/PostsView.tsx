@@ -1,17 +1,26 @@
 import { useState } from "react";
 import { useSiteWorkspace } from "../../state/SiteWorkspace.js";
-import { createContent, slugExists } from "../../state/editorState.js";
+import {
+  createContent,
+  slugExists,
+  setContentStatusMany,
+  removeContentMany,
+  type ItemRef,
+} from "../../state/editorState.js";
 import { NewContentModal } from "../../components/NewContentModal.js";
 import { ContentEditorPanel } from "./ContentEditorPanel.js";
+import { useToast } from "../../state/ToastContext.js";
 import { t } from "../../i18n.js";
 
 /** Posts (and custom post types). Pages live in their own view. */
 export function PostsView() {
   const { doc, commit, setDirty } = useSiteWorkspace();
+  const toast = useToast();
   const [selected, setSelected] = useState<{ type: string; slug: string } | null>(null);
   const [newOpen, setNewOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<"all" | "published" | "draft">("all");
+  const [checked, setChecked] = useState<Set<string>>(new Set());
 
   const postTypes = doc.contentTypes.filter((tp) => tp.name !== "page");
   const q = query.trim().toLowerCase();
@@ -25,6 +34,53 @@ export function PostsView() {
     return title.includes(q) || i.slug.toLowerCase().includes(q);
   });
   const matchCount = posts.length;
+
+  const keyOf = (type: string, slug: string) => `${type}/${slug}`;
+  const refsFromChecked = (): ItemRef[] =>
+    [...checked].map((k) => {
+      const i = k.indexOf("/");
+      return { type: k.slice(0, i), slug: k.slice(i + 1) };
+    });
+
+  const toggle = (type: string, slug: string) => {
+    setChecked((prev) => {
+      const next = new Set(prev);
+      const key = keyOf(type, slug);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const allShownKeys = posts.map((i) => keyOf(i.type, i.slug));
+  const allChecked = allShownKeys.length > 0 && allShownKeys.every((k) => checked.has(k));
+  const toggleAll = () => {
+    setChecked(allChecked ? new Set() : new Set(allShownKeys));
+  };
+
+  const clearSelection = () => setChecked(new Set());
+
+  const bulkStatus = (next: "published" | "draft") => {
+    const refs = refsFromChecked();
+    if (refs.length === 0) return;
+    commit(setContentStatusMany(doc, refs, next));
+    setDirty(true);
+    const key = next === "published" ? "toast.bulkStatusPublished" : "toast.bulkStatusDraft";
+    toast(t(key).replace("{count}", String(refs.length)));
+    clearSelection();
+  };
+
+  const bulkDelete = () => {
+    const refs = refsFromChecked();
+    if (refs.length === 0) return;
+    const msg = t("content.bulkDeleteConfirm").replace("{count}", String(refs.length));
+    if (!window.confirm(msg)) return;
+    if (selected && checked.has(keyOf(selected.type, selected.slug))) setSelected(null);
+    commit(removeContentMany(doc, refs));
+    setDirty(true);
+    toast(t("toast.bulkDeleted").replace("{count}", String(refs.length)));
+    clearSelection();
+  };
 
   const onCreate = (type: string, title: string, slug: string) => {
     let unique = slug;
@@ -73,6 +129,29 @@ export function PostsView() {
           )}
         </div>
 
+        {matchCount > 0 && (
+          <label className="pcms-selectall">
+            <input type="checkbox" checked={allChecked} onChange={toggleAll} />
+            <span>{t("content.selectAll")}</span>
+          </label>
+        )}
+
+        {checked.size > 0 && (
+          <div className="pcms-bulkbar" role="toolbar">
+            <span className="pcms-bulkbar__count">
+              {t("content.selectedCount").replace("{count}", String(checked.size))}
+            </span>
+            <button onClick={() => bulkStatus("published")}>{t("content.bulkPublish")}</button>
+            <button onClick={() => bulkStatus("draft")}>{t("content.bulkDraft")}</button>
+            <button className="pcms-bulkbar__delete" onClick={bulkDelete}>
+              {t("content.bulkDelete")}
+            </button>
+            <button className="pcms-bulkbar__clear" onClick={clearSelection}>
+              {t("content.clearSelection")}
+            </button>
+          </div>
+        )}
+
         {filtering && matchCount === 0 ? (
           <p className="pcms-empty">{t("content.noMatch")}</p>
         ) : null}
@@ -89,7 +168,14 @@ export function PostsView() {
               ) : (
                 <ul className="pcms-itemlist">
                   {items.map((i) => (
-                    <li key={`${i.type}/${i.slug}`}>
+                    <li key={`${i.type}/${i.slug}`} className="pcms-itemlist__item">
+                      <input
+                        type="checkbox"
+                        className="pcms-itemlist__check"
+                        checked={checked.has(keyOf(i.type, i.slug))}
+                        onChange={() => toggle(i.type, i.slug)}
+                        aria-label={String(i.fields.title ?? i.slug)}
+                      />
                       <button
                         className={`pcms-itemlist__row${
                           selected?.type === i.type && selected?.slug === i.slug ? " is-selected" : ""

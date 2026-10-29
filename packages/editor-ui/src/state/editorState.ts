@@ -233,6 +233,38 @@ export function removeContent(
   };
 }
 
+/** A content item reference used by bulk operations. */
+export interface ItemRef {
+  type: string;
+  slug: string;
+}
+
+function refSet(refs: ItemRef[]): Set<string> {
+  return new Set(refs.map((r) => `${r.type}/${r.slug}`));
+}
+
+/** Set the publication status of several content items at once. */
+export function setContentStatusMany(
+  state: EditorState,
+  refs: ItemRef[],
+  status: "draft" | "published",
+): EditorState {
+  const keys = refSet(refs);
+  const content = state.content.map((item) =>
+    keys.has(`${item.type}/${item.slug}`) ? { ...item, status } : item,
+  );
+  return { ...state, content };
+}
+
+/** Remove several content items at once. */
+export function removeContentMany(state: EditorState, refs: ItemRef[]): EditorState {
+  const keys = refSet(refs);
+  return {
+    ...state,
+    content: state.content.filter((i) => !keys.has(`${i.type}/${i.slug}`)),
+  };
+}
+
 // --- Content-type definitions ------------------------------------------------
 
 export function addContentType(

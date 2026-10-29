@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { duplicateContent, uniqueSlug, type EditorState } from "../src/state/editorState.js";
+import {
+  duplicateContent,
+  removeContentMany,
+  setContentStatusMany,
+  uniqueSlug,
+  type EditorState,
+} from "../src/state/editorState.js";
 
 function state(): EditorState {
   return {
@@ -62,5 +68,37 @@ describe("duplicateContent", () => {
     const { state: next, slug } = duplicateContent(s, "post", "ghost", "（コピー）");
     expect(next).toBe(s);
     expect(slug).toBe("ghost");
+  });
+});
+
+describe("setContentStatusMany", () => {
+  it("sets the status of only the referenced items", () => {
+    const next = setContentStatusMany(
+      state(),
+      [{ type: "post", slug: "open" }, { type: "post", slug: "hours" }],
+      "draft",
+    );
+    expect(next.content.find((i) => i.slug === "open")?.status).toBe("draft");
+    expect(next.content.find((i) => i.slug === "hours")?.status).toBe("draft");
+  });
+
+  it("leaves unreferenced items untouched", () => {
+    const next = setContentStatusMany(state(), [{ type: "post", slug: "open" }], "draft");
+    expect(next.content.find((i) => i.slug === "hours")?.status).toBeUndefined();
+  });
+});
+
+describe("removeContentMany", () => {
+  it("removes every referenced item at once", () => {
+    const next = removeContentMany(state(), [
+      { type: "post", slug: "open" },
+      { type: "post", slug: "hours" },
+    ]);
+    expect(next.content).toEqual([]);
+  });
+
+  it("keeps items that are not referenced", () => {
+    const next = removeContentMany(state(), [{ type: "post", slug: "open" }]);
+    expect(next.content.map((i) => i.slug)).toEqual(["hours"]);
   });
 });
