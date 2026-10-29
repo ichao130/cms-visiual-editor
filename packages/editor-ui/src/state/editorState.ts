@@ -143,6 +143,19 @@ export function setContentField(
   return { ...state, content };
 }
 
+/** Set a content item's publication status (draft / published). */
+export function setContentStatus(
+  state: EditorState,
+  type: string,
+  slug: string,
+  status: "draft" | "published",
+): EditorState {
+  const content = state.content.map((item) =>
+    item.type === type && item.slug === slug ? { ...item, status } : item,
+  );
+  return { ...state, content };
+}
+
 /** Make an ASCII slug from a title, falling back to a unique id. */
 export function slugify(input: string, fallbackPrefix: string): string {
   const base = input

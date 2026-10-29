@@ -62,10 +62,15 @@ export interface GeneratedSite {
 export function generateSite(input: SiteInput): GeneratedSite {
   const files: Record<string, string> = {};
 
+  // Draft items are kept in the editor but never generated (CLAUDE.md: AIは下書き
+  // …; drafts stay out of the published site). Filter them before anything else,
+  // so they are absent from pages, loops, archives, the feed and the sitemap.
+  const live = input.content.filter((item) => item.status !== "draft");
+
   // Content bodies are stored as HTML (authored in the rich text editor), so
   // they pass through as-is. Attach each item's own permalink up front, so loops
   // can bind `data-field="post.url"` to a real URL.
-  const content: ContentItem[] = input.content.map((item) => ({
+  const content: ContentItem[] = live.map((item) => ({
     ...item,
     fields: { ...item.fields, url: "/" + itemPath(item, input.site).replace(/index\.html$/, "") },
     bodyHtml: item.body,

@@ -84,6 +84,9 @@ export function PostsView() {
                       >
                         <span className="pcms-itemlist__title">
                           {String(i.fields.title ?? i.slug)}
+                          {i.status === "draft" && (
+                            <span className="pcms-draftbadge">{t("content.status.draft")}</span>
+                          )}
                         </span>
                         <span className="pcms-itemlist__slug">/{i.slug}</span>
                       </button>

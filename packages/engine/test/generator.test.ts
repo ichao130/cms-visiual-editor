@@ -86,6 +86,30 @@ describe("generateSite", () => {
     expect(files["index.html"]).toMatchSnapshot();
   });
 
+  it("excludes draft items from pages, the feed and the sitemap", () => {
+    const out = generateSite({
+      site: sampleSite(),
+      settings: { pages: {} },
+      contentTypes: [],
+      content: [
+        { type: "post", slug: "live", fields: { title: "公開記事" }, body: "<p>a</p>" },
+        {
+          type: "post",
+          slug: "wip",
+          fields: { title: "下書き記事" },
+          body: "<p>b</p>",
+          status: "draft",
+        },
+      ],
+      theme: sampleTheme(),
+    });
+    expect(out.files["post/live/index.html"]).toBeDefined();
+    expect(out.files["post/wip/index.html"]).toBeUndefined();
+    expect(out.files["sitemap.xml"]).not.toContain("/post/wip/");
+    expect(out.files["feed.xml"]).not.toContain("下書き記事");
+    expect(out.files["feed.xml"]).toContain("公開記事");
+  });
+
   it("overrides the description with a content item's own on its page only", () => {
     const out = generateSite({
       site: sampleSite(),

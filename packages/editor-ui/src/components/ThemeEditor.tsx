@@ -8,6 +8,7 @@ import {
   listTargets,
   removeContent,
   setContentField,
+  setContentStatus,
   setContentTerms,
   setMenu,
   setTaxonomies,
@@ -349,6 +350,15 @@ export function ThemeEditor() {
     [commit, doc, target],
   );
 
+  const onStatusChange = useCallback(
+    (status: "draft" | "published") => {
+      if (target?.kind !== "content") return;
+      commit(setContentStatus(doc, target.type, target.slug, status));
+      setDirty(true);
+    },
+    [commit, doc, target],
+  );
+
   // --- Target selection ----------------------------------------------------
 
   const onSelectTarget = useCallback((key: string) => {
@@ -576,6 +586,7 @@ export function ThemeEditor() {
             taxonomies={taxonomiesFor(doc, target.type)}
             onChange={onContentChange}
             onTermsChange={onTermsChange}
+            onStatusChange={onStatusChange}
             onDelete={onDeleteContent}
           />
         ) : (

@@ -5,6 +5,7 @@ import {
   findItem,
   removeContent,
   setContentField,
+  setContentStatus,
   setContentTerms,
   taxonomiesFor,
   typeDef,
@@ -36,6 +37,10 @@ export function ContentEditorPanel({ type, slug, onDeleted, onDuplicated }: Prop
     commit(setContentTerms(doc, type, slug, taxonomy, terms), `terms:${type}/${slug}:${taxonomy}`);
     setDirty(true);
   };
+  const onStatusChange = (status: "draft" | "published") => {
+    commit(setContentStatus(doc, type, slug, status));
+    setDirty(true);
+  };
   const onDelete = () => {
     if (!window.confirm(t("content.deleteConfirm"))) return;
     void api.deleteContent(type, slug).then(() => {
@@ -60,6 +65,7 @@ export function ContentEditorPanel({ type, slug, onDeleted, onDuplicated }: Prop
       taxonomies={taxonomiesFor(doc, type)}
       onChange={onChange}
       onTermsChange={onTermsChange}
+      onStatusChange={onStatusChange}
       onDuplicate={onDuplicate}
       onDelete={onDelete}
     />

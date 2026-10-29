@@ -239,6 +239,12 @@ export interface ContentItem {
    * compatible), so no migration of existing content/*.md is required.
    */
   parent?: string;
+  /**
+   * Publication status. Absent or "published" = live; "draft" is kept in the
+   * editor but excluded from the generated site. Added in schema v3; items
+   * without it stay published (backward compatible), so no migration is needed.
+   */
+  status?: "draft" | "published";
 }
 
 // ---------------------------------------------------------------------------

@@ -58,6 +58,9 @@ export function PagesView() {
             <button className="pcms-tree__label" onClick={() => setSelected(p.slug)}>
               {depth > 0 && <span className="pcms-tree__twig">└ </span>}
               {String(p.fields.title ?? p.slug)}
+              {p.status === "draft" && (
+                <span className="pcms-draftbadge">{t("content.status.draft")}</span>
+              )}
             </button>
             <button
               className="pcms-tree__add"
@@ -115,7 +118,12 @@ export function PagesView() {
                     className={`pcms-itemlist__row${selected === p.slug ? " is-selected" : ""}`}
                     onClick={() => setSelected(p.slug)}
                   >
-                    <span className="pcms-itemlist__title">{String(p.fields.title ?? p.slug)}</span>
+                    <span className="pcms-itemlist__title">
+                      {String(p.fields.title ?? p.slug)}
+                      {p.status === "draft" && (
+                        <span className="pcms-draftbadge">{t("content.status.draft")}</span>
+                      )}
+                    </span>
                     <span className="pcms-itemlist__slug">/{p.slug}</span>
                   </button>
                 </li>

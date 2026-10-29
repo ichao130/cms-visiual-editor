@@ -15,6 +15,7 @@ interface ContentFormProps {
   taxonomies: TaxonomyDef[];
   onChange: (key: string, value: string) => void;
   onTermsChange: (taxonomy: string, terms: string[]) => void;
+  onStatusChange: (status: "draft" | "published") => void;
   onDuplicate?: () => void;
   onDelete: () => void;
 }
@@ -32,6 +33,7 @@ export function ContentForm({
   taxonomies,
   onChange,
   onTermsChange,
+  onStatusChange,
   onDuplicate,
   onDelete,
 }: ContentFormProps) {
@@ -48,6 +50,15 @@ export function ContentForm({
           {t("content.title")}：{def?.label ?? item.type}
         </h2>
         <div className="pcms-settings__headactions">
+          <select
+            className="pcms-statusselect"
+            value={item.status ?? "published"}
+            onChange={(e) => onStatusChange(e.target.value as "draft" | "published")}
+            aria-label={t("content.status")}
+          >
+            <option value="published">{t("content.status.published")}</option>
+            <option value="draft">{t("content.status.draft")}</option>
+          </select>
           {onDuplicate && (
             <button type="button" onClick={onDuplicate}>
               {t("content.duplicate")}
