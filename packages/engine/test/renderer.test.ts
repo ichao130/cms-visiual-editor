@@ -85,3 +85,43 @@ describe("renderTemplate", () => {
     expect(withLayout).toContain("テスト珈琲店"); // site.name bound in header
   });
 });
+
+describe("image field alt text", () => {
+  function imageScope(media?: RenderScope["media"]): RenderScope {
+    return {
+      site: sampleSite(),
+      theme: theme.config,
+      page: { fields: { "hero.image": "media/photo.webp" } },
+      menus: {},
+      collections: {},
+      media,
+    };
+  }
+  const tmpl = '<img data-field="hero.image" alt="">';
+  const withAlt = { "media/photo.webp": { id: "photo", fileName: "photo.webp", path: "media/photo.webp", alt: "店内のテラス席" } };
+
+  it("fills alt from the media record when the theme img has none", () => {
+    const out = renderTemplate(tmpl, imageScope(withAlt));
+    expect(out).toContain('src="media/photo.webp"');
+    expect(out).toContain('alt="店内のテラス席"');
+  });
+
+  it("keeps an alt the theme already set", () => {
+    const keep = '<img data-field="hero.image" alt="ロゴ">';
+    const out = renderTemplate(keep, imageScope(withAlt));
+    expect(out).toContain('alt="ロゴ"');
+    expect(out).not.toContain("店内のテラス席");
+  });
+
+  it("does not fill alt when the media record has none", () => {
+    const out = renderTemplate(tmpl, imageScope({ "media/photo.webp": { id: "photo", fileName: "photo.webp", path: "media/photo.webp" } }));
+    expect(out).toContain('src="media/photo.webp"');
+    expect(out).not.toMatch(/alt="[^"]/);
+  });
+
+  it("does not fill alt when no media map is provided", () => {
+    const out = renderTemplate(tmpl, imageScope());
+    expect(out).toContain('src="media/photo.webp"');
+    expect(out).not.toMatch(/alt="[^"]/);
+  });
+});

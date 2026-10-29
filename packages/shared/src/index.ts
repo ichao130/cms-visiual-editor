@@ -277,6 +277,12 @@ export interface MediaItem {
   /** Byte size of the stored file. */
   size?: number;
   /**
+   * Default alternative text for the image. Emitted as the `alt` attribute when
+   * an image field points at this file and the theme's `<img>` has no alt of its
+   * own. Optional (v6); older media records simply have none.
+   */
+  alt?: string;
+  /**
    * Data URL for display inside the editor only (thumbnails, preview). Never
    * written to the site — the published HTML references `path`.
    */

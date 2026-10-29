@@ -2,6 +2,7 @@ import type {
   ContentItem,
   ContentTypeDef,
   FieldValue,
+  MediaItem,
   MenuItem,
   PageSettings,
   SiteConfig,
@@ -44,6 +45,8 @@ export interface SiteInput {
   theme: ThemeBundle;
   menus?: Record<string, MenuItem[]>;
   taxonomies?: TaxonomyDef[];
+  /** Stored media, used to supply default `alt` text for image fields. */
+  media?: MediaItem[];
 }
 
 export interface GeneratedSite {
@@ -81,11 +84,15 @@ export function generateSite(input: SiteInput): GeneratedSite {
   const layout = input.theme.layout;
   const pageSize = input.site.archivePageSize ?? 10;
 
+  const mediaByPath: Record<string, MediaItem> = {};
+  for (const m of input.media ?? []) mediaByPath[m.path] = m;
+
   const baseScope = {
     site: input.site,
     theme: input.settings.theme ?? input.theme.config,
     menus,
     collections,
+    media: mediaByPath,
   };
 
   // Output paths that asked not to be indexed (noindex). They are still written

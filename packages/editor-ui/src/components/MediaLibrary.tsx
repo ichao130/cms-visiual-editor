@@ -1,7 +1,29 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { MediaItem } from "@pcms/shared";
 import { useDialog } from "../state/useDialog.js";
 import { t } from "../i18n.js";
+
+/** Editable default alt text for one media item; commits on blur. */
+function AltField({ item, onCommit }: { item: MediaItem; onCommit: (alt: string) => void }) {
+  const [alt, setAlt] = useState(item.alt ?? "");
+  // Keep in sync when the underlying record changes (e.g. after a save round-trip).
+  useEffect(() => setAlt(item.alt ?? ""), [item.alt]);
+  const commit = () => {
+    const trimmed = alt.trim();
+    if (trimmed !== (item.alt ?? "")) onCommit(trimmed);
+  };
+  return (
+    <input
+      type="text"
+      className="pcms-media__alt"
+      value={alt}
+      onChange={(e) => setAlt(e.target.value)}
+      onBlur={commit}
+      placeholder={t("media.altPlaceholder")}
+      aria-label={t("media.alt").replace("{name}", item.fileName)}
+    />
+  );
+}
 
 interface MediaLibraryProps {
   media: MediaItem[];
@@ -10,6 +32,8 @@ interface MediaLibraryProps {
   onSelect?: (item: MediaItem) => void;
   /** When set, a delete action is shown on each item (browse mode). */
   onDelete?: (item: MediaItem) => void;
+  /** When set, each item gets an editable default alt-text field (browse mode). */
+  onAltChange?: (item: MediaItem, alt: string) => void;
   onImport: () => void;
   onClose: () => void;
 }
@@ -35,6 +59,7 @@ export function MediaLibrary({
   importing,
   onSelect,
   onDelete,
+  onAltChange,
   onImport,
   onClose,
 }: MediaLibraryProps) {
@@ -102,6 +127,9 @@ export function MediaLibrary({
                     <span className="pcms-media__name">{item.fileName}</span>
                     {mediaMeta(item) && (
                       <span className="pcms-media__meta">{mediaMeta(item)}</span>
+                    )}
+                    {onAltChange && (
+                      <AltField item={item} onCommit={(alt) => onAltChange(item, alt)} />
                     )}
                   </li>
                 ))}

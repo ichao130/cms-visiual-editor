@@ -667,5 +667,13 @@ export function createMockApi(): PcmsApi {
         /* ignore storage failures in the mock */
       }
     },
+    async setMediaAlt(path: string, alt: string): Promise<void> {
+      const next = loadMedia().map((m) => (m.path === path ? { ...m, alt } : m));
+      try {
+        localStorage.setItem(MEDIA_KEY, JSON.stringify(next));
+      } catch {
+        /* ignore storage failures in the mock */
+      }
+    },
   };
 }

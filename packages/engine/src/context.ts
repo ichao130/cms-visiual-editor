@@ -1,6 +1,7 @@
 import type {
   ContentItem,
   FieldValue,
+  MediaItem,
   MenuItem,
   PageSettings,
   SiteConfig,
@@ -38,6 +39,12 @@ export interface RenderScope {
   menus: Record<string, MenuItem[]>;
   /** Named collections available via `data-loop="<name>"`, e.g. "posts". */
   collections: Record<string, ContentItem[]>;
+  /**
+   * Stored media keyed by site-relative path (e.g. "media/photo.webp"), used to
+   * fill an image field's `alt` from the media record when the theme `<img>` has
+   * none. Optional — absent in previews that don't load the media library.
+   */
+  media?: Record<string, MediaItem>;
   /** Pagination fields (`data-field="pagination.*"`) on archive pages. */
   pagination?: PaginationContext;
   /** Term fields (`data-field="term.*"`) on taxonomy archive pages. */

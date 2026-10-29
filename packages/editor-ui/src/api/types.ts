@@ -47,6 +47,8 @@ export interface PcmsApi {
   saveMedia(files: MediaUpload[]): Promise<MediaItem[]>;
   /** Remove a stored media file by its path (e.g. "media/foo.webp"). */
   deleteMedia(path: string): Promise<void>;
+  /** Set the default alt text for a stored media file. */
+  setMediaAlt(path: string, alt: string): Promise<void>;
   /** Persist custom post type / field definitions (content-types.json). */
   saveContentTypes(types: ContentTypeDef[]): Promise<void>;
   /** Persist navigation menus (menus.json). */

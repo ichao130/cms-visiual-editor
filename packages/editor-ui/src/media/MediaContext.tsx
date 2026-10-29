@@ -88,6 +88,14 @@ export function useMediaLibrary(api: PcmsApi): {
     [api, toast],
   );
 
+  const setMediaAlt = useCallback(
+    async (item: MediaItem, alt: string) => {
+      await api.setMediaAlt(item.path, alt);
+      setMedia((prev) => prev.map((m) => (m.path === item.path ? { ...m, alt } : m)));
+    },
+    [api],
+  );
+
   const openLibrary = useCallback(() => setMode("browse"), []);
 
   const pickImage = useCallback(
@@ -124,6 +132,7 @@ export function useMediaLibrary(api: PcmsApi): {
         onImport={runImport}
         onSelect={mode === "pick" ? (item) => settle(item.path) : undefined}
         onDelete={mode === "browse" ? deleteMedia : undefined}
+        onAltChange={mode === "browse" ? setMediaAlt : undefined}
         onClose={() => settle(null)}
       />
     );

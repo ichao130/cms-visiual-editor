@@ -322,6 +322,7 @@ export function assembleOutput(): FileSet {
     theme: project.theme,
     menus: project.menus,
     taxonomies: project.taxonomies,
+    media: listMedia(),
   });
 
   const files: FileSet = { ...generated.files };
@@ -348,12 +349,31 @@ export function deleteContent(type: string, slug: string): void {
   if (existsSync(file)) unlinkSync(file);
 }
 
+/** Path of the sidecar that stores per-file alt text (fileName → alt). */
+function altSidecar(): string {
+  return join(mediaDir(), ".alt.json");
+}
+
+function readAltMap(): Record<string, string> {
+  const file = altSidecar();
+  if (!existsSync(file)) return {};
+  try {
+    const parsed: unknown = JSON.parse(readFileSync(file, "utf8"));
+    return parsed && typeof parsed === "object" ? (parsed as Record<string, string>) : {};
+  } catch {
+    return {};
+  }
+}
+
 export function listMedia(): MediaItem[] {
   const dir = mediaDir();
+  const alts = readAltMap();
   const items: MediaItem[] = [];
   for (const file of readdirSync(dir)) {
     if (file.startsWith(".")) continue;
-    items.push(mediaItemFromBytes(file, readFileSync(join(dir, file))));
+    const item = mediaItemFromBytes(file, readFileSync(join(dir, file)));
+    const alt = alts[file];
+    items.push(alt != null && alt !== "" ? { ...item, alt } : item);
   }
   return items;
 }
@@ -370,6 +390,20 @@ export function saveMedia(files: MediaUpload[]): MediaItem[] {
 
 export function deleteMedia(path: string): void {
   // Only ever touch a file inside the media dir (strip any directory part).
-  const file = join(mediaDir(), basename(path));
+  const name = basename(path);
+  const file = join(mediaDir(), name);
   if (existsSync(file)) unlinkSync(file);
+  const alts = readAltMap();
+  if (name in alts) {
+    delete alts[name];
+    writeFileSync(altSidecar(), JSON.stringify(alts, null, 2));
+  }
+}
+
+export function setMediaAlt(path: string, alt: string): void {
+  const name = basename(path);
+  const alts = readAltMap();
+  if (alt === "") delete alts[name];
+  else alts[name] = alt;
+  writeFileSync(altSidecar(), JSON.stringify(alts, null, 2));
 }

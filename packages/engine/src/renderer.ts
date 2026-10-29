@@ -285,9 +285,16 @@ function applyField(el: HTMLElement, scope: RenderScope): boolean {
 
   const type = detectFieldType(el);
   switch (type) {
-    case "image":
-      el.setAttribute("src", stringify(value));
+    case "image": {
+      const src = stringify(value);
+      el.setAttribute("src", src);
+      // Fill alt from the media record when the theme's <img> has none of its
+      // own, so published images are not left without alternative text.
+      const hasAlt = (el.getAttribute("alt") ?? "").trim() !== "";
+      const alt = scope.media?.[src]?.alt;
+      if (!hasAlt && alt != null && alt !== "") el.setAttribute("alt", alt);
       return false;
+    }
     case "link":
       el.setAttribute("href", stringify(value));
       return false;

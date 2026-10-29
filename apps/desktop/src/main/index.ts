@@ -30,6 +30,7 @@ import {
   listMedia,
   saveMedia,
   deleteMedia,
+  setMediaAlt,
 } from "./project.js";
 import {
   getDeployConfig,
@@ -155,6 +156,9 @@ function registerIpc(): void {
     saveMedia(files),
   );
   ipcMain.handle("pcms:deleteMedia", (_event, path: string) => deleteMedia(path));
+  ipcMain.handle("pcms:setMediaAlt", (_event, path: string, alt: string) =>
+    setMediaAlt(path, alt),
+  );
 
   ipcMain.handle("pcms:getDeployConfig", () => getDeployConfig());
   ipcMain.handle("pcms:setDeployConfig", (_event, config: DeployConfigInput) =>
