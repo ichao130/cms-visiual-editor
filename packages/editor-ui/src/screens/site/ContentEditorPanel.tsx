@@ -54,6 +54,8 @@ export function ContentEditorPanel({ type, slug, onDeleted, onDuplicated }: Prop
       toast(t("toast.aiApplied"));
     },
   };
+  const aiRewrite = (text: string, instruction: string) =>
+    api.aiRewrite(text, instruction);
   const onDelete = () => {
     if (!window.confirm(t("content.deleteConfirm"))) return;
     void api.deleteContent(type, slug).then(() => {
@@ -81,6 +83,7 @@ export function ContentEditorPanel({ type, slug, onDeleted, onDuplicated }: Prop
       onStatusChange={onStatusChange}
       onNoindexChange={onNoindexChange}
       aiSeo={aiSeo}
+      aiRewrite={aiRewrite}
       onDuplicate={onDuplicate}
       onDelete={onDelete}
     />

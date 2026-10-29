@@ -1,11 +1,14 @@
 import type { FieldDef, FieldValue } from "@pcms/shared";
 import { ImageField } from "./FieldInput.js";
 import { RichTextEditor } from "./RichTextEditor.js";
+import { AiRewriteAssist } from "./AiRewriteAssist.js";
 
 interface ContentFieldProps {
   field: FieldDef;
   value: FieldValue | undefined;
   onChange: (value: string) => void;
+  /** AI rewrite for rich-text fields: given the current text + an instruction. */
+  aiRewrite?: (text: string, instruction: string) => Promise<string>;
 }
 
 /**
@@ -13,7 +16,7 @@ interface ContentFieldProps {
  * MVP editor supports; richer types (gallery, relation, group) fall back to a
  * text control for now.
  */
-export function ContentField({ field, value, onChange }: ContentFieldProps) {
+export function ContentField({ field, value, onChange, aiRewrite }: ContentFieldProps) {
   const id = `cf-${field.name}`;
   const str = value == null ? "" : String(value);
 
@@ -25,6 +28,12 @@ export function ContentField({ field, value, onChange }: ContentFieldProps) {
         <em className="pcms-field__type">{field.type}</em>
       </span>
       {control(id, field, str, onChange)}
+      {field.type === "richtext" && aiRewrite && str.trim() !== "" && (
+        <AiRewriteAssist
+          rewrite={(instruction) => aiRewrite(str, instruction)}
+          onApply={onChange}
+        />
+      )}
       {field.description && <small className="pcms-field__desc">{field.description}</small>}
     </label>
   );

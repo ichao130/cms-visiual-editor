@@ -20,6 +20,8 @@ interface ContentFormProps {
   onNoindexChange?: (noindex: boolean) => void;
   /** AI assist for the meta description (suggest + apply). */
   aiSeo?: { suggest: () => Promise<string>; apply: (text: string) => void };
+  /** AI rewrite for rich-text fields (given current text + instruction). */
+  aiRewrite?: (text: string, instruction: string) => Promise<string>;
   onDuplicate?: () => void;
   onDelete: () => void;
 }
@@ -40,6 +42,7 @@ export function ContentForm({
   onStatusChange,
   onNoindexChange,
   aiSeo,
+  aiRewrite,
   onDuplicate,
   onDelete,
 }: ContentFormProps) {
@@ -84,6 +87,7 @@ export function ContentForm({
             field={f}
             value={valueOf(f.name)}
             onChange={(v) => onChange(f.name, v)}
+            aiRewrite={aiRewrite}
           />
         ))}
 
