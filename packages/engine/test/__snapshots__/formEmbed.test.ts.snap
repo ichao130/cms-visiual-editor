@@ -1,0 +1,50 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`buildFormEmbed > matches the snapshot 1`] = `
+"<form class="pcms-form" novalidate>
+  <div style="position:absolute;left:-9999px" aria-hidden="true">
+    <label>この欄は入力しないでください<input type="text" name="_gotcha" tabindex="-1" autocomplete="off"></label>
+  </div>
+  <label class="pcms-form__row">お名前
+    <input type="text" name="name" required>
+  </label>
+  <label class="pcms-form__row">メール
+    <input type="email" name="email" required>
+  </label>
+  <label class="pcms-form__row">電話
+    <input type="tel" name="tel">
+  </label>
+  <label class="pcms-form__row">内容
+    <textarea name="body" required></textarea>
+  </label>
+  <label class="pcms-form__row">ご用件
+    <select name="topic">
+      <option value="">—</option>
+      <option value="予約">予約</option>
+      <option value="その他">その他</option>
+    </select>
+  </label>
+  <label class="pcms-form__row pcms-form__row--check">
+    <input type="checkbox" name="agree" value="1" required> 同意する
+  </label>
+  <button type="submit">送信</button>
+  <p class="pcms-form__msg" data-pcms-msg hidden></p>
+</form>
+<script>
+(function(){
+  var f=document.currentScript.previousElementSibling;
+  var msg=f.querySelector('[data-pcms-msg]');
+  f.addEventListener('submit',function(e){
+    e.preventDefault();
+    var data={};new FormData(f).forEach(function(v,k){data[k]=v;});
+    fetch("https://example.test/submitForm",{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({siteId:"site-1",formId:"contact",data:data})})
+      .then(function(r){return r.json();})
+      .then(function(j){msg.hidden=false;if(j.ok){f.reset();msg.textContent="送信ありがとうございました。";}
+        else{msg.textContent=(j.errors&&j.errors.join(' '))||'送信に失敗しました。';}})
+      .catch(function(){msg.hidden=false;msg.textContent='送信に失敗しました。';});
+  });
+})();
+</script>
+"
+`;

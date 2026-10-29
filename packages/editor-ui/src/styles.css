@@ -576,6 +576,9 @@ button.pcms-danger { background: #b42318; color: #fff; border-color: #b42318; }
 .pcms-formedit { padding: 1.25rem; }
 .pcms-formedit__tabs { margin-bottom: 1rem; }
 .pcms-formbuild { max-width: 640px; }
+.pcms-embed { max-width: 720px; }
+.pcms-embed__note { color: var(--pcms-muted); font-size: 0.85rem; margin: 0 0 0.8rem; line-height: 1.6; }
+.pcms-embed__code { width: 100%; font-family: ui-monospace, monospace; font-size: 0.76rem; line-height: 1.5; padding: 0.5rem 0.6rem; border: 1px solid var(--pcms-border); border-radius: 6px; white-space: pre; }
 .pcms-formbuild textarea, .pcms-formbuild input[type="text"], .pcms-formbuild .pcms-field input {
   width: 100%; font: inherit; padding: 0.4rem 0.5rem; border: 1px solid var(--pcms-border); border-radius: 6px;
 }

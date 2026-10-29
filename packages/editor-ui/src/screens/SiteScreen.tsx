@@ -177,7 +177,7 @@ export function SiteScreen({ api, route, onNavigate }: Props) {
             />
           )}
           {tab === "menus" && <MenuManager menus={doc.menus} onCommit={onMenuCommit} />}
-          {tab === "forms" && <FormsView api={api} />}
+          {tab === "forms" && <FormsView api={api} siteId={siteId} />}
           {tab === "settings" && <SiteSettingsView />}
           {tab === "theme" && <ThemeView api={api} siteId={siteId} onNavigate={onNavigate} />}
           {tab === "publish" && (

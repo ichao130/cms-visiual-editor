@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormDef, FormField, FormFieldType, FormSubmission } from "@pcms/shared";
+import { buildFormEmbed } from "@pcms/engine";
 import type { PcmsApi } from "../../api/types.js";
 import { t, type MessageKey } from "../../i18n.js";
 
 interface Props {
   api: PcmsApi;
+  siteId: string;
 }
 
 const FIELD_TYPES: { value: FormFieldType; label: MessageKey }[] = [
@@ -17,11 +19,11 @@ const FIELD_TYPES: { value: FormFieldType; label: MessageKey }[] = [
 ];
 
 /** Contact-form builder + received submissions (受信一覧) with CSV export. */
-export function FormsView({ api }: Props) {
+export function FormsView({ api, siteId }: Props) {
   const [forms, setForms] = useState<FormDef[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
-  const [tab, setTab] = useState<"build" | "inbox">("build");
+  const [tab, setTab] = useState<"build" | "inbox" | "embed">("build");
 
   useEffect(() => {
     let active = true;
@@ -116,11 +118,19 @@ export function FormsView({ api }: Props) {
               >
                 {t("forms.inbox")}
               </button>
+              <button
+                className={`pcms-tabbar__tab${tab === "embed" ? " is-active" : ""}`}
+                onClick={() => setTab("embed")}
+              >
+                {t("forms.embed")}
+              </button>
             </div>
             {tab === "build" ? (
               <FormBuilder form={selected} onChange={update} onDelete={() => deleteForm(selected.id)} />
-            ) : (
+            ) : tab === "inbox" ? (
               <Inbox api={api} form={selected} />
+            ) : (
+              <Embed form={selected} siteId={siteId} />
             )}
           </div>
         ) : (
@@ -317,6 +327,41 @@ function Inbox({ api, form }: { api: PcmsApi; form: FormDef }) {
           </table>
         </div>
       )}
+    </div>
+  );
+}
+
+function Embed({ form, siteId }: { form: FormDef; siteId: string }) {
+  const [endpoint, setEndpoint] = useState(
+    "https://<リージョン>-<プロジェクト>.cloudfunctions.net/submitForm",
+  );
+  const [copied, setCopied] = useState(false);
+  const html = useMemo(
+    () => buildFormEmbed(form, { endpoint, siteId }),
+    [form, endpoint, siteId],
+  );
+
+  const copy = () => {
+    void navigator.clipboard?.writeText(html).then(() => {
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  return (
+    <div className="pcms-embed">
+      <p className="pcms-embed__note">{t("forms.embedNote")}</p>
+      <label className="pcms-field">
+        <span className="pcms-field__label">{t("forms.endpoint")}</span>
+        <input value={endpoint} onChange={(e) => setEndpoint(e.target.value)} />
+      </label>
+      <div className="pcms-listhead">
+        <span className="pcms-field__label">{t("forms.embedCode")}</span>
+        <button className="pcms-primary" onClick={copy}>
+          {copied ? t("ai.copied") : t("forms.copyEmbed")}
+        </button>
+      </div>
+      <textarea className="pcms-embed__code" readOnly rows={14} value={html} />
     </div>
   );
 }

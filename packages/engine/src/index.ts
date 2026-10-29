@@ -40,3 +40,8 @@ export {
   seoSuggest,
   type AiIssue,
 } from "./ai.js";
+export {
+  buildFormEmbed,
+  HONEYPOT_FIELD,
+  type FormEmbedOptions,
+} from "./formEmbed.js";
