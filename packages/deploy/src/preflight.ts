@@ -29,6 +29,15 @@ export function preflight(files: FileSet): Issue[] {
       issues.push({ level: "warning", message: "タイトルが設定されていません", path });
     }
 
+    const missingAlt = imagesMissingAlt(html);
+    if (missingAlt > 0) {
+      issues.push({
+        level: "warning",
+        message: `代替テキスト(alt)のない画像が${missingAlt}個あります`,
+        path,
+      });
+    }
+
     for (const target of internalLinks(html)) {
       if (!resolvesTo(target, paths)) {
         issues.push({
@@ -41,6 +50,21 @@ export function preflight(files: FileSet): Issue[] {
   }
 
   return issues;
+}
+
+/**
+ * Count `<img>` tags with no `alt` attribute at all. An explicit empty
+ * `alt=""` marks a decorative image and is allowed, so only a missing attribute
+ * is flagged (accessibility + SEO).
+ */
+function imagesMissingAlt(html: string): number {
+  let count = 0;
+  const re = /<img\b[^>]*>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html)) !== null) {
+    if (!/\balt\s*=/i.test(m[0])) count++;
+  }
+  return count;
 }
 
 function internalLinks(html: string): string[] {

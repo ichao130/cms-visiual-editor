@@ -35,4 +35,18 @@ describe("preflight", () => {
     const issues = preflight({ ...ok, "empty.html": "" });
     expect(issues.some((i) => i.level === "error" && i.path === "empty.html")).toBe(true);
   });
+
+  it("warns on images with no alt attribute but not on decorative alt=\"\"", () => {
+    const issues = preflight({
+      ...ok,
+      "pics/index.html":
+        '<html><head><title>P</title></head><body><img src="a.jpg"><img src="b.jpg" alt=""><img src="c.jpg"></body></html>',
+    });
+    const alt = issues.find((i) => i.message.includes("alt") && i.path === "pics/index.html");
+    expect(alt).toBeDefined();
+    // Two images miss alt; the alt="" one is decorative and not counted.
+    expect(alt?.message).toContain("2個");
+    // A page where every image has alt text is not flagged.
+    expect(issues.some((i) => i.message.includes("alt") && i.path === "index.html")).toBe(false);
+  });
 });
