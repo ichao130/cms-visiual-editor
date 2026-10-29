@@ -466,6 +466,10 @@ button.pcms-danger { color: #b42318; border-color: #f0c2bc; }
 .pcms-itemlist__row:hover { background: #f1f3f5; }
 .pcms-itemlist__row.is-selected { background: #eaf1ff; }
 .pcms-itemlist__slug { color: var(--pcms-muted); font-size: 0.8rem; }
+.pcms-itemlist__move { flex: none; display: flex; flex-direction: column; gap: 1px; }
+.pcms-itemlist__move button { border: 1px solid var(--pcms-border); background: #fff; border-radius: 4px; width: 1.4rem; height: 0.95rem; line-height: 1; font-size: 0.6rem; color: var(--pcms-muted); cursor: pointer; padding: 0; }
+.pcms-itemlist__move button:hover:not(:disabled) { background: #f1f3f5; color: inherit; }
+.pcms-itemlist__move button:disabled { opacity: 0.35; cursor: default; }
 
 .pcms-selectall { display: flex; align-items: center; gap: 0.4rem; margin: 0 0 0.5rem; font-size: 0.8rem; color: var(--pcms-muted); cursor: pointer; }
 .pcms-bulkbar { display: flex; align-items: center; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.6rem; padding: 0.4rem 0.5rem; background: #eaf1ff; border: 1px solid #c7dbff; border-radius: 6px; }

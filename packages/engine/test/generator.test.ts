@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { generateSite } from "../src/index.js";
-import { sampleInput, sampleSite, sampleTheme } from "./fixtures.js";
+import { sampleInput, sampleSettings, sampleSite, sampleTheme } from "./fixtures.js";
 
 describe("generateSite", () => {
   const { files, assets } = generateSite(sampleInput());
@@ -134,6 +134,46 @@ describe("generateSite", () => {
     // A page without its own description keeps the site default.
     const plainHead = out.files["post/plain/index.html"]!.split("</head>")[0]!;
     expect(plainHead).toContain('<meta name="description" content="駅前の小さな自家焙煎珈琲店です。">');
+  });
+
+  it("orders a loop by the operator's manual order, overriding date", () => {
+    // "old" has the newer date, so it would sort first by date. A manual order
+    // puts "new" first instead.
+    const content = [
+      {
+        type: "post",
+        slug: "newer-date",
+        fields: { title: "日付が新しい", date: "2026-02-10" },
+        body: "<p>a</p>",
+        order: 1,
+      },
+      {
+        type: "post",
+        slug: "older-date",
+        fields: { title: "日付が古い", date: "2026-02-01" },
+        body: "<p>b</p>",
+        order: 0,
+      },
+    ];
+    const home = generateSite({
+      site: sampleSite(),
+      settings: sampleSettings(),
+      contentTypes: [],
+      content,
+      theme: sampleTheme(),
+    }).files["index.html"]!;
+    // The order:0 item ("日付が古い") appears before the order:1 item.
+    expect(home.indexOf("日付が古い")).toBeLessThan(home.indexOf("日付が新しい"));
+
+    // Without a manual order, the newer date wins.
+    const byDate = generateSite({
+      site: sampleSite(),
+      settings: sampleSettings(),
+      contentTypes: [],
+      content: content.map(({ order: _order, ...rest }) => rest),
+      theme: sampleTheme(),
+    }).files["index.html"]!;
+    expect(byDate.indexOf("日付が新しい")).toBeLessThan(byDate.indexOf("日付が古い"));
   });
 
   it("emits a rich RSS feed with description, pubDate, guid and categories", () => {

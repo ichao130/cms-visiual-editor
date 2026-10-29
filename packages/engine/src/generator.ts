@@ -277,7 +277,7 @@ function buildCollections(content: ContentItem[]): Record<string, ContentItem[]>
   }
   const collections: Record<string, ContentItem[]> = {};
   for (const [type, items] of Object.entries(byType)) {
-    const sorted = [...items].sort(byDateDesc);
+    const sorted = [...items].sort(byOrderThenDate);
     collections[type] = sorted;
     collections[`${type}s`] = sorted; // allow data-loop="posts"
   }
@@ -288,6 +288,20 @@ function byDateDesc(a: ContentItem, b: ContentItem): number {
   const da = String(a.fields.date ?? "");
   const db = String(b.fields.date ?? "");
   return db.localeCompare(da);
+}
+
+/**
+ * Sort by the operator's manual order when present, else by date (newest
+ * first). Within one type `order` is all-or-nothing, but items missing it sort
+ * after ordered ones so a partial order still behaves predictably.
+ */
+function byOrderThenDate(a: ContentItem, b: ContentItem): number {
+  if (a.order != null || b.order != null) {
+    const oa = a.order ?? Number.POSITIVE_INFINITY;
+    const ob = b.order ?? Number.POSITIVE_INFINITY;
+    if (oa !== ob) return oa - ob;
+  }
+  return byDateDesc(a, b);
 }
 
 function pickTemplate(

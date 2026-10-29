@@ -252,6 +252,13 @@ export interface ContentItem {
    * without it are indexed as before (backward compatible), no migration needed.
    */
   noindex?: boolean;
+  /**
+   * Manual sort index within the item's type (ascending). When the operator
+   * reorders a type, every item of that type gets an `order`; loops and archives
+   * then follow it instead of the date. Absent on every item of a type = sort by
+   * date as before. Added in schema v5 (backward compatible), no migration.
+   */
+  order?: number;
 }
 
 // ---------------------------------------------------------------------------

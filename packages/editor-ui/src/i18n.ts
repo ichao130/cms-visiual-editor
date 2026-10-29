@@ -248,6 +248,8 @@ const ja = {
   "content.seo": "SEO",
   "content.noindex": "検索エンジンに登録しない（noindex）",
   "content.noindex.hint": "公開はしますが、検索結果に出さずサイトマップからも除外します。",
+  "content.moveUp": "上へ移動",
+  "content.moveDown": "下へ移動",
   "content.selectAll": "すべて選択",
   "content.selectedCount": "{count} 件を選択中",
   "content.bulkPublish": "公開にする",

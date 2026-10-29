@@ -5,6 +5,8 @@ import {
   slugExists,
   setContentStatusMany,
   removeContentMany,
+  moveContent,
+  byOrderThenDate,
   type ItemRef,
 } from "../../state/editorState.js";
 import { NewContentModal } from "../../components/NewContentModal.js";
@@ -82,6 +84,11 @@ export function PostsView() {
     clearSelection();
   };
 
+  const move = (type: string, slug: string, dir: "up" | "down") => {
+    commit(moveContent(doc, type, slug, dir));
+    setDirty(true);
+  };
+
   const onCreate = (type: string, title: string, slug: string) => {
     let unique = slug;
     let n = 2;
@@ -157,9 +164,11 @@ export function PostsView() {
         ) : null}
 
         {postTypes.map((tp) => {
-          const items = posts.filter((i) => i.type === tp.name);
+          const items = posts.filter((i) => i.type === tp.name).sort(byOrderThenDate);
           // While filtering, hide type groups that have no match.
           if (filtering && items.length === 0) return null;
+          // Manual reordering only in the full, unfiltered list.
+          const canReorder = !filtering && items.length > 1;
           return (
             <div key={tp.name} className="pcms-typegroup">
               <h2 className="pcms-typegroup__title">{tp.label ?? tp.name}</h2>
@@ -167,7 +176,7 @@ export function PostsView() {
                 <p className="pcms-empty">{t("content.none")}</p>
               ) : (
                 <ul className="pcms-itemlist">
-                  {items.map((i) => (
+                  {items.map((i, idx) => (
                     <li key={`${i.type}/${i.slug}`} className="pcms-itemlist__item">
                       <input
                         type="checkbox"
@@ -190,6 +199,28 @@ export function PostsView() {
                         </span>
                         <span className="pcms-itemlist__slug">/{i.slug}</span>
                       </button>
+                      {canReorder && (
+                        <span className="pcms-itemlist__move">
+                          <button
+                            type="button"
+                            disabled={idx === 0}
+                            onClick={() => move(i.type, i.slug, "up")}
+                            aria-label={t("content.moveUp")}
+                            title={t("content.moveUp")}
+                          >
+                            ▲
+                          </button>
+                          <button
+                            type="button"
+                            disabled={idx === items.length - 1}
+                            onClick={() => move(i.type, i.slug, "down")}
+                            aria-label={t("content.moveDown")}
+                            title={t("content.moveDown")}
+                          >
+                            ▼
+                          </button>
+                        </span>
+                      )}
                     </li>
                   ))}
                 </ul>

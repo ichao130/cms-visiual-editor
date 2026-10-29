@@ -156,6 +156,51 @@ export function setContentStatus(
   return { ...state, content };
 }
 
+/**
+ * Effective display order within a type: the operator's manual `order` first
+ * (ascending), then date (newest first). Mirrors the engine's own sort so the
+ * list and the generated site agree.
+ */
+export function byOrderThenDate(a: ContentItem, b: ContentItem): number {
+  if (a.order != null || b.order != null) {
+    const oa = a.order ?? Number.POSITIVE_INFINITY;
+    const ob = b.order ?? Number.POSITIVE_INFINITY;
+    if (oa !== ob) return oa - ob;
+  }
+  const da = String(a.fields.date ?? "");
+  const db = String(b.fields.date ?? "");
+  return db.localeCompare(da);
+}
+
+/**
+ * Move one item up or down within its type. Reorders the type's items in their
+ * current effective order, then stamps `order` on every item of the type so the
+ * new sequence is explicit (and the engine follows it).
+ */
+export function moveContent(
+  state: EditorState,
+  type: string,
+  slug: string,
+  dir: "up" | "down",
+): EditorState {
+  const ordered = state.content
+    .filter((i) => i.type === type)
+    .sort(byOrderThenDate);
+  const from = ordered.findIndex((i) => i.slug === slug);
+  if (from < 0) return state;
+  const to = dir === "up" ? from - 1 : from + 1;
+  if (to < 0 || to >= ordered.length) return state;
+  const a = ordered[from]!;
+  ordered[from] = ordered[to]!;
+  ordered[to] = a;
+
+  const orderBySlug = new Map(ordered.map((i, idx) => [i.slug, idx]));
+  const content = state.content.map((item) =>
+    item.type === type ? { ...item, order: orderBySlug.get(item.slug) } : item,
+  );
+  return { ...state, content };
+}
+
 /** Set whether a content item asks search engines not to index it. */
 export function setContentNoindex(
   state: EditorState,

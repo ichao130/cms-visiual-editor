@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  byOrderThenDate,
   duplicateContent,
+  moveContent,
   removeContentMany,
   setContentStatusMany,
   uniqueSlug,
@@ -100,5 +102,29 @@ describe("removeContentMany", () => {
   it("keeps items that are not referenced", () => {
     const next = removeContentMany(state(), [{ type: "post", slug: "open" }]);
     expect(next.content.map((i) => i.slug)).toEqual(["hours"]);
+  });
+});
+
+describe("moveContent", () => {
+  const ordered = (s: EditorState) =>
+    s.content
+      .filter((i) => i.type === "post")
+      .sort(byOrderThenDate)
+      .map((i) => i.slug);
+
+  it("moves an item down and stamps an explicit order on the type", () => {
+    const next = moveContent(state(), "post", "open", "down");
+    expect(ordered(next)).toEqual(["hours", "open"]);
+    for (const i of next.content) expect(typeof i.order).toBe("number");
+  });
+
+  it("moves an item up past its neighbour", () => {
+    const next = moveContent(state(), "post", "hours", "up");
+    expect(ordered(next)).toEqual(["hours", "open"]);
+  });
+
+  it("is a no-op at the boundary", () => {
+    const s = state();
+    expect(moveContent(s, "post", "open", "up")).toBe(s);
   });
 });
