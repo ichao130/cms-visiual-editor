@@ -42,6 +42,32 @@ describe("validateSubmission", () => {
     const r = validateSubmission({ name: "a".repeat(101), email: "a@b.jp", token: "t" }, config);
     expect(r).toMatchObject({ ok: false });
   });
+
+  it("rejects a malformed email when the field is typed email", () => {
+    const emailConfig: FormConfig = {
+      fields: [{ name: "email", required: true, type: "email" }],
+    };
+    const r = validateSubmission({ email: "not-an-email" }, emailConfig);
+    expect(r.ok).toBe(false);
+    if (!("ok" in r) || r.ok) throw new Error("expected errors");
+    expect(r.errors[0]).toContain("メールアドレス");
+  });
+
+  it("accepts a well-formed email for a typed email field", () => {
+    const emailConfig: FormConfig = {
+      fields: [{ name: "email", required: true, type: "email" }],
+    };
+    const r = validateSubmission({ email: "user@example.co.jp" }, emailConfig);
+    expect(r).toEqual({ ok: true, fields: { email: "user@example.co.jp" } });
+  });
+
+  it("does not email-check an optional, empty email field", () => {
+    const emailConfig: FormConfig = {
+      fields: [{ name: "email", type: "email" }],
+    };
+    const r = validateSubmission({ email: "" }, emailConfig);
+    expect(r).toEqual({ ok: true, fields: { email: "" } });
+  });
 });
 
 describe("checkQuota", () => {

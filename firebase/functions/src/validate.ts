@@ -9,7 +9,13 @@ export interface FormFieldDef {
   name: string;
   required?: boolean;
   maxLength?: number;
+  /** Field type; "email" adds a format check. Others are treated as free text. */
+  type?: string;
 }
+
+// Conservative email shape: one @, non-empty local/domain, a dotted domain. The
+// real deliverability is not checked here — this only rejects obvious garbage.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export interface FormConfig {
   fields: FormFieldDef[];
@@ -52,6 +58,10 @@ export function validateSubmission(
     }
     if (f.maxLength != null && value.length > f.maxLength) {
       errors.push(`「${f.name}」が長すぎます。`);
+      continue;
+    }
+    if (f.type === "email" && value !== "" && !EMAIL_RE.test(value)) {
+      errors.push(`「${f.name}」のメールアドレスの形式が正しくありません。`);
       continue;
     }
     fields[f.name] = value;
