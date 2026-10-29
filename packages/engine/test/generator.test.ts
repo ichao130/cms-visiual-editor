@@ -136,6 +136,45 @@ describe("generateSite", () => {
     expect(plainHead).toContain('<meta name="description" content="駅前の小さな自家焙煎珈琲店です。">');
   });
 
+  it("emits a rich RSS feed with description, pubDate, guid and categories", () => {
+    const out = generateSite({
+      site: sampleSite(),
+      settings: { pages: {} },
+      contentTypes: [],
+      content: [
+        {
+          type: "post",
+          slug: "news",
+          fields: {
+            title: "お知らせ記事",
+            date: "2026-02-01",
+            description: "記事の要約です。",
+            category: ["お知らせ"],
+          },
+          body: "<p>本文</p>",
+        },
+      ],
+      taxonomies: [{ name: "category", label: "カテゴリ", types: ["post"] }],
+      theme: sampleTheme(),
+    });
+    const feed = out.files["feed.xml"]!;
+    // Channel metadata.
+    expect(feed).toContain('xmlns:atom="http://www.w3.org/2005/Atom"');
+    expect(feed).toContain("<description>駅前の小さな自家焙煎珈琲店です。</description>");
+    expect(feed).toContain("<language>ja</language>");
+    expect(feed).toContain(
+      '<atom:link href="https://example.test/feed.xml" rel="self" type="application/rss+xml"/>',
+    );
+    expect(feed).toContain("<lastBuildDate>Sun, 01 Feb 2026 00:00:00 GMT</lastBuildDate>");
+    // Item fields.
+    expect(feed).toContain("<description>記事の要約です。</description>");
+    expect(feed).toContain("<pubDate>Sun, 01 Feb 2026 00:00:00 GMT</pubDate>");
+    expect(feed).toContain(
+      '<guid isPermaLink="true">https://example.test/post/news/</guid>',
+    );
+    expect(feed).toContain("<category>お知らせ</category>");
+  });
+
   it("marks a noindex item with a robots meta and keeps it out of sitemap/feed", () => {
     const out = generateSite({
       site: sampleSite(),

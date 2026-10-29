@@ -221,6 +221,7 @@ export function generateSite(input: SiteInput): GeneratedSite {
   files["feed.xml"] = buildFeed(
     content.filter((item) => !item.noindex),
     input.site,
+    input.taxonomies ?? [],
   );
   if (!files["404.html"]) files["404.html"] = build404(input.site);
 
@@ -348,26 +349,72 @@ function buildRobots(site: SiteConfig): string {
   return lines.join("\n") + "\n";
 }
 
-function buildFeed(content: ContentItem[], site: SiteConfig): string {
-  const base = site.baseUrl ?? "";
-  const items = [...content]
-    .sort(byDateDesc)
-    .slice(0, 20)
+function buildFeed(
+  content: ContentItem[],
+  site: SiteConfig,
+  taxonomies: TaxonomyDef[],
+): string {
+  const base = (site.baseUrl ?? "").replace(/\/+$/, "");
+  const sorted = [...content].sort(byDateDesc).slice(0, 20);
+  const items = sorted
     .map((item) => {
       const title = escapeXml(String(item.fields.title ?? item.slug));
       const link = escapeXml(urlForPath(itemPath(item, site), base));
-      return `    <item><title>${title}</title><link>${link}</link></item>`;
+      const lines = [
+        `    <item>`,
+        `      <title>${title}</title>`,
+        `      <link>${link}</link>`,
+        `      <guid isPermaLink="true">${link}</guid>`,
+      ];
+      const pub = rfc822(item.fields.date);
+      if (pub) lines.push(`      <pubDate>${pub}</pubDate>`);
+      const desc = itemDescription(item);
+      if (desc) lines.push(`      <description>${escapeXml(desc)}</description>`);
+      for (const term of feedCategories(item, taxonomies)) {
+        lines.push(`      <category>${escapeXml(term)}</category>`);
+      }
+      lines.push(`    </item>`);
+      return lines.join("\n");
     })
     .join("\n");
+  // Newest item's date drives lastBuildDate; fall back to nothing when undated.
+  const lastBuild = sorted.length > 0 ? rfc822(sorted[0]!.fields.date) : undefined;
+  const channelDesc = escapeXml(site.ogpDefault?.description ?? site.name);
+  const selfLink = base ? `${base}/feed.xml` : "feed.xml";
+  const channel = [
+    `    <title>${escapeXml(site.name)}</title>`,
+    `    <link>${escapeXml(base)}</link>`,
+    `    <description>${channelDesc}</description>`,
+    `    <language>ja</language>`,
+    `    <atom:link href="${escapeXml(selfLink)}" rel="self" type="application/rss+xml"/>`,
+  ];
+  if (lastBuild) channel.push(`    <lastBuildDate>${lastBuild}</lastBuildDate>`);
   return `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0">
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
-    <title>${escapeXml(site.name)}</title>
-    <link>${escapeXml(base)}</link>
+${channel.join("\n")}
 ${items}
   </channel>
 </rss>
 `;
+}
+
+/** The taxonomy terms assigned to an item, for <category> tags in the feed. */
+function feedCategories(item: ContentItem, taxonomies: TaxonomyDef[]): string[] {
+  const terms: string[] = [];
+  for (const tax of taxonomies) {
+    if (!tax.types.includes(item.type)) continue;
+    for (const term of toTerms(item.fields[tax.name])) terms.push(term);
+  }
+  return terms;
+}
+
+/** Format a stored date ("2026-02-01", "2026/02/01") as an RFC 822 date. */
+function rfc822(value: FieldValue | undefined): string | undefined {
+  if (typeof value !== "string" || value.trim() === "") return undefined;
+  const ms = Date.parse(value.replace(/\//g, "-"));
+  if (Number.isNaN(ms)) return undefined;
+  return new Date(ms).toUTCString();
 }
 
 function build404(site: SiteConfig): string {
