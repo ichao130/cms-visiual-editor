@@ -245,6 +245,13 @@ export interface ContentItem {
    * without it stay published (backward compatible), so no migration is needed.
    */
   status?: "draft" | "published";
+  /**
+   * When true, the item's page is published but asks search engines not to
+   * index it: the engine emits `<meta name="robots" content="noindex, follow">`
+   * and omits the page from sitemap.xml and the feed. Added in schema v4; items
+   * without it are indexed as before (backward compatible), no migration needed.
+   */
+  noindex?: boolean;
 }
 
 // ---------------------------------------------------------------------------

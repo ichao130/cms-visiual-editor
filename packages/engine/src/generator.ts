@@ -88,6 +88,11 @@ export function generateSite(input: SiteInput): GeneratedSite {
     collections,
   };
 
+  // Output paths that asked not to be indexed (noindex). They are still written
+  // as pages but kept out of sitemap.xml so search engines are not pointed at
+  // them.
+  const noindexPaths = new Set<string>();
+
   const siteLd = siteJsonLd(input.site);
   const siteMeta = siteHeadMeta(input.site);
   const home: Crumb = { name: input.site.name, url: "/" };
@@ -158,6 +163,7 @@ export function generateSite(input: SiteInput): GeneratedSite {
     const html = renderTemplate(template, scope, { layout });
     const url = itemUrl(item, input.site);
     const outPath = itemPath(item, input.site);
+    if (item.noindex) noindexPaths.add(outPath);
     files[outPath] = finish(
       outPath,
       html,
@@ -172,7 +178,7 @@ export function generateSite(input: SiteInput): GeneratedSite {
         input.site,
       ),
       ],
-      { description: itemDescription(item), ogType: "article" },
+      { description: itemDescription(item), ogType: "article", noindex: item.noindex },
     );
   }
 
@@ -210,9 +216,12 @@ export function generateSite(input: SiteInput): GeneratedSite {
   }
 
   // 5. Always-on outputs.
-  files["sitemap.xml"] = buildSitemap(files, input.site);
+  files["sitemap.xml"] = buildSitemap(files, input.site, noindexPaths);
   files["robots.txt"] = buildRobots(input.site);
-  files["feed.xml"] = buildFeed(content, input.site);
+  files["feed.xml"] = buildFeed(
+    content.filter((item) => !item.noindex),
+    input.site,
+  );
   if (!files["404.html"]) files["404.html"] = build404(input.site);
 
   return { files, assets: input.theme.assets ?? [] };
@@ -314,10 +323,14 @@ function urlForPath(path: string, baseUrl: string): string {
   return `${base}/${clean}`;
 }
 
-function buildSitemap(files: Record<string, string>, site: SiteConfig): string {
+function buildSitemap(
+  files: Record<string, string>,
+  site: SiteConfig,
+  noindexPaths: Set<string>,
+): string {
   const base = site.baseUrl ?? "";
   const urls = Object.keys(files)
-    .filter((p) => p.endsWith("index.html"))
+    .filter((p) => p.endsWith("index.html") && !noindexPaths.has(p))
     .map((p) => `  <url><loc>${escapeXml(urlForPath(p, base))}</loc></url>`)
     .join("\n");
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -390,6 +403,8 @@ interface PageMetaOpts {
   description?: string;
   /** Open Graph object type; defaults to "website". */
   ogType?: string;
+  /** Ask search engines not to index this page. */
+  noindex?: boolean;
 }
 
 /**
@@ -402,6 +417,10 @@ function siteHeadMeta(site: SiteConfig, opts?: PageMetaOpts): string {
     `<meta property="og:site_name" content="${escapeXml(site.name)}">`,
     `<meta property="og:type" content="${escapeXml(opts?.ogType ?? "website")}">`,
   ];
+  // Published but hidden from search: keep following links, just don't index.
+  if (opts?.noindex) {
+    tags.push(`<meta name="robots" content="noindex, follow">`);
+  }
   const og = site.ogpDefault;
   const description = opts?.description ?? og?.description;
   if (description) {

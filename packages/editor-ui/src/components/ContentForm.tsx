@@ -16,6 +16,7 @@ interface ContentFormProps {
   onChange: (key: string, value: string) => void;
   onTermsChange: (taxonomy: string, terms: string[]) => void;
   onStatusChange: (status: "draft" | "published") => void;
+  onNoindexChange?: (noindex: boolean) => void;
   onDuplicate?: () => void;
   onDelete: () => void;
 }
@@ -34,6 +35,7 @@ export function ContentForm({
   onChange,
   onTermsChange,
   onStatusChange,
+  onNoindexChange,
   onDuplicate,
   onDelete,
 }: ContentFormProps) {
@@ -92,6 +94,21 @@ export function ContentForm({
               onChange={(terms) => onTermsChange(tx.name, terms)}
             />
           ))}
+        </div>
+      )}
+
+      {onNoindexChange && (
+        <div className="pcms-seosection">
+          <h3 className="pcms-types__fieldshead">{t("content.seo")}</h3>
+          <label className="pcms-checkrow">
+            <input
+              type="checkbox"
+              checked={item.noindex ?? false}
+              onChange={(e) => onNoindexChange(e.target.checked)}
+            />
+            <span>{t("content.noindex")}</span>
+          </label>
+          <p className="pcms-fieldhint">{t("content.noindex.hint")}</p>
         </div>
       )}
     </aside>

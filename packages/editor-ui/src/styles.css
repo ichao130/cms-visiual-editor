@@ -322,6 +322,9 @@ button.pcms-danger { color: #b42318; border-color: #f0c2bc; }
 
 /* Taxonomies */
 .pcms-taxsection { margin-top: 1rem; border-top: 1px dashed var(--pcms-border); padding-top: 0.5rem; }
+.pcms-seosection { margin-top: 1rem; border-top: 1px dashed var(--pcms-border); padding-top: 0.5rem; }
+.pcms-checkrow { display: flex; align-items: center; gap: 0.4rem; font-size: 0.9rem; }
+.pcms-fieldhint { margin: 0.25rem 0 0; color: var(--pcms-muted); font-size: 0.78rem; }
 .pcms-terms { display: flex; flex-wrap: wrap; gap: 0.5rem 0.9rem; margin: 0.2rem 0 0.4rem; }
 .pcms-terms__check { display: flex; align-items: center; gap: 0.3rem; font-size: 0.85rem; }
 .pcms-terms__check input { width: auto; }

@@ -156,6 +156,19 @@ export function setContentStatus(
   return { ...state, content };
 }
 
+/** Set whether a content item asks search engines not to index it. */
+export function setContentNoindex(
+  state: EditorState,
+  type: string,
+  slug: string,
+  noindex: boolean,
+): EditorState {
+  const content = state.content.map((item) =>
+    item.type === type && item.slug === slug ? { ...item, noindex } : item,
+  );
+  return { ...state, content };
+}
+
 /** Make an ASCII slug from a title, falling back to a unique id. */
 export function slugify(input: string, fallbackPrefix: string): string {
   const base = input

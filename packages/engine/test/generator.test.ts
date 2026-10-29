@@ -135,4 +135,36 @@ describe("generateSite", () => {
     const plainHead = out.files["post/plain/index.html"]!.split("</head>")[0]!;
     expect(plainHead).toContain('<meta name="description" content="駅前の小さな自家焙煎珈琲店です。">');
   });
+
+  it("marks a noindex item with a robots meta and keeps it out of sitemap/feed", () => {
+    const out = generateSite({
+      site: sampleSite(),
+      settings: { pages: {} },
+      contentTypes: [],
+      content: [
+        { type: "post", slug: "shown", fields: { title: "通常記事" }, body: "<p>a</p>" },
+        {
+          type: "post",
+          slug: "hidden",
+          fields: { title: "非公開記事" },
+          body: "<p>b</p>",
+          noindex: true,
+        },
+      ],
+      theme: sampleTheme(),
+    });
+    // The page is still generated...
+    const hidden = out.files["post/hidden/index.html"]!;
+    expect(hidden).toBeDefined();
+    expect(hidden.split("</head>")[0]).toContain(
+      '<meta name="robots" content="noindex, follow">',
+    );
+    // ...but kept out of the sitemap and the feed.
+    expect(out.files["sitemap.xml"]).not.toContain("/post/hidden/");
+    expect(out.files["sitemap.xml"]).toContain("/post/shown/");
+    expect(out.files["feed.xml"]).not.toContain("非公開記事");
+    expect(out.files["feed.xml"]).toContain("通常記事");
+    // An indexed page carries no robots meta.
+    expect(out.files["post/shown/index.html"]).not.toContain('name="robots"');
+  });
 });
