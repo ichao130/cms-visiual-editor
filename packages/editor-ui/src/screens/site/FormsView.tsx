@@ -273,6 +273,8 @@ function FormBuilder({
 
 function Inbox({ api, form }: { api: PcmsApi; form: FormDef }) {
   const [rows, setRows] = useState<FormSubmission[]>([]);
+  const [query, setQuery] = useState("");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -282,7 +284,19 @@ function Inbox({ api, form }: { api: PcmsApi; form: FormDef }) {
     };
   }, [api, form.id]);
 
-  const csv = useMemo(() => buildCsv(form, rows), [form, rows]);
+  const q = query.trim().toLowerCase();
+  const shown = useMemo(
+    () =>
+      q === ""
+        ? rows
+        : rows.filter((r) =>
+            Object.values(r.values).some((v) => String(v).toLowerCase().includes(q)),
+          ),
+    [rows, q],
+  );
+  const selected = shown.find((r) => r.id === selectedId) ?? null;
+
+  const csv = useMemo(() => buildCsv(form, shown), [form, shown]);
 
   const exportCsv = () => {
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
@@ -296,36 +310,80 @@ function Inbox({ api, form }: { api: PcmsApi; form: FormDef }) {
   return (
     <div className="pcms-inbox">
       <div className="pcms-listhead">
-        <span className="pcms-inbox__count">{t("forms.received")}: {rows.length}</span>
-        <button onClick={exportCsv} disabled={rows.length === 0}>
+        <span className="pcms-inbox__count">
+          {t("forms.received")}: {shown.length}
+          {q !== "" && ` / ${rows.length}`}
+        </span>
+        <button onClick={exportCsv} disabled={shown.length === 0}>
           {t("forms.csv")}
         </button>
       </div>
+
       {rows.length === 0 ? (
         <p className="pcms-empty">{t("forms.noSubmissions")}</p>
       ) : (
-        <div className="pcms-inbox__scroll">
-          <table className="pcms-table">
-            <thead>
-              <tr>
-                {form.fields.map((f) => (
-                  <th key={f.name}>{f.label}</th>
-                ))}
-                <th>{t("forms.receivedAt")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.id}>
-                  {form.fields.map((f) => (
-                    <td key={f.name}>{r.values[f.name] ?? ""}</td>
+        <>
+          <input
+            type="search"
+            className="pcms-listsearch__input pcms-inbox__search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={t("forms.search")}
+          />
+          {shown.length === 0 ? (
+            <p className="pcms-empty">{t("forms.noMatch")}</p>
+          ) : (
+            <div className="pcms-inbox__scroll">
+              <table className="pcms-table">
+                <thead>
+                  <tr>
+                    {form.fields.map((f) => (
+                      <th key={f.name}>{f.label}</th>
+                    ))}
+                    <th>{t("forms.receivedAt")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {shown.map((r) => (
+                    <tr
+                      key={r.id}
+                      className={`pcms-table__row${selectedId === r.id ? " is-selected" : ""}`}
+                      onClick={() => setSelectedId(r.id)}
+                    >
+                      {form.fields.map((f) => (
+                        <td key={f.name}>{r.values[f.name] ?? ""}</td>
+                      ))}
+                      <td>{formatDate(r.receivedAt)}</td>
+                    </tr>
                   ))}
-                  <td>{formatDate(r.receivedAt)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {selected && (
+            <div className="pcms-inbox__detail">
+              <div className="pcms-inbox__detailhead">
+                <h3>{t("forms.detail")}</h3>
+                <button onClick={() => setSelectedId(null)} aria-label={t("media.close")}>
+                  ✕
+                </button>
+              </div>
+              <dl className="pcms-inbox__fields">
+                {form.fields.map((f) => (
+                  <div key={f.name} className="pcms-inbox__fieldrow">
+                    <dt>{f.label}</dt>
+                    <dd>{selected.values[f.name] ?? ""}</dd>
+                  </div>
+                ))}
+                <div className="pcms-inbox__fieldrow">
+                  <dt>{t("forms.receivedAt")}</dt>
+                  <dd>{formatDate(selected.receivedAt)}</dd>
+                </div>
+              </dl>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
