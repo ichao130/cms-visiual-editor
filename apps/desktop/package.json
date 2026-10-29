@@ -2,8 +2,8 @@
   "name": "@pcms/desktop",
   "version": "0.0.0",
   "private": true,
-  "description": "pcms — static-site CMS desktop app (product name TBD)",
-  "author": "pcms",
+  "description": "KUMITO — static-site CMS desktop app (code alias: pcms)",
+  "author": "KUMITO",
   "main": "out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",

@@ -71,7 +71,7 @@ function createWindow(): BrowserWindow {
     height: 820,
     minWidth: 960,
     minHeight: 640,
-    title: "pcms テーマエディタ",
+    title: "KUMITO",
     backgroundColor: "#f4f5f7",
     webPreferences: {
       preload: join(__dirname, "../preload/index.js"),

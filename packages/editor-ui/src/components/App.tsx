@@ -124,7 +124,7 @@ export function App({ api }: AppProps) {
     <div className="pcms-shell">
       <header className="pcms-topbar">
         <button className="pcms-topbar__brand" onClick={() => navigate(INITIAL_ROUTE)}>
-          pcms
+          {t("app.brand")}
         </button>
         <Breadcrumb
           route={route}

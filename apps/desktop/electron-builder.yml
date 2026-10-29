@@ -1,12 +1,11 @@
 # electron-builder configuration.
-# NOTE: product name, appId and icon are still placeholders (製品名は未決); set a
-# real productName and add build/icon.png before a public release. The publish
-# feed points at the project's GitHub repo so auto-update works. Code signing is
-# driven by env/CI secrets and is skipped when none are present, so unsigned
-# local builds still succeed.
-appId: com.pcms.app
-productName: pcms
-copyright: Copyright © 2026 pcms
+# NOTE: the app icon is still a placeholder; add build/icon.png before a public
+# release. The publish feed points at the project's GitHub repo so auto-update
+# works. Code signing is driven by env/CI secrets and is skipped when none are
+# present, so unsigned local builds still succeed.
+appId: com.kumito.app
+productName: KUMITO
+copyright: Copyright © 2026 KUMITO
 
 directories:
   output: release

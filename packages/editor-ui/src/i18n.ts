@@ -7,6 +7,7 @@
 import { useSyncExternalStore } from "react";
 
 const ja = {
+  "app.brand": "KUMITO",
   "app.title": "テーマエディタ",
   "toolbar.page": "ページ",
   "toolbar.undo": "元に戻す",
