@@ -1,8 +1,9 @@
 # electron-builder configuration.
-# NOTE: product name, appId, icon, and the publish owner/repo are placeholders
-# (製品名は未決). Replace OWNER_TBD / REPO_TBD and add build/icon.png before a
-# real release. Code signing is driven by env/CI secrets and is skipped when
-# none are present, so unsigned local builds still succeed.
+# NOTE: product name, appId and icon are still placeholders (製品名は未決); set a
+# real productName and add build/icon.png before a public release. The publish
+# feed points at the project's GitHub repo so auto-update works. Code signing is
+# driven by env/CI secrets and is skipped when none are present, so unsigned
+# local builds still succeed.
 appId: com.pcms.app
 productName: pcms
 copyright: Copyright © 2026 pcms
@@ -56,8 +57,8 @@ nsis:
   perMachine: false
   allowToChangeInstallationDirectory: true
 
-# Auto-update feed + release target. Set owner/repo before releasing.
+# Auto-update feed + release target (GitHub Releases).
 publish:
   provider: github
-  owner: OWNER_TBD
-  repo: REPO_TBD
+  owner: ichao130
+  repo: cms-visiual-editor
