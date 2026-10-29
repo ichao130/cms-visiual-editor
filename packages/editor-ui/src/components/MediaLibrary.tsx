@@ -14,6 +14,21 @@ interface MediaLibraryProps {
   onClose: () => void;
 }
 
+/** Human-readable byte size: B under 1 KiB, KB under 1 MiB, else MB. */
+export function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/** One-line image metadata: "幅×高さ・サイズ", omitting parts that are unknown. */
+export function mediaMeta(item: MediaItem): string {
+  const parts: string[] = [];
+  if (item.width && item.height) parts.push(`${item.width}×${item.height}`);
+  if (item.size != null) parts.push(formatBytes(item.size));
+  return parts.join("・");
+}
+
 /** Modal media library: browse stored images and import new ones. */
 export function MediaLibrary({
   media,
@@ -85,6 +100,9 @@ export function MediaLibrary({
                       </button>
                     )}
                     <span className="pcms-media__name">{item.fileName}</span>
+                    {mediaMeta(item) && (
+                      <span className="pcms-media__meta">{mediaMeta(item)}</span>
+                    )}
                   </li>
                 ))}
               </ul>

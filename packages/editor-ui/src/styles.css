@@ -274,6 +274,7 @@ button.pcms-aibtn { background: #6b46c1; color: #fff; border-color: #6b46c1; }
 .pcms-media__pick img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .pcms-media__pick:not(:disabled):hover { border-color: var(--pcms-accent); }
 .pcms-media__name { font-size: 0.72rem; color: var(--pcms-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pcms-media__meta { font-size: 0.68rem; color: var(--pcms-muted); opacity: 0.8; white-space: nowrap; }
 
 .pcms-visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 .pcms-pageselect select { font: inherit; padding: 0.3rem 0.4rem; border: 1px solid var(--pcms-border); border-radius: 6px; max-width: 220px; }
