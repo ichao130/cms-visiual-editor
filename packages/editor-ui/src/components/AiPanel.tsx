@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { PcmsApi, AiSeoResult } from "../api/types.js";
 import type { AiIssue } from "@pcms/engine";
 import { useDialog } from "../state/useDialog.js";
+import { useToast } from "../state/ToastContext.js";
 import { t } from "../i18n.js";
 
 interface ContentContext {
@@ -37,6 +38,9 @@ export function AiPanel({ api, content, onClose }: AiPanelProps) {
   const [html, setHtml] = useState("");
   const [themed, setThemed] = useState<string | null>(null);
   const [issues, setIssues] = useState<AiIssue[]>([]);
+  const [partName, setPartName] = useState("");
+
+  const toast = useToast();
 
   const generate = async () => {
     setBusy(true);
@@ -72,6 +76,21 @@ export function AiPanel({ api, content, onClose }: AiPanelProps) {
       content.onApplyBody(proposed);
       onClose();
     }
+  };
+
+  // Save the themed HTML as a reusable theme section (a working-copy part — the
+  // theme's own files are never touched; CLAUDE.md: テーマのファイルは改変しない).
+  const partSlug = partName
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  const hasError = issues.some((i) => i.level === "error");
+  const saveAsPart = async () => {
+    if (themed == null || partSlug === "" || hasError) return;
+    await api.writeThemeFile(`sections/${partSlug}.html`, themed);
+    toast(t("toast.partSaved").replace("{name}", partSlug));
+    setPartName("");
   };
 
   const ref = useDialog<HTMLDivElement>(onClose);
@@ -195,9 +214,35 @@ export function AiPanel({ api, content, onClose }: AiPanelProps) {
                     ))}
                   </ul>
                 )}
+                <div className="pcms-ai__savepart">
+                  <label className="pcms-field">
+                    <span className="pcms-field__label">{t("ai.partName")}</span>
+                    <input
+                      value={partName}
+                      onChange={(e) => setPartName(e.target.value)}
+                      placeholder="hero, about …"
+                      disabled={hasError}
+                    />
+                  </label>
+                  {hasError ? (
+                    <p className="pcms-ai__savenote">{t("ai.saveBlocked")}</p>
+                  ) : (
+                    <p className="pcms-field__desc">
+                      {t("ai.partPath").replace("{path}", `sections/${partSlug || "…"}.html`)}
+                    </p>
+                  )}
+                </div>
                 <div className="pcms-modal__actions">
                   <button type="button" onClick={() => void navigator.clipboard?.writeText(themed)}>
                     {t("ai.copy")}
+                  </button>
+                  <button
+                    type="button"
+                    className="pcms-primary"
+                    onClick={saveAsPart}
+                    disabled={partSlug === "" || hasError}
+                  >
+                    {t("ai.saveAsPart")}
                   </button>
                 </div>
               </div>

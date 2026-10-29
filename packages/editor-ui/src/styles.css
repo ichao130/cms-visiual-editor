@@ -66,6 +66,8 @@ button.pcms-aibtn { background: #6b46c1; color: #fff; border-color: #6b46c1; }
 .pcms-ai__before, .pcms-ai__result { margin-top: 0.85rem; }
 .pcms-ai__code { font-family: ui-monospace, monospace; font-size: 0.78rem; }
 .pcms-ai__ok { color: #1a7f37; font-size: 0.82rem; }
+.pcms-ai__savepart { margin-top: 0.7rem; padding-top: 0.6rem; border-top: 1px dashed var(--pcms-border); }
+.pcms-ai__savenote { color: #b42318; font-size: 0.82rem; margin: 0.3rem 0 0; }
 .pcms-ai__assist select, .pcms-ai__assist input, .pcms-ai__assist textarea,
 .pcms-ai__themeify textarea, .pcms-ai__result input, .pcms-ai__result textarea {
   width: 100%; font: inherit; padding: 0.4rem 0.5rem; border: 1px solid var(--pcms-border); border-radius: 6px;
