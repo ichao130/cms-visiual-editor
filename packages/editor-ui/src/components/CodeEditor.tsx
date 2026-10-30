@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { EditorView, basicSetup } from "codemirror";
 import { EditorState, type Extension } from "@codemirror/state";
 import { html } from "@codemirror/lang-html";
@@ -11,6 +11,21 @@ interface Props {
   value: string;
   kind: ThemeFileKind;
   onChange: (value: string) => void;
+}
+
+/** Track the OS/app colour scheme so the editor theme can match the UI. */
+function usePrefersDark(): boolean {
+  const [dark, setDark] = useState(
+    () => typeof window !== "undefined" && !!window.matchMedia?.("(prefers-color-scheme: dark)").matches,
+  );
+  useEffect(() => {
+    if (!window.matchMedia) return;
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const on = () => setDark(mq.matches);
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+  return dark;
 }
 
 function languageExt(kind: ThemeFileKind): Extension[] {
@@ -38,6 +53,7 @@ export function CodeEditor({ value, kind, onChange }: Props) {
   const view = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
   const external = useRef(false);
+  const dark = usePrefersDark();
   onChangeRef.current = onChange;
 
   useEffect(() => {
@@ -46,7 +62,9 @@ export function CodeEditor({ value, kind, onChange }: Props) {
       doc: value,
       extensions: [
         basicSetup,
-        oneDark,
+        // one-dark in dark mode; CodeMirror's light default in light mode, so
+        // the editor matches the surrounding UI instead of always being dark.
+        ...(dark ? [oneDark] : []),
         ...languageExt(kind),
         EditorView.updateListener.of((u) => {
           if (u.docChanged && !external.current) onChangeRef.current(u.state.doc.toString());
@@ -59,9 +77,9 @@ export function CodeEditor({ value, kind, onChange }: Props) {
       v.destroy();
       view.current = null;
     };
-    // Recreate on kind change; value is read at creation time (the separate
-    // effect below syncs later external value changes).
-  }, [kind]);
+    // Recreate on kind/theme change; value is read at creation time (the
+    // separate effect below syncs later external value changes).
+  }, [kind, dark]);
 
   // Reset the document when the file (value) changes from outside.
   useEffect(() => {
