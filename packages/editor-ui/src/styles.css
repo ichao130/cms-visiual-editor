@@ -388,7 +388,7 @@ button.pcms-danger { color: var(--pcms-danger); border-color: var(--pcms-danger-
 .pcms-settings__head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
 .pcms-settings__headactions { display: flex; align-items: center; gap: 0.4rem; }
 .pcms-statusselect { padding: 0.3rem 0.4rem; border: 1px solid var(--pcms-border); border-radius: 6px; font: inherit; background: var(--pcms-control); }
-.pcms-draftbadge { margin-left: 0.4rem; padding: 0.05rem 0.35rem; border-radius: 4px; background: var(--pcms-warning-weak); color: var(--pcms-warning); font-size: 0.68rem; vertical-align: middle; }
+.pcms-draftbadge { margin-left: 0.4rem; padding: 0.05rem 0.4rem; border-radius: 999px; background: var(--pcms-warning-weak); color: var(--pcms-warning); font-size: 0.68rem; font-weight: 500; vertical-align: middle; }
 .pcms-field__req { color: var(--pcms-danger); font-style: normal; font-size: 0.7rem; margin-left: 0.3rem; }
 .pcms-field__desc { color: var(--pcms-muted); font-size: 0.72rem; }
 .pcms-field__checkbox { width: auto; }
@@ -537,7 +537,7 @@ button.pcms-danger { color: var(--pcms-danger); border-color: var(--pcms-danger-
 .pcms-card--form input { width: 100%; box-sizing: border-box; font: inherit; padding: 0.4rem 0.5rem; border: 1px solid var(--pcms-border); border-radius: 6px; }
 .pcms-card__formactions { display: flex; gap: 0.4rem; }
 
-.pcms-badge { font-size: 0.72rem; padding: 0.1rem 0.5rem; border-radius: 999px; }
+.pcms-badge { font-size: 0.72rem; font-weight: 500; letter-spacing: 0.01em; padding: 0.1rem 0.5rem; border-radius: 999px; }
 .pcms-badge.is-live { background: var(--pcms-success-weak); color: var(--pcms-success); }
 .pcms-badge.is-draft { background: var(--pcms-hover); color: var(--pcms-muted); }
 
@@ -576,9 +576,9 @@ button.pcms-danger { color: var(--pcms-danger); border-color: var(--pcms-danger-
 .pcms-tile__value { font-size: 1.5rem; font-weight: 600; letter-spacing: -0.01em; }
 .pcms-tile__label { font-size: 0.8rem; color: var(--pcms-muted); }
 .pcms-info__block { margin-bottom: 1.5rem; }
-.pcms-chart { width: 100%; max-width: 480px; height: auto; background: var(--pcms-panel); border: 1px solid var(--pcms-border); border-radius: 10px; padding: 0.6rem; }
+.pcms-chart { width: 100%; max-width: 480px; height: auto; background: var(--pcms-panel); border: 1px solid var(--pcms-border); border-radius: var(--pcms-radius-lg); padding: 0.6rem; box-shadow: var(--pcms-shadow-sm); }
 .pcms-inquiries { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.6rem; }
-.pcms-inquiries__row { background: var(--pcms-panel); border: 1px solid var(--pcms-border); border-radius: 8px; padding: 0.7rem; }
+.pcms-inquiries__row { background: var(--pcms-panel); border: 1px solid var(--pcms-border); border-radius: var(--pcms-radius); padding: 0.7rem; box-shadow: var(--pcms-shadow-sm); }
 .pcms-inquiries__head { display: flex; justify-content: space-between; font-size: 0.85rem; }
 .pcms-inquiries__name { font-weight: 600; }
 .pcms-inquiries__date { color: var(--pcms-muted); }
@@ -711,10 +711,11 @@ button.pcms-danger:hover:not(:disabled) { background: var(--pcms-danger-weak); b
 
 .pcms-inbox { padding: 0.25rem; }
 .pcms-inbox__count { font-size: 0.9rem; }
-.pcms-inbox__scroll { overflow-x: auto; }
-.pcms-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-.pcms-table th, .pcms-table td { border: 1px solid var(--pcms-border); padding: 0.4rem 0.6rem; text-align: left; vertical-align: top; }
-.pcms-table th { background: var(--pcms-panel); color: var(--pcms-muted); font-weight: 600; white-space: nowrap; }
+.pcms-inbox__scroll { overflow-x: auto; border: 1px solid var(--pcms-border); border-radius: var(--pcms-radius); }
+.pcms-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; background: var(--pcms-panel); }
+.pcms-table th, .pcms-table td { padding: 0.5rem 0.75rem; text-align: left; vertical-align: top; border-bottom: 1px solid var(--pcms-border); }
+.pcms-table th { background: var(--pcms-sunken); color: var(--pcms-muted); font-weight: 600; white-space: nowrap; letter-spacing: 0.02em; border-bottom: 1px solid var(--pcms-border-strong); position: sticky; top: 0; z-index: 1; }
+.pcms-table tbody tr:last-child td { border-bottom: none; }
 .pcms-table__row { cursor: pointer; }
 .pcms-table__row:hover { background: var(--pcms-hover); }
 .pcms-table__row.is-selected { background: var(--pcms-accent-weak); }
