@@ -15,12 +15,17 @@ import { themeifyHtml, validateThemeHtml, type AiIssue } from "./ai.js";
 export type ImportSource = "auto" | "wordpress" | "shopify" | "figma" | "html" | "other";
 
 export interface ImportResult {
-  /** The cleaned, themeified HTML — a pcms theme fragment. */
+  /** The cleaned, themeified HTML — a pcms theme fragment. When a shared layout
+   *  was split off (see `layout`), this is the inner content only. */
   html: string;
   /** Validation issues on the result (same check as any AI-proposed theme). */
   issues: AiIssue[];
   /** Human-readable notes on what the optimizer removed or changed. */
   notes: string[];
+  /** When the markup had header+footer chrome, a layout.html candidate
+   *  (`<header>…</header><div data-slot="content"></div><footer>…</footer>`);
+   *  `html` is then just the content that goes into the slot. */
+  layout?: string;
 }
 
 function isEl(n: Node): n is HTMLElement {
@@ -308,6 +313,44 @@ function relabelSections(html: string): { html: string; count: number } {
   return { html: root.toString(), count };
 }
 
+/**
+ * Split a shared layout off an imported page. An external page usually carries
+ * its chrome — a <header> on top, a <footer> at the bottom — around the part
+ * that actually changes per page. When both are present with content between,
+ * build a layout.html candidate (chrome + `data-slot="content"`) and return the
+ * middle as the page content, so the import becomes a proper layout + template
+ * pair instead of one frozen page. The top-level <style> moves into the layout
+ * (shared CSS), matching the theme spec's layout.html. CLAUDE.md theme format.
+ */
+function extractLayout(html: string): { content: string; layout: string | null } {
+  const root = parse(html, { comment: false });
+  const kids = elementChildren(root);
+  const headerIdx = kids.findIndex((k) => tagOf(k) === "header");
+  let footerIdx = -1;
+  for (let i = kids.length - 1; i >= 0; i--) {
+    if (tagOf(kids[i] as HTMLElement) === "footer") {
+      footerIdx = i;
+      break;
+    }
+  }
+  if (headerIdx === -1 || footerIdx === -1 || footerIdx <= headerIdx + 1) {
+    return { content: html, layout: null };
+  }
+  const header = kids[headerIdx] as HTMLElement;
+  const footer = kids[footerIdx] as HTMLElement;
+  const middle = kids.slice(headerIdx + 1, footerIdx).filter((k) => tagOf(k) !== "style");
+  if (middle.length === 0) return { content: html, layout: null };
+  const styleHtml = kids
+    .filter((k) => tagOf(k) === "style")
+    .map((k) => k.toString())
+    .join("\n");
+  const layout =
+    (styleHtml ? `${styleHtml}\n` : "") +
+    `${header.toString()}\n<div data-slot="content"></div>\n${footer.toString()}`;
+  const content = middle.map((k) => k.toString()).join("\n");
+  return { content, layout };
+}
+
 /** True when the raw markup is (starts with) an SVG — e.g. a Figma export. */
 function looksLikeSvg(raw: string): boolean {
   return /^\s*(<\?xml[^>]*\?>\s*)?(<!--[\s\S]*?-->\s*)?<svg[\s>]/i.test(raw);
@@ -364,9 +407,13 @@ export function importThemeHtml(raw: string): ImportResult {
   const repeats = markRepeats(root);
   const opt = optimizeMedia(root);
   const { html: themed, count: labelled } = relabelSections(themeifyHtml(root.toString()));
-  const issues = validateThemeHtml(themed);
+  const { content, layout } = extractLayout(themed);
+  const issues = validateThemeHtml(content);
 
   if (labelled > 0) notes.push("セクション名を内容から自動で付けました。");
+  if (layout) {
+    notes.push("ヘッダーとフッターを共通レイアウト（layout.html）として分離しました。");
+  }
 
   if (opt.imgs > 0) {
     notes.push(`${opt.imgs}個の画像を最適化しました（遅延読み込み・alt補完）。`);
@@ -378,7 +425,7 @@ export function importThemeHtml(raw: string): ImportResult {
   if (repeats > 0) {
     notes.push(`${repeats}個の繰り返し（リスト）を検出し、増減できる項目にしました。`);
   }
-  const sections = (themed.match(/data-section=/g) ?? []).length;
+  const sections = (content.match(/data-section=/g) ?? []).length;
   if (sections > 0) notes.push(`${sections}個の編集できるセクションを検出しました。`);
-  return { html: themed, issues, notes };
+  return { html: content, issues, notes, ...(layout ? { layout } : {}) };
 }

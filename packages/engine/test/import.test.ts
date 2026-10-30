@@ -137,6 +137,49 @@ describe("importThemeHtml — section labels", () => {
   });
 });
 
+describe("importThemeHtml — layout split", () => {
+  it("splits header/footer into a layout and keeps the middle as content", () => {
+    const raw =
+      "<body>" +
+      "<header><h1>ロゴ</h1></header>" +
+      '<section class="hero"><h2>ようこそ</h2><p>本文</p></section>' +
+      "<footer><p>© 2026</p></footer>" +
+      "</body>";
+    const { html, layout, notes } = importThemeHtml(raw);
+    expect(layout).toBeDefined();
+    expect(layout).toContain("<header");
+    expect(layout).toContain("<footer");
+    expect(layout).toContain('data-slot="content"');
+    // Content is the middle only — no chrome.
+    expect(html).not.toContain("<header");
+    expect(html).not.toContain("<footer");
+    expect(html).toContain("ようこそ");
+    expect(notes.some((n) => n.includes("共通レイアウト"))).toBe(true);
+  });
+
+  it("does not split when there is no footer", () => {
+    const raw =
+      "<body><header><h1>ロゴ</h1></header>" +
+      '<section class="hero"><h2>ようこそ</h2></section></body>';
+    const { html, layout } = importThemeHtml(raw);
+    expect(layout).toBeUndefined();
+    expect(html).toContain("<header");
+  });
+
+  it("keeps top-level <style> in the layout, not the content", () => {
+    const raw =
+      "<html><head><style>.hero{color:red}</style></head><body>" +
+      "<header><h1>ロゴ</h1></header>" +
+      '<section class="hero"><h2>ようこそ</h2></section>' +
+      "<footer><p>© 2026</p></footer>" +
+      "</body></html>";
+    const { html, layout } = importThemeHtml(raw);
+    expect(layout).toContain("<style>");
+    expect(layout).toContain(".hero{color:red}");
+    expect(html).not.toContain("<style>");
+  });
+});
+
 describe("importThemeHtml — Figma/SVG", () => {
   it("wraps an SVG as a design section and makes text editable", () => {
     const raw =

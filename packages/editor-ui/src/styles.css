@@ -855,6 +855,8 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline: non
 .pcms-themeimport__save { grid-column: 1 / -1; display: flex; gap: 0.5rem; margin-top: 0.3rem; }
 .pcms-themeimport__save select { font: inherit; padding: 0.4rem 0.5rem; border: 1px solid var(--pcms-border); border-radius: var(--pcms-radius); background: var(--pcms-control); color: var(--pcms-text); }
 .pcms-themeimport__save input { flex: 1; font: inherit; padding: 0.4rem 0.5rem; border: 1px solid var(--pcms-border); border-radius: var(--pcms-radius); background: var(--pcms-control); color: var(--pcms-text); }
+.pcms-themeimport__layout { grid-column: 1 / -1; display: flex; align-items: center; gap: 0.4rem; margin: 0.1rem 0 0; font-size: 0.8rem; color: var(--pcms-muted); }
+.pcms-themeimport__layout input { width: auto; flex: none; }
 .pcms-themeimport__blocked { grid-column: 1 / -1; margin: 0; font-size: 0.8rem; color: var(--pcms-danger); }
 
 /* ===== Responsive: tablet / narrow ===== */

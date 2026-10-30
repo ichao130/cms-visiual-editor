@@ -34,6 +34,7 @@ export function ThemeImport({ api, onClose }: Props) {
   const [result, setResult] = useState<ImportResult | null>(null);
   const [partName, setPartName] = useState("");
   const [target, setTarget] = useState<"section" | "template">("section");
+  const [saveLayout, setSaveLayout] = useState(true);
   const [aiBusy, setAiBusy] = useState(false);
   const [saving, setSaving] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -62,7 +63,12 @@ export function ThemeImport({ api, onClose }: Props) {
     setAiBusy(true);
     try {
       const r = await api.aiThemeify(result.html);
-      setResult({ html: r.html, issues: r.issues, notes: [...result.notes, "AIで仕上げました。"] });
+      setResult({
+        html: r.html,
+        issues: r.issues,
+        notes: [...result.notes, "AIで仕上げました。"],
+        ...(result.layout ? { layout: result.layout } : {}),
+      });
     } finally {
       setAiBusy(false);
     }
@@ -73,19 +79,31 @@ export function ThemeImport({ api, onClose }: Props) {
     setSaving(true);
     try {
       const dir = target === "template" ? "templates" : "sections";
+      const saved = [`${dir}/${slug}.html`];
       await api.writeThemeFile(`${dir}/${slug}.html`, result.html);
-      toast(t("themeImport.saved").replace("{name}", `${dir}/${slug}.html`));
+      if (result.layout && saveLayout) {
+        await api.writeThemeFile("layout.html", result.layout);
+        saved.push("layout.html");
+      }
+      toast(t("themeImport.saved").replace("{name}", saved.join("、")));
       onClose();
     } finally {
       setSaving(false);
     }
   };
 
+  // When a shared layout was split off, preview the composed page (chrome with
+  // the content dropped into the slot) so it reads as the real page.
+  const previewBody = result
+    ? result.layout
+      ? result.layout.replace('<div data-slot="content"></div>', result.html)
+      : result.html
+    : "";
   const previewDoc = result
     ? `<!doctype html><html><head><meta charset="utf-8"><style>` +
       `body{font-family:-apple-system,system-ui,sans-serif;margin:0;padding:16px;color:#1e1f22;line-height:1.6}` +
       `img{max-width:100%;height:auto}[data-section]{outline:1px dashed #c9deff;padding:8px;margin:8px 0}` +
-      `</style></head><body>${result.html}</body></html>`
+      `</style></head><body>${previewBody}</body></html>`
     : "";
 
   return (
@@ -200,6 +218,16 @@ export function ThemeImport({ api, onClose }: Props) {
                 {t("themeImport.save")}
               </button>
             </div>
+            {result.layout && (
+              <label className="pcms-themeimport__layout">
+                <input
+                  type="checkbox"
+                  checked={saveLayout}
+                  onChange={(e) => setSaveLayout(e.target.checked)}
+                />
+                <span>{t("themeImport.saveLayout")}</span>
+              </label>
+            )}
             {hasErrors && <p className="pcms-themeimport__blocked">{t("themeImport.hasErrors")}</p>}
           </div>
         )}

@@ -321,6 +321,7 @@ const ja = {
   "themeImport.target.section": "セクションとして",
   "themeImport.target.template": "テンプレートとして",
   "themeImport.save": "保存",
+  "themeImport.saveLayout": "ヘッダー・フッターを共通レイアウト（layout.html）として保存する",
   "themeImport.saved": "「{name}」を保存しました。",
   "themeImport.hasErrors": "エラーがあるため保存できません。内容を確認してください。",
   "theme.current": "使用中",
