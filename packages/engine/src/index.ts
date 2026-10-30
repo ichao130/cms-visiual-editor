@@ -38,7 +38,9 @@ export {
   draftText,
   rewriteText,
   seoSuggest,
+  diagnoseThemeHtml,
   type AiIssue,
+  type AiDiagnosis,
 } from "./ai.js";
 export {
   buildFormEmbed,

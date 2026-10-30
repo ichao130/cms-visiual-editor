@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from "react";
 import {
   importThemeHtml,
   suggestThemePart,
+  diagnoseThemeHtml,
   type ImportResult,
   type ImportSource,
 } from "@pcms/engine";
@@ -57,6 +58,7 @@ export function ThemeImport({ api, onClose }: Props) {
   const errors = result?.issues.filter((i) => i.level === "error") ?? [];
   const hasErrors = errors.length > 0;
   const slug = useMemo(() => slugify(partName), [partName]);
+  const diagnoses = useMemo(() => (result ? diagnoseThemeHtml(result.html) : []), [result]);
 
   const convert = () => {
     if (raw.trim() === "") return;
@@ -302,11 +304,12 @@ export function ThemeImport({ api, onClose }: Props) {
                   <li key={i}>{n}</li>
                 ))}
               </ul>
-              {result.issues.length > 0 && (
+              {diagnoses.length > 0 && (
                 <ul className="pcms-themeimport__issues">
-                  {result.issues.map((iss, i) => (
-                    <li key={i} className={iss.level === "error" ? "is-error" : "is-warning"}>
-                      {iss.message}
+                  {diagnoses.map((d, i) => (
+                    <li key={i} className={d.level === "error" ? "is-error" : "is-warning"}>
+                      {d.message}
+                      <span className="pcms-themeimport__fix">{d.fix}</span>
                     </li>
                   ))}
                 </ul>

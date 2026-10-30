@@ -5,6 +5,7 @@ import {
   draftText,
   rewriteText,
   seoSuggest,
+  diagnoseThemeHtml,
   parseTemplate,
 } from "../src/index.js";
 
@@ -74,5 +75,45 @@ describe("offline AI heuristics", () => {
     expect(title).toBe("お店について");
     expect(description.length).toBeLessThanOrEqual(120);
     expect(description.endsWith("…")).toBe(true);
+  });
+});
+
+describe("diagnoseThemeHtml", () => {
+  it("flags an unknown data-type with the valid types as the fix", () => {
+    const d = diagnoseThemeHtml('<p data-field="x" data-type="wysiwyg" data-label="本文">x</p>');
+    const hit = d.find((i) => i.message.includes("data-type"));
+    expect(hit?.level).toBe("error");
+    expect(hit?.fix).toContain("richtext");
+  });
+
+  it("warns when an image type is on a non-img element", () => {
+    const d = diagnoseThemeHtml('<p data-field="hero.img" data-type="image">x</p>');
+    const hit = d.find((i) => i.message.includes("image"));
+    expect(hit?.level).toBe("warning");
+    expect(hit?.fix).toContain("<img>");
+  });
+
+  it("warns on a duplicate field path within a section", () => {
+    const d = diagnoseThemeHtml(
+      '<section data-section="s1"><h2 data-field="s1.t">A</h2><p data-field="s1.t">B</p></section>',
+    );
+    expect(d.some((i) => i.message.includes("重複"))).toBe(true);
+  });
+
+  it("warns on a data-repeat with no editable field inside", () => {
+    const d = diagnoseThemeHtml('<div data-repeat="items"><span>static</span></div>');
+    expect(d.some((i) => i.message.includes("data-repeat"))).toBe(true);
+  });
+
+  it("warns when nothing is editable", () => {
+    const d = diagnoseThemeHtml("<section><p>ただのHTML</p></section>");
+    expect(d.some((i) => i.message.includes("編集できる箇所"))).toBe(true);
+  });
+
+  it("returns nothing for a clean fragment", () => {
+    const d = diagnoseThemeHtml(
+      '<section data-section="s1"><h2 data-field="s1.title" data-type="text">見出し</h2></section>',
+    );
+    expect(d).toEqual([]);
   });
 });

@@ -162,6 +162,111 @@ export function seoSuggest(
   return { title: title.trim(), description };
 }
 
+// ---------------------------------------------------------------------------
+// Error diagnosis — turn theme-authoring mistakes into actionable advice.
+// Offline heuristics (no model): scan the annotations for the common problems
+// and, for each, say in plain Japanese what is wrong and how to fix it. This is
+// the human-facing companion to validateThemeHtml's terse issue list.
+// CLAUDE.md phase 6: エラー診断 / 利用者向けの日本語メッセージ.
+// ---------------------------------------------------------------------------
+
+export interface AiDiagnosis {
+  level: "error" | "warning" | "info";
+  /** What is wrong (user-facing Japanese). */
+  message: string;
+  /** How to fix it (user-facing Japanese). */
+  fix: string;
+}
+
+const TYPE_TAGS: Record<string, string> = { image: "img", link: "a" };
+
+/**
+ * Diagnose a theme fragment: unknown/mismatched data-type, empty data-field /
+ * data-loop, data-repeat with nothing editable inside, duplicate field paths,
+ * and nothing-editable. Each diagnosis carries a concrete fix. Pure.
+ */
+export function diagnoseThemeHtml(html: string): AiDiagnosis[] {
+  const root = parse(html, { comment: false });
+  const out: AiDiagnosis[] = [];
+
+  for (const el of root.querySelectorAll("[data-field]")) {
+    const field = el.getAttribute("data-field") ?? "";
+    const label = el.getAttribute("data-label");
+    const where = label ? `「${label}」` : `<${tag(el)}>`;
+    if (field === "") {
+      out.push({
+        level: "error",
+        message: `${where} の data-field が空です。`,
+        fix: "data-field に参照名（例: hero.title）を入れてください。",
+      });
+    }
+    const type = el.getAttribute("data-type");
+    if (type != null && !VALID_TYPES.has(type)) {
+      out.push({
+        level: "error",
+        message: `${where} の data-type「${type}」は不明です。`,
+        fix: `使える型は ${[...VALID_TYPES].join(" / ")} です。`,
+      });
+    }
+    const needTag = type != null ? TYPE_TAGS[type] : undefined;
+    if (needTag != null && tag(el) !== needTag) {
+      out.push({
+        level: "warning",
+        message: `${where} は data-type="${type}" ですが <${tag(el)}> に付いています。`,
+        fix: `${type} 型は <${needTag}> に付けてください。`,
+      });
+    }
+  }
+
+  // Duplicate field paths within the same section confuse the editor.
+  for (const sec of root.querySelectorAll("[data-section]")) {
+    const seen = new Set<string>();
+    for (const el of sec.querySelectorAll("[data-field]")) {
+      const f = el.getAttribute("data-field") ?? "";
+      if (f === "") continue;
+      if (seen.has(f)) {
+        out.push({
+          level: "warning",
+          message: `同じセクション内で data-field="${f}" が重複しています。`,
+          fix: "参照名はセクション内で一意にしてください。",
+        });
+      }
+      seen.add(f);
+    }
+  }
+
+  for (const el of root.querySelectorAll("[data-loop]")) {
+    if ((el.getAttribute("data-loop") ?? "") === "") {
+      out.push({
+        level: "warning",
+        message: "data-loop の対象が指定されていません。",
+        fix: 'data-loop="posts" / "menu" のように繰り返す対象を指定してください。',
+      });
+    }
+  }
+
+  for (const el of root.querySelectorAll("[data-repeat]")) {
+    if (el.querySelectorAll("[data-field]").length === 0) {
+      const name = el.getAttribute("data-repeat") ?? "";
+      out.push({
+        level: "warning",
+        message: `繰り返し（data-repeat="${name}"）の中に編集できる項目がありません。`,
+        fix: "繰り返す要素の中に data-field を1つ以上入れてください。",
+      });
+    }
+  }
+
+  if (root.querySelectorAll("[data-section],[data-field]").length === 0) {
+    out.push({
+      level: "warning",
+      message: "編集できる箇所（data-section / data-field）がありません。",
+      fix: "セクションに data-section、編集したい要素に data-field を付けてください。",
+    });
+  }
+
+  return out;
+}
+
 function stripTags(html: string): string {
   return html.replace(/<[^>]*>/g, "");
 }
