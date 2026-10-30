@@ -10,7 +10,7 @@ interface Props {
   onClose: () => void;
 }
 
-const SOURCES: ImportSource[] = ["auto", "wordpress", "shopify", "html", "other"];
+const SOURCES: ImportSource[] = ["auto", "wordpress", "shopify", "figma", "html", "other"];
 
 function slugify(name: string): string {
   return name
@@ -101,6 +101,9 @@ export function ThemeImport({ api, onClose }: Props) {
         </header>
 
         <p className="pcms-themeimport__hint">{t("themeImport.hint")}</p>
+        {source === "figma" && (
+          <p className="pcms-themeimport__figmahint">{t("themeImport.figmaHint")}</p>
+        )}
 
         <div className="pcms-themeimport__controls">
           <label className="pcms-themeimport__sourcefield">
@@ -119,7 +122,7 @@ export function ThemeImport({ api, onClose }: Props) {
           <input
             ref={fileRef}
             type="file"
-            accept=".html,.htm,.php,.liquid,.twig,.txt,text/html"
+            accept=".html,.htm,.php,.liquid,.twig,.svg,.txt,text/html,image/svg+xml"
             hidden
             onChange={(e) => void onFile(e.target.files?.[0])}
           />

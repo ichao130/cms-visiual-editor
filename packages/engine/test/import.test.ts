@@ -81,6 +81,44 @@ describe("importThemeHtml — repeats", () => {
   });
 });
 
+describe("importThemeHtml — menus", () => {
+  it("turns a nav list of links into a data-loop menu", () => {
+    const raw =
+      "<body><nav><ul>" +
+      '<li><a href="/">ホーム</a></li>' +
+      '<li><a href="/about">紹介</a></li>' +
+      '<li><a href="/contact">お問い合わせ</a></li>' +
+      "</ul></nav></body>";
+    const { html, notes } = importThemeHtml(raw);
+    expect(html).toContain('data-loop="menu"');
+    expect(html).toContain('data-field="item.url"');
+    expect(html).toContain('data-field="item.label"');
+    // Only one menu item remains as the pattern.
+    expect((html.match(/<li/g) ?? [])).toHaveLength(1);
+    expect(html).not.toContain("お問い合わせ");
+    expect(notes.some((n) => n.includes("メニュー"))).toBe(true);
+  });
+});
+
+describe("importThemeHtml — Figma/SVG", () => {
+  it("wraps an SVG as a design section and makes text editable", () => {
+    const raw =
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200">' +
+      '<rect width="400" height="200" fill="#eef"/>' +
+      '<text x="20" y="40">見出しテキスト</text>' +
+      '<text x="20" y="80">説明テキスト</text>' +
+      "</svg>";
+    const { html, issues, notes } = importThemeHtml(raw);
+    expect(html).toContain('data-section="sec-1"');
+    expect(html).toContain("<svg");
+    expect(html).toContain('data-field="sec-1.f1"');
+    expect(html).toContain('data-field="sec-1.f2"');
+    expect(issues.filter((i) => i.level === "error")).toHaveLength(0);
+    expect(notes.some((n) => n.includes("Figma/SVG"))).toBe(true);
+    expect(notes.some((n) => n.includes("2個のテキスト"))).toBe(true);
+  });
+});
+
 describe("importThemeHtml", () => {
   it("cleans a WordPress-ish template and annotates editable sections", () => {
     const raw =

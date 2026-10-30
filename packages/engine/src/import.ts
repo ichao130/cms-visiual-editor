@@ -12,7 +12,7 @@ import { themeifyHtml, validateThemeHtml, type AiIssue } from "./ai.js";
  */
 
 /** A hint about where the markup came from, used only for the notes/log. */
-export type ImportSource = "auto" | "wordpress" | "shopify" | "html" | "other";
+export type ImportSource = "auto" | "wordpress" | "shopify" | "figma" | "html" | "other";
 
 export interface ImportResult {
   /** The cleaned, themeified HTML — a pcms theme fragment. */
@@ -42,6 +42,9 @@ function labelFor(t: string): string {
   if (t === "img") return "画像";
   if (t === "a") return "リンク";
   return "本文";
+}
+function escapeText(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 /**
@@ -165,18 +168,109 @@ function markRepeats(root: HTMLElement): number {
   return count;
 }
 
+/** Turn one anchor into a dynamic menu item (`data-loop="menu"`). */
+function markMenuAnchor(a: HTMLElement): void {
+  const label = a.text.trim() || "メニュー";
+  a.setAttribute("data-loop", "menu");
+  a.setAttribute("data-field", "item.url");
+  a.setAttribute("data-type", "link");
+  a.set_content(
+    `<span data-field="item.label" data-type="text" data-label="ラベル">${escapeText(label)}</span>`,
+  );
+}
+
 /**
- * Import an external theme/template: clean it, detect repeating lists, annotate
- * with the themeify heuristics, and validate the result.
+ * Detect navigation menus: a <nav> with a list of links becomes a single
+ * `data-loop="menu"` item bound to the site's menu, instead of a frozen set of
+ * links. Mirrors the sample theme's layout.html convention.
+ */
+function detectMenus(root: HTMLElement): number {
+  let count = 0;
+  for (const nav of root.querySelectorAll("nav")) {
+    // A <ul>/<ol> of links: keep one <li>, make its anchor the menu item.
+    const listInNav = nav.querySelectorAll("ul,ol")[0];
+    if (listInNav) {
+      const lis = listInNav.querySelectorAll("li").filter((li) => li.querySelector("a"));
+      if (lis.length >= 2) {
+        const keep = lis[0];
+        const a = keep?.querySelector("a");
+        if (a) {
+          markMenuAnchor(a);
+          for (let i = 1; i < lis.length; i++) lis[i]?.remove();
+          count += 1;
+          continue;
+        }
+      }
+    }
+    // Otherwise direct anchors in the nav.
+    const anchors = elementChildren(nav).filter((e) => tagOf(e) === "a");
+    if (anchors.length >= 2 && anchors[0]) {
+      markMenuAnchor(anchors[0]);
+      for (let i = 1; i < anchors.length; i++) anchors[i]?.remove();
+      count += 1;
+    }
+  }
+  return count;
+}
+
+/** True when the raw markup is (starts with) an SVG — e.g. a Figma export. */
+function looksLikeSvg(raw: string): boolean {
+  return /^\s*(<\?xml[^>]*\?>\s*)?(<!--[\s\S]*?-->\s*)?<svg[\s>]/i.test(raw);
+}
+
+/**
+ * Import a Figma/SVG export: strip scripts, wrap the <svg> in a section, and
+ * make its <text> nodes editable. The vector art is kept intact (its own
+ * <style>/<defs> stay inside the svg).
+ */
+function importSvg(raw: string): ImportResult {
+  const notes: string[] = [];
+  const s = raw.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "");
+  const root = parse(s, { comment: false });
+  const svg = root.querySelector("svg");
+  if (!svg) {
+    return { html: "", issues: [{ level: "error", message: "SVGを認識できませんでした。" }], notes };
+  }
+  for (const el of svg.querySelectorAll("*")) {
+    for (const name of Object.keys(el.attributes)) {
+      if (name.toLowerCase().startsWith("on")) el.removeAttribute(name);
+    }
+  }
+  let f = 0;
+  for (const el of svg.querySelectorAll("text")) {
+    if (el.getAttribute("data-field") != null) continue;
+    f += 1;
+    el.setAttribute("data-field", `sec-1.f${f}`);
+    el.setAttribute("data-type", "text");
+    el.setAttribute("data-label", "テキスト");
+  }
+  const themed = `<section data-section="sec-1" data-label="デザイン">${svg.toString()}</section>`;
+  notes.push("Figma/SVGとして取り込みました。");
+  notes.push(
+    f > 0
+      ? `${f}個のテキストを編集可能にしました。`
+      : "テキスト要素は見つかりませんでした（図版として取り込み）。",
+  );
+  return { html: themed, issues: validateThemeHtml(themed), notes };
+}
+
+/**
+ * Import an external theme/template: clean it, detect menus and repeating
+ * lists, annotate with the themeify heuristics, and validate. A Figma/SVG
+ * export is handled directly (wrapped as a design section with editable text).
  */
 export function importThemeHtml(raw: string): ImportResult {
+  if (looksLikeSvg(raw)) return importSvg(raw);
+
   const { html: cleaned, notes } = cleanImportedHtml(raw);
 
   const root = parse(cleaned, { comment: false });
+  const menus = detectMenus(root);
   const repeats = markRepeats(root);
   const themed = themeifyHtml(root.toString());
   const issues = validateThemeHtml(themed);
 
+  if (menus > 0) notes.push(`${menus}個のメニュー（ナビ）を検出しました。`);
   if (repeats > 0) {
     notes.push(`${repeats}個の繰り返し（リスト）を検出し、増減できる項目にしました。`);
   }

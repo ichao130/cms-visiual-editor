@@ -838,6 +838,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline: non
 
 /* Theme import modal */
 .pcms-themeimport__hint { font-size: 0.82rem; color: var(--pcms-muted); line-height: 1.6; margin: 0 0 0.8rem; }
+.pcms-themeimport__figmahint { font-size: 0.8rem; color: var(--pcms-accent); background: var(--pcms-accent-weak); border-radius: var(--pcms-radius); padding: 0.5rem 0.7rem; line-height: 1.6; margin: 0 0 0.8rem; }
 .pcms-themeimport__controls { display: flex; align-items: flex-end; gap: 0.6rem; margin-bottom: 0.6rem; }
 .pcms-themeimport__sourcefield { display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.78rem; color: var(--pcms-muted); }
 .pcms-themeimport__sourcefield select { font: inherit; padding: 0.35rem 0.5rem; border: 1px solid var(--pcms-border); border-radius: var(--pcms-radius); background: var(--pcms-control); color: var(--pcms-text); }
