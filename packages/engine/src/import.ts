@@ -264,32 +264,103 @@ function isExternalOrInline(url: string): boolean {
   return /^(https?:)?\/\//i.test(url) || /^data:/i.test(url);
 }
 
+/** Rewrite one asset URL to `assets/<file>`, or leave external/inline ones. */
+function rewriteAssetUrl(url: string): { url: string; localized: boolean; external: boolean } {
+  const u = url.trim();
+  if (u === "" || u.startsWith("#")) return { url, localized: false, external: false };
+  if (isExternalOrInline(u)) return { url, localized: false, external: true };
+  const base = assetBasename(u);
+  if (base === "") return { url, localized: false, external: false };
+  const next = `assets/${base}`;
+  return { url: next, localized: next !== u, external: false };
+}
+
+/** Rewrite each candidate in a srcset ("a.jpg 1x, b.jpg 2x"). */
+function rewriteSrcset(value: string): { value: string; localized: number; external: number } {
+  let localized = 0;
+  let external = 0;
+  const out = value.split(",").map((part) => {
+    const seg = part.trim();
+    if (seg === "") return part;
+    const bits = seg.split(/\s+/);
+    const r = rewriteAssetUrl(bits[0] ?? "");
+    if (r.localized) localized += 1;
+    if (r.external) external += 1;
+    bits[0] = r.url;
+    return bits.join(" ");
+  });
+  return { value: out.join(", "), localized, external };
+}
+
+const CSS_URL = /url\(\s*(['"]?)([^'")]+)\1\s*\)/gi;
+
+/** Rewrite url(...) references inside a CSS string. */
+function rewriteCssUrls(css: string): { css: string; localized: number; external: number } {
+  let localized = 0;
+  let external = 0;
+  const next = css.replace(CSS_URL, (whole, quote: string, ref: string) => {
+    const r = rewriteAssetUrl(ref);
+    if (r.localized) localized += 1;
+    if (r.external) external += 1;
+    return `url(${quote}${r.url}${quote})`;
+  });
+  return { css: next, localized, external };
+}
+
 /**
- * Normalize image paths to the theme's `assets/` folder. Imported themes point
+ * Normalize asset paths to the theme's `assets/` folder. Imported themes point
  * at the old site's layout (`wp-content/themes/x/img/hero.jpg`, `../img/a.png`,
  * a root-absolute `/images/a.jpg`); rewriting each to `assets/<file>` makes the
  * references resolve once the files are dropped into the new theme's assets dir.
- * External/inline images are left as-is and only counted (so the user can
+ * Covers <img>/<source> src and srcset, inline `style` and <style> CSS url().
+ * External/inline references are left as-is and only counted (so the user can
  * choose to bring them in). CLAUDE.md theme format: assets/ holds CSS/JS/images.
  */
 function normalizeAssets(root: HTMLElement): { localized: number; external: number } {
   let localized = 0;
   let external = 0;
-  for (const img of root.querySelectorAll("img")) {
-    const src = img.getAttribute("src");
-    if (src == null || src.trim() === "") continue;
-    if (isExternalOrInline(src)) {
-      external += 1;
-      continue;
+
+  // <img>/<source> src
+  for (const el of root.querySelectorAll("img,source")) {
+    const src = el.getAttribute("src");
+    if (src != null && src.trim() !== "") {
+      const r = rewriteAssetUrl(src);
+      if (r.localized) {
+        el.setAttribute("src", r.url);
+        localized += 1;
+      } else if (r.external) {
+        external += 1;
+      }
     }
-    const base = assetBasename(src);
-    if (base === "") continue;
-    const next = `assets/${base}`;
-    if (src !== next) {
-      img.setAttribute("src", next);
-      localized += 1;
+    const srcset = el.getAttribute("srcset");
+    if (srcset != null && srcset.trim() !== "") {
+      const r = rewriteSrcset(srcset);
+      if (r.localized > 0) el.setAttribute("srcset", r.value);
+      localized += r.localized;
+      external += r.external;
     }
   }
+
+  // inline style="...url(...)..."
+  for (const el of root.querySelectorAll("[style]")) {
+    const style = el.getAttribute("style") ?? "";
+    if (!style.includes("url(")) continue;
+    const r = rewriteCssUrls(style);
+    if (r.localized > 0) el.setAttribute("style", r.css);
+    localized += r.localized;
+    external += r.external;
+  }
+
+  // <style> blocks
+  for (const st of root.querySelectorAll("style")) {
+    const css = st.innerHTML;
+    if (!css.includes("url(")) continue;
+    const r = rewriteCssUrls(css);
+    if (r.localized > 0) st.set_content(r.css);
+    localized += r.localized;
+    external += r.external;
+  }
+
   return { localized, external };
 }
 

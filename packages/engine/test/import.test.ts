@@ -148,6 +148,28 @@ describe("importThemeHtml — asset paths", () => {
     expect(html).toContain('src="assets/logo.png"');
     expect(notes.some((n) => n.includes("assets/ に揃え"))).toBe(false);
   });
+
+  it("normalizes srcset candidates and <source>", () => {
+    const { html } = importThemeHtml(
+      "<body><section><picture>" +
+        '<source srcset="img/small.jpg 1x, img/large.jpg 2x">' +
+        '<img src="img/fallback.jpg"></picture></section></body>',
+    );
+    expect(html).toContain("assets/small.jpg 1x");
+    expect(html).toContain("assets/large.jpg 2x");
+    expect(html).toContain('src="assets/fallback.jpg"');
+  });
+
+  it("normalizes url() in inline style and <style>", () => {
+    const { html } = importThemeHtml(
+      "<html><head><style>.hero{background:url('img/bg.jpg')}</style></head><body>" +
+        '<section class="hero" style="background-image:url(../img/inline.png)"><h2>見出し</h2></section>' +
+        "</body></html>",
+    );
+    expect(html).toContain("url('assets/bg.jpg')");
+    expect(html).toContain("url(assets/inline.png)");
+    expect(html).not.toContain("img/bg.jpg");
+  });
 });
 
 describe("importThemeHtml — section labels", () => {
