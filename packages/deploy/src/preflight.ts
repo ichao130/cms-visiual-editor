@@ -5,11 +5,14 @@ const REQUIRED = ["sitemap.xml", "robots.txt", "404.html"];
 
 /**
  * Pre-publish checks over the complete output: required files present, pages
- * have a title, no empty HTML, and internal links resolve to an output file.
+ * have a title and a meta description, exactly one H1, no empty HTML, internal
+ * links resolve to an output file, and page titles are unique across the site.
  */
 export function preflight(files: FileSet): Issue[] {
   const issues: Issue[] = [];
   const paths = new Set(Object.keys(files));
+  // Page title → the paths that use it, for the cross-page duplicate check.
+  const titleUsers = new Map<string, string[]>();
 
   for (const req of REQUIRED) {
     if (!paths.has(req)) {
@@ -25,8 +28,22 @@ export function preflight(files: FileSet): Issue[] {
       issues.push({ level: "error", message: "空のHTMLページです", path });
       continue;
     }
-    if (!/<title[^>]*>\s*\S/i.test(html)) {
+    const title = titleOf(html);
+    if (title == null) {
       issues.push({ level: "warning", message: "タイトルが設定されていません", path });
+    } else {
+      titleUsers.set(title, [...(titleUsers.get(title) ?? []), path]);
+    }
+
+    if (!hasMetaDescription(html)) {
+      issues.push({ level: "warning", message: "メタディスクリプションがありません", path });
+    }
+
+    const h1 = h1Count(html);
+    if (h1 === 0) {
+      issues.push({ level: "warning", message: "見出し(h1)がありません", path });
+    } else if (h1 > 1) {
+      issues.push({ level: "warning", message: `見出し(h1)が${h1}個あります（1つにしてください）`, path });
     }
 
     const missingAlt = imagesMissingAlt(html);
@@ -49,7 +66,45 @@ export function preflight(files: FileSet): Issue[] {
     }
   }
 
+  // Cross-page: the same <title> on more than one page hurts SEO.
+  for (const [title, users] of titleUsers) {
+    if (users.length < 2) continue;
+    for (const path of users) {
+      issues.push({
+        level: "warning",
+        message: `タイトルが他のページと重複しています: ${title}`,
+        path,
+      });
+    }
+  }
+
   return issues;
+}
+
+/** The trimmed text of the page's <title>, or null when it is missing/empty. */
+function titleOf(html: string): string | null {
+  const m = /<title[^>]*>([\s\S]*?)<\/title>/i.exec(html);
+  if (!m) return null;
+  const txt = (m[1] ?? "").replace(/\s+/g, " ").trim();
+  return txt === "" ? null : txt;
+}
+
+/** Whether the page has a <meta name="description"> with non-empty content. */
+function hasMetaDescription(html: string): boolean {
+  const re = /<meta\b[^>]*>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html)) !== null) {
+    const tag = m[0];
+    if (!/name\s*=\s*["']description["']/i.test(tag)) continue;
+    const c = /content\s*=\s*["']([^"']*)["']/i.exec(tag);
+    if (c && (c[1] ?? "").trim() !== "") return true;
+  }
+  return false;
+}
+
+/** Number of <h1> elements on the page. */
+function h1Count(html: string): number {
+  return (html.match(/<h1\b/gi) ?? []).length;
 }
 
 /**

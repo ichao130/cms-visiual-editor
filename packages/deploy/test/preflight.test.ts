@@ -49,4 +49,39 @@ describe("preflight", () => {
     // A page where every image has alt text is not flagged.
     expect(issues.some((i) => i.message.includes("alt") && i.path === "index.html")).toBe(false);
   });
+
+  it("warns on a missing meta description", () => {
+    const issues = preflight({
+      ...ok,
+      "d/index.html":
+        '<html><head><title>D</title><meta name="description" content="説明"><h1>見出し</h1></head><body>x</body></html>',
+      "nd/index.html":
+        "<html><head><title>ND</title></head><body><h1>見出し</h1></body></html>",
+    });
+    expect(issues.some((i) => i.message.includes("メタディスクリプション") && i.path === "nd/index.html")).toBe(true);
+    expect(issues.some((i) => i.message.includes("メタディスクリプション") && i.path === "d/index.html")).toBe(false);
+  });
+
+  it("warns on zero or multiple h1 headings", () => {
+    const issues = preflight({
+      ...ok,
+      "none/index.html": "<html><head><title>N</title></head><body><p>本文</p></body></html>",
+      "many/index.html":
+        "<html><head><title>M</title></head><body><h1>A</h1><h1>B</h1></body></html>",
+    });
+    expect(issues.some((i) => i.message.includes("見出し(h1)がありません") && i.path === "none/index.html")).toBe(true);
+    expect(issues.some((i) => i.message.includes("見出し(h1)が2個") && i.path === "many/index.html")).toBe(true);
+  });
+
+  it("warns when two pages share the same title", () => {
+    const issues = preflight({
+      ...ok,
+      "a/index.html": "<html><head><title>同じ</title></head><body><h1>a</h1></body></html>",
+      "b/index.html": "<html><head><title>同じ</title></head><body><h1>b</h1></body></html>",
+    });
+    const dupes = issues.filter((i) => i.message.includes("重複"));
+    expect(dupes.map((i) => i.path).sort()).toEqual(["a/index.html", "b/index.html"]);
+    // The unique titles in the base set are not flagged.
+    expect(issues.some((i) => i.message.includes("重複") && i.path === "index.html")).toBe(false);
+  });
 });
