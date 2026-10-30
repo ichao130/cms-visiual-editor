@@ -29,6 +29,8 @@
   --pcms-danger: #d2362c;   --pcms-danger-weak: #fde8e6;  --pcms-danger-border: #f3c6c1;
   --pcms-ai: #7c5cde;       --pcms-ai-weak: #f1ecff;      --pcms-ai-text: #5a4a95;
   --pcms-inverse: #27292e;  --pcms-on-inverse: #ffffff;   /* toast */
+  --pcms-scrollbar: rgba(0, 0, 0, 0.22);
+  --pcms-scrollbar-hover: rgba(0, 0, 0, 0.34);
 
   /* Shape & depth (tighter radii, softer shadows) */
   --pcms-radius: 6px;
@@ -65,6 +67,8 @@
     --pcms-danger: #ff6b5e;   --pcms-danger-weak: #3a1f1c;  --pcms-danger-border: #5a2a25;
     --pcms-ai: #a88bff;       --pcms-ai-weak: #292344;      --pcms-ai-text: #cfc2ff;
     --pcms-inverse: #e7e9ec;  --pcms-on-inverse: #1f2328;
+    --pcms-scrollbar: rgba(255, 255, 255, 0.20);
+    --pcms-scrollbar-hover: rgba(255, 255, 255, 0.32);
 
     --pcms-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
     --pcms-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.5);
@@ -93,6 +97,23 @@ body {
 
 .pcms-app { display: flex; flex-direction: column; height: 100%; }
 .pcms-loading { padding: 2rem; color: var(--pcms-muted); }
+
+/* Thin, unobtrusive scrollbars (macOS/Figma-like overlay feel) */
+* { scrollbar-width: thin; scrollbar-color: var(--pcms-scrollbar) transparent; }
+::-webkit-scrollbar { width: 11px; height: 11px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--pcms-scrollbar);
+  border-radius: 8px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--pcms-scrollbar-hover); background-clip: padding-box; }
+::-webkit-scrollbar-corner { background: transparent; }
+
+/* Consistent form controls: subtle fill, placeholder, focus ring */
+input, textarea, select { color: var(--pcms-text); background: var(--pcms-control); }
+input::placeholder, textarea::placeholder { color: var(--pcms-faint); }
 
 /* Toast notifications */
 .pcms-toasts { position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%); z-index: 1000; display: flex; flex-direction: column; gap: 0.5rem; align-items: center; pointer-events: none; }
@@ -761,6 +782,31 @@ button.pcms-danger:hover:not(:disabled) { background: var(--pcms-danger-weak); b
 :focus-visible { outline: 2px solid var(--pcms-accent); outline-offset: 2px; border-radius: 5px; }
 input:focus-visible, textarea:focus-visible, select:focus-visible { outline: none; border-color: var(--pcms-accent); box-shadow: 0 0 0 3px var(--pcms-accent-weak); }
 .pcms-modal__panel:focus-visible { outline: none; }
+
+/* ===== Refinement pass: motion, rows, small labels ===== */
+.pcms-subnav__item, .pcms-itemlist__row, .pcms-tree__label, .pcms-section-row,
+.pcms-filetree__file, .pcms-table__row, .pcms-types__item { transition: background 0.1s ease, color 0.1s ease; }
+
+/* Selected list rows read a touch stronger (accent text + medium weight) */
+.pcms-itemlist__row.is-selected, .pcms-tree__row.is-selected .pcms-tree__label {
+  color: var(--pcms-accent); font-weight: 500;
+}
+.pcms-filetree__file.is-active { font-weight: 500; }
+
+/* Small section/group labels: quiet, slightly tracked, uniform */
+.pcms-col__title, .pcms-typegroup__title, .pcms-filetree__head, .pcms-style__title,
+.pcms-repeat__title, .pcms-types__fieldshead, .pcms-subnav__heading, .pcms-partpreview__head {
+  color: var(--pcms-muted); letter-spacing: 0.02em; font-weight: 500;
+}
+
+/* Breadcrumb: lighter separators, quieter trail */
+.pcms-crumbs__sep { color: var(--pcms-faint); }
+.pcms-crumbs__link { color: var(--pcms-muted); }
+.pcms-crumbs__link:hover:not(:disabled) { color: var(--pcms-accent); }
+
+/* Dashes/borders between columns feel lighter */
+.pcms-sections, .pcms-settings, .pcms-subnav, .pcms-filetree, .pcms-page__side,
+.pcms-contentpane__list { background: var(--pcms-panel); }
 
 /* ===== Responsive: tablet / narrow ===== */
 @media (max-width: 860px) {
