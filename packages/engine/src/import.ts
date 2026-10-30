@@ -248,6 +248,66 @@ function optimizeMedia(root: HTMLElement): { imgs: number; links: number } {
   return { imgs, links };
 }
 
+/** class/id keyword → a friendly Japanese section label. */
+const CLASS_LABELS: Record<string, string> = {
+  hero: "ヒーロー",
+  header: "ヘッダー",
+  footer: "フッター",
+  nav: "ナビゲーション",
+  news: "お知らせ",
+  about: "紹介",
+  contact: "お問い合わせ",
+  gallery: "ギャラリー",
+  menu: "メニュー",
+  products: "商品",
+  product: "商品",
+  features: "特長",
+  feature: "特長",
+  pricing: "料金",
+  testimonial: "お客様の声",
+  testimonials: "お客様の声",
+  faq: "よくある質問",
+  cta: "行動喚起",
+  services: "サービス",
+  service: "サービス",
+  team: "チーム",
+  blog: "ブログ",
+};
+
+/**
+ * Give each annotated section a meaningful label, derived from its first
+ * heading, else a known class/id keyword — so imported sections are legible in
+ * the editor instead of "セクション1". Falls back to themeify's generic label.
+ */
+function relabelSections(html: string): { html: string; count: number } {
+  const root = parse(html, { comment: false });
+  let count = 0;
+  for (const sec of root.querySelectorAll("[data-section]")) {
+    let label = "";
+    const heading = sec.querySelector("h1,h2,h3");
+    const ht = heading?.text?.trim() ?? "";
+    if (ht) label = ht.length > 20 ? `${ht.slice(0, 20)}…` : ht;
+    if (!label) {
+      const tokens = [
+        ...(sec.getAttribute("class") ?? "").split(/\s+/),
+        sec.getAttribute("id") ?? "",
+      ];
+      for (const tkn of tokens) {
+        const hit = CLASS_LABELS[tkn.toLowerCase()];
+        if (hit) {
+          label = hit;
+          break;
+        }
+      }
+    }
+    if (label) {
+      sec.setAttribute("data-label", label);
+      count += 1;
+    }
+  }
+  return { html: root.toString(), count };
+}
+
 /** True when the raw markup is (starts with) an SVG — e.g. a Figma export. */
 function looksLikeSvg(raw: string): boolean {
   return /^\s*(<\?xml[^>]*\?>\s*)?(<!--[\s\S]*?-->\s*)?<svg[\s>]/i.test(raw);
@@ -303,8 +363,10 @@ export function importThemeHtml(raw: string): ImportResult {
   const menus = detectMenus(root);
   const repeats = markRepeats(root);
   const opt = optimizeMedia(root);
-  const themed = themeifyHtml(root.toString());
+  const { html: themed, count: labelled } = relabelSections(themeifyHtml(root.toString()));
   const issues = validateThemeHtml(themed);
+
+  if (labelled > 0) notes.push("セクション名を内容から自動で付けました。");
 
   if (opt.imgs > 0) {
     notes.push(`${opt.imgs}個の画像を最適化しました（遅延読み込み・alt補完）。`);

@@ -123,6 +123,20 @@ describe("importThemeHtml — media optimization", () => {
   });
 });
 
+describe("importThemeHtml — section labels", () => {
+  it("labels a section from its heading", () => {
+    const { html } = importThemeHtml('<body><section class="x"><h2>お知らせ</h2><p>本文</p></section></body>');
+    expect(html).toContain('data-label="お知らせ"');
+    expect(html).not.toContain('data-label="セクション1"');
+  });
+
+  it("labels a section from a known class when it has no heading", () => {
+    const { html, notes } = importThemeHtml('<body><section class="hero"><p>リード</p><a href="#">CTA</a></section></body>');
+    expect(html).toContain('data-label="ヒーロー"');
+    expect(notes.some((n) => n.includes("セクション名"))).toBe(true);
+  });
+});
+
 describe("importThemeHtml — Figma/SVG", () => {
   it("wraps an SVG as a design section and makes text editable", () => {
     const raw =
