@@ -48,6 +48,7 @@ export {
 export {
   cleanImportedHtml,
   importThemeHtml,
+  suggestThemePart,
   type ImportSource,
   type ImportResult,
 } from "./import.js";

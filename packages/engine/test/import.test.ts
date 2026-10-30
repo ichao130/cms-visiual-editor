@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cleanImportedHtml, importThemeHtml } from "../src/index.js";
+import { cleanImportedHtml, importThemeHtml, suggestThemePart } from "../src/index.js";
 
 describe("cleanImportedHtml", () => {
   it("strips PHP and keeps the surrounding markup", () => {
@@ -183,6 +183,19 @@ describe("importThemeHtml — section labels", () => {
     const { html, notes } = importThemeHtml('<body><section class="hero"><p>リード</p><a href="#">CTA</a></section></body>');
     expect(html).toContain('data-label="ヒーロー"');
     expect(notes.some((n) => n.includes("セクション名"))).toBe(true);
+  });
+});
+
+describe("suggestThemePart", () => {
+  it("maps a page-template filename to a template target", () => {
+    expect(suggestThemePart("index.html")).toEqual({ slug: "index", target: "template" });
+    expect(suggestThemePart("templates/post.html")).toEqual({ slug: "post", target: "template" });
+    expect(suggestThemePart("404.html")).toEqual({ slug: "404", target: "template" });
+  });
+
+  it("maps other filenames to a section target with a slug", () => {
+    expect(suggestThemePart("Hero Banner.html")).toEqual({ slug: "hero-banner", target: "section" });
+    expect(suggestThemePart("sections/cta.htm")).toEqual({ slug: "cta", target: "section" });
   });
 });
 

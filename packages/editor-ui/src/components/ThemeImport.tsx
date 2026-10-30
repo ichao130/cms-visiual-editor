@@ -1,5 +1,10 @@
 import { useMemo, useRef, useState } from "react";
-import { importThemeHtml, type ImportResult, type ImportSource } from "@pcms/engine";
+import {
+  importThemeHtml,
+  suggestThemePart,
+  type ImportResult,
+  type ImportSource,
+} from "@pcms/engine";
 import type { PcmsApi } from "../api/types.js";
 import { useDialog } from "../state/useDialog.js";
 import { useToast } from "../state/ToastContext.js";
@@ -11,6 +16,15 @@ interface Props {
 }
 
 const SOURCES: ImportSource[] = ["auto", "wordpress", "shopify", "figma", "html", "other"];
+
+/** One file in a multi-file (batch) import. */
+interface BatchItem {
+  name: string;
+  result: ImportResult;
+  slug: string;
+  target: "section" | "template";
+  include: boolean;
+}
 
 function slugify(name: string): string {
   return name
@@ -35,6 +49,7 @@ export function ThemeImport({ api, onClose }: Props) {
   const [partName, setPartName] = useState("");
   const [target, setTarget] = useState<"section" | "template">("section");
   const [saveLayout, setSaveLayout] = useState(true);
+  const [batch, setBatch] = useState<BatchItem[] | null>(null);
   const [aiBusy, setAiBusy] = useState(false);
   const [saving, setSaving] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -53,9 +68,58 @@ export function ThemeImport({ api, onClose }: Props) {
   };
 
   const onPickFile = () => fileRef.current?.click();
-  const onFile = async (file: File | undefined) => {
-    if (!file) return;
-    setRaw(await file.text());
+  const onFiles = async (files: FileList | null) => {
+    const list = files ? Array.from(files) : [];
+    if (list.length === 0) return;
+    // A single file falls back to the paste flow (preview + manual save).
+    if (list.length === 1 && list[0]) {
+      setBatch(null);
+      setResult(null);
+      const only = list[0];
+      setRaw(await only.text());
+      const s = suggestThemePart(only.name);
+      if (s.slug) setPartName(s.slug);
+      setTarget(s.target);
+      return;
+    }
+    // Several files: import each and queue them for one batched save.
+    const items: BatchItem[] = [];
+    for (const file of list) {
+      const r = importThemeHtml(await file.text());
+      const s = suggestThemePart(file.name);
+      items.push({
+        name: file.name,
+        result: r,
+        slug: s.slug || slugify(file.name),
+        target: s.target,
+        include: r.issues.every((i) => i.level !== "error"),
+      });
+    }
+    setResult(null);
+    setBatch(items);
+  };
+
+  const patchItem = (i: number, patch: Partial<BatchItem>) => {
+    setBatch((prev) => prev?.map((it, idx) => (idx === i ? { ...it, ...patch } : it)) ?? prev);
+  };
+
+  const saveBatch = async () => {
+    if (!batch) return;
+    const ready = batch.filter(
+      (it) => it.include && it.slug !== "" && it.result.issues.every((i) => i.level !== "error"),
+    );
+    if (ready.length === 0) return;
+    setSaving(true);
+    try {
+      for (const it of ready) {
+        const dir = it.target === "template" ? "templates" : "sections";
+        await api.writeThemeFile(`${dir}/${it.slug}.html`, it.result.html);
+      }
+      toast(t("themeImport.savedBatch").replace("{count}", String(ready.length)));
+      onClose();
+    } finally {
+      setSaving(false);
+    }
   };
 
   const aiFinish = async () => {
@@ -141,31 +205,95 @@ export function ThemeImport({ api, onClose }: Props) {
             ref={fileRef}
             type="file"
             accept=".html,.htm,.php,.liquid,.twig,.svg,.txt,text/html,image/svg+xml"
+            multiple
             hidden
-            onChange={(e) => void onFile(e.target.files?.[0])}
+            onChange={(e) => void onFiles(e.target.files)}
           />
         </div>
 
-        <textarea
-          className="pcms-themeimport__input"
-          value={raw}
-          onChange={(e) => setRaw(e.target.value)}
-          placeholder={t("themeImport.paste")}
-          rows={8}
-        />
+        {!batch && (
+          <textarea
+            className="pcms-themeimport__input"
+            value={raw}
+            onChange={(e) => setRaw(e.target.value)}
+            placeholder={t("themeImport.paste")}
+            rows={8}
+          />
+        )}
 
-        <div className="pcms-themeimport__actions">
-          <button className="pcms-primary" onClick={convert} disabled={raw.trim() === ""}>
-            {t("themeImport.convert")}
-          </button>
-          {result && (
-            <button className="pcms-aibtn" onClick={() => void aiFinish()} disabled={aiBusy}>
-              {aiBusy ? t("ai.generating") : t("themeImport.aiFinish")}
+        {!batch && (
+          <div className="pcms-themeimport__actions">
+            <button className="pcms-primary" onClick={convert} disabled={raw.trim() === ""}>
+              {t("themeImport.convert")}
             </button>
-          )}
-        </div>
+            {result && (
+              <button className="pcms-aibtn" onClick={() => void aiFinish()} disabled={aiBusy}>
+                {aiBusy ? t("ai.generating") : t("themeImport.aiFinish")}
+              </button>
+            )}
+          </div>
+        )}
 
-        {result && (
+        {batch && (
+          <div className="pcms-themeimport__batch">
+            <h3>{t("themeImport.batchTitle").replace("{count}", String(batch.length))}</h3>
+            <ul className="pcms-themeimport__batchlist">
+              {batch.map((it, i) => {
+                const itErr = it.result.issues.some((iss) => iss.level === "error");
+                return (
+                  <li key={i} className={itErr ? "is-error" : undefined}>
+                    <input
+                      type="checkbox"
+                      checked={it.include && !itErr}
+                      disabled={itErr}
+                      onChange={(e) => patchItem(i, { include: e.target.checked })}
+                      aria-label={it.name}
+                    />
+                    <span className="pcms-themeimport__batchname">{it.name}</span>
+                    <select
+                      value={it.target}
+                      onChange={(e) =>
+                        patchItem(i, { target: e.target.value as "section" | "template" })
+                      }
+                      aria-label={t("themeImport.target")}
+                    >
+                      <option value="section">{t("themeImport.target.section")}</option>
+                      <option value="template">{t("themeImport.target.template")}</option>
+                    </select>
+                    <input
+                      type="text"
+                      value={it.slug}
+                      onChange={(e) => patchItem(i, { slug: slugify(e.target.value) })}
+                      placeholder={t("themeImport.partName")}
+                    />
+                    {itErr && (
+                      <span className="pcms-themeimport__batcherr">{t("themeImport.hasErrors")}</span>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+            <div className="pcms-themeimport__actions">
+              <button
+                className="pcms-primary"
+                onClick={() => void saveBatch()}
+                disabled={
+                  saving ||
+                  batch.every(
+                    (it) =>
+                      !it.include ||
+                      it.slug === "" ||
+                      it.result.issues.some((iss) => iss.level === "error"),
+                  )
+                }
+              >
+                {t("themeImport.saveBatch")}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {!batch && result && (
           <div className="pcms-themeimport__result">
             <div className="pcms-themeimport__log">
               <h3>{t("themeImport.log")}</h3>

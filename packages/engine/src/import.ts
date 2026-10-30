@@ -503,6 +503,40 @@ function importSvg(raw: string): ImportResult {
   return { html: themed, issues: validateThemeHtml(themed), notes };
 }
 
+/** Theme-file names that are page templates rather than reusable sections. */
+const TEMPLATE_STEMS = new Set([
+  "index",
+  "home",
+  "front-page",
+  "page",
+  "post",
+  "single",
+  "archive",
+  "category",
+  "search",
+  "404",
+]);
+
+/**
+ * Guess where an imported file should be saved from its name: a page template
+ * (index/page/post/…) vs. a reusable section, plus a slug. Used to pre-fill the
+ * save target, especially for multi-file import. Pure: name in, suggestion out.
+ */
+export function suggestThemePart(filename: string): {
+  slug: string;
+  target: "section" | "template";
+} {
+  const base = filename.split(/[/\\]/).pop() ?? filename;
+  const stem = base.replace(/\.[a-z0-9]+$/i, "");
+  const slug = stem
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  const target = TEMPLATE_STEMS.has(slug) ? "template" : "section";
+  return { slug, target };
+}
+
 /**
  * Import an external theme/template: clean it, detect menus and repeating
  * lists, annotate with the themeify heuristics, and validate. A Figma/SVG

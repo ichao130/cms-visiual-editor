@@ -858,6 +858,14 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline: non
 .pcms-themeimport__layout { grid-column: 1 / -1; display: flex; align-items: center; gap: 0.4rem; margin: 0.1rem 0 0; font-size: 0.8rem; color: var(--pcms-muted); }
 .pcms-themeimport__layout input { width: auto; flex: none; }
 .pcms-themeimport__blocked { grid-column: 1 / -1; margin: 0; font-size: 0.8rem; color: var(--pcms-danger); }
+.pcms-themeimport__batch h3 { margin: 0.6rem 0 0.4rem; font-size: 0.85rem; }
+.pcms-themeimport__batchlist { list-style: none; margin: 0 0 0.6rem; padding: 0; display: flex; flex-direction: column; gap: 0.35rem; }
+.pcms-themeimport__batchlist li { display: flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.5rem; border: 1px solid var(--pcms-border); border-radius: var(--pcms-radius); background: var(--pcms-control); }
+.pcms-themeimport__batchlist li.is-error { border-color: var(--pcms-danger); }
+.pcms-themeimport__batchname { flex: 1; font-size: 0.8rem; color: var(--pcms-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pcms-themeimport__batchlist select { font: inherit; font-size: 0.8rem; padding: 0.25rem 0.4rem; border: 1px solid var(--pcms-border); border-radius: var(--pcms-radius); background: var(--pcms-surface); color: var(--pcms-text); }
+.pcms-themeimport__batchlist input[type="text"] { width: 10rem; font: inherit; font-size: 0.8rem; padding: 0.25rem 0.4rem; border: 1px solid var(--pcms-border); border-radius: var(--pcms-radius); background: var(--pcms-surface); color: var(--pcms-text); }
+.pcms-themeimport__batcherr { font-size: 0.72rem; color: var(--pcms-danger); }
 
 /* ===== Responsive: tablet / narrow ===== */
 @media (max-width: 860px) {
