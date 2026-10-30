@@ -100,6 +100,29 @@ describe("importThemeHtml — menus", () => {
   });
 });
 
+describe("importThemeHtml — media optimization", () => {
+  it("lazy-loads images, adds alt, and hardens blank-target links", () => {
+    const raw =
+      '<body><section><img src="a.jpg">' +
+      '<a href="https://x.test" target="_blank">外部</a></section></body>';
+    const { html, notes } = importThemeHtml(raw);
+    expect(html).toContain('loading="lazy"');
+    expect(html).toContain('decoding="async"');
+    // An empty alt serializes as a bare `alt` attribute — just assert it exists.
+    expect(html).toMatch(/<img[^>]*\balt\b/);
+    expect(html).toContain('rel="noopener"');
+    expect(notes.some((n) => n.includes("画像を最適化"))).toBe(true);
+    expect(notes.some((n) => n.includes("noopener"))).toBe(true);
+  });
+
+  it("keeps an image's existing alt and loading", () => {
+    const { html } = importThemeHtml('<body><section><img src="a.jpg" alt="写真" loading="eager"></section></body>');
+    expect(html).toContain('alt="写真"');
+    expect(html).toContain('loading="eager"');
+    expect(html).not.toContain('loading="lazy"');
+  });
+});
+
 describe("importThemeHtml — Figma/SVG", () => {
   it("wraps an SVG as a design section and makes text editable", () => {
     const raw =

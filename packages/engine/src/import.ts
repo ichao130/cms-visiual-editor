@@ -213,6 +213,41 @@ function detectMenus(root: HTMLElement): number {
   return count;
 }
 
+/**
+ * Light performance/accessibility optimization on imported markup: lazy-load
+ * images, give them an alt so they pass the pre-publish check, and harden
+ * target="_blank" links with rel="noopener".
+ */
+function optimizeMedia(root: HTMLElement): { imgs: number; links: number } {
+  let imgs = 0;
+  let links = 0;
+  for (const img of root.querySelectorAll("img")) {
+    let changed = false;
+    if (img.getAttribute("loading") == null) {
+      img.setAttribute("loading", "lazy");
+      changed = true;
+    }
+    if (img.getAttribute("decoding") == null) {
+      img.setAttribute("decoding", "async");
+      changed = true;
+    }
+    if (img.getAttribute("alt") == null) {
+      img.setAttribute("alt", "");
+      changed = true;
+    }
+    if (changed) imgs += 1;
+  }
+  for (const a of root.querySelectorAll("a")) {
+    if (a.getAttribute("target") !== "_blank") continue;
+    const rel = a.getAttribute("rel") ?? "";
+    if (!/\bnoopener\b/.test(rel)) {
+      a.setAttribute("rel", rel ? `${rel} noopener` : "noopener");
+      links += 1;
+    }
+  }
+  return { imgs, links };
+}
+
 /** True when the raw markup is (starts with) an SVG — e.g. a Figma export. */
 function looksLikeSvg(raw: string): boolean {
   return /^\s*(<\?xml[^>]*\?>\s*)?(<!--[\s\S]*?-->\s*)?<svg[\s>]/i.test(raw);
@@ -267,9 +302,16 @@ export function importThemeHtml(raw: string): ImportResult {
   const root = parse(cleaned, { comment: false });
   const menus = detectMenus(root);
   const repeats = markRepeats(root);
+  const opt = optimizeMedia(root);
   const themed = themeifyHtml(root.toString());
   const issues = validateThemeHtml(themed);
 
+  if (opt.imgs > 0) {
+    notes.push(`${opt.imgs}個の画像を最適化しました（遅延読み込み・alt補完）。`);
+  }
+  if (opt.links > 0) {
+    notes.push(`${opt.links}個の外部リンクに rel="noopener" を付与しました。`);
+  }
   if (menus > 0) notes.push(`${menus}個のメニュー（ナビ）を検出しました。`);
   if (repeats > 0) {
     notes.push(`${repeats}個の繰り返し（リスト）を検出し、増減できる項目にしました。`);
