@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { validateThemeHtml, type AiIssue } from "@pcms/engine";
+import { diagnoseThemeHtml, type AiDiagnosis } from "@pcms/engine";
 import type { PcmsApi, ThemeFileKind, ThemeFileNode } from "../../api/types.js";
 import { useSiteWorkspace } from "../../state/SiteWorkspace.js";
 import { CodeEditor } from "../../components/CodeEditor.js";
@@ -41,14 +41,14 @@ const PART_TEMPLATES: { id: string; label: MessageKey; make: (name: string) => s
 const safeName = (raw: string): string =>
   raw.trim().replace(/[^a-z0-9-]/gi, "-").toLowerCase();
 
-/** Validate the active file where we can (HTML parts/templates, theme.json). */
-function validateFile(content: string, kind: ThemeFileKind | undefined): AiIssue[] {
-  if (kind === "html") return validateThemeHtml(content);
+/** Diagnose the active file where we can (HTML parts/templates, theme.json). */
+function validateFile(content: string, kind: ThemeFileKind | undefined): AiDiagnosis[] {
+  if (kind === "html") return diagnoseThemeHtml(content);
   if (kind === "json") {
     try {
       JSON.parse(content);
     } catch (e) {
-      return [{ level: "error", message: `JSON が不正です: ${(e as Error).message}` }];
+      return [{ level: "error", message: `JSON が不正です: ${(e as Error).message}`, fix: "" }];
     }
   }
   return [];
@@ -343,6 +343,7 @@ export function CodeEditorView({ api }: Props) {
                   issues.map((iss, i) => (
                     <span key={i} className={`pcms-codeissues__item is-${iss.level}`}>
                       {iss.level === "error" ? "⛔" : "⚠️"} {iss.message}
+                      {iss.fix ? <em className="pcms-codeissues__fix">{iss.fix}</em> : null}
                     </span>
                   ))
                 )}

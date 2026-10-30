@@ -785,6 +785,8 @@ button.pcms-danger:hover:not(:disabled) { background: var(--pcms-danger-weak); b
 .pcms-codeissues__ok { color: var(--pcms-success); }
 .pcms-codeissues__item.is-error { color: var(--pcms-danger); }
 .pcms-codeissues__item.is-warning { color: var(--pcms-warning); }
+.pcms-codeissues__fix { color: var(--pcms-muted); font-style: normal; margin-left: 0.4rem; }
+.pcms-codeissues__fix::before { content: "→ "; }
 
 /* Code editor: editor | live part preview split */
 .pcms-codemain__split { flex: 1; min-height: 0; display: flex; }
