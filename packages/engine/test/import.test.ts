@@ -123,6 +123,33 @@ describe("importThemeHtml — media optimization", () => {
   });
 });
 
+describe("importThemeHtml — asset paths", () => {
+  it("normalizes a theme-relative image path to assets/", () => {
+    const { html, notes } = importThemeHtml(
+      '<body><section><img src="wp-content/themes/x/img/hero.jpg?v=2"></section></body>',
+    );
+    expect(html).toContain('src="assets/hero.jpg"');
+    expect(html).not.toContain("wp-content");
+    expect(notes.some((n) => n.includes("assets/ に揃え"))).toBe(true);
+  });
+
+  it("leaves an external image and reports it", () => {
+    const { html, notes } = importThemeHtml(
+      '<body><section><img src="https://cdn.example.com/a.png"></section></body>',
+    );
+    expect(html).toContain('src="https://cdn.example.com/a.png"');
+    expect(notes.some((n) => n.includes("外部画像"))).toBe(true);
+  });
+
+  it("does not rewrite an image already under assets/", () => {
+    const { html, notes } = importThemeHtml(
+      '<body><section><img src="assets/logo.png"></section></body>',
+    );
+    expect(html).toContain('src="assets/logo.png"');
+    expect(notes.some((n) => n.includes("assets/ に揃え"))).toBe(false);
+  });
+});
+
 describe("importThemeHtml — section labels", () => {
   it("labels a section from its heading", () => {
     const { html } = importThemeHtml('<body><section class="x"><h2>お知らせ</h2><p>本文</p></section></body>');

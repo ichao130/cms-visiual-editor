@@ -253,6 +253,46 @@ function optimizeMedia(root: HTMLElement): { imgs: number; links: number } {
   return { imgs, links };
 }
 
+/** The file name of an asset reference, stripped of any query/hash. */
+function assetBasename(url: string): string {
+  const path = url.split("#")[0]?.split("?")[0] ?? "";
+  return path.split("/").filter(Boolean).pop() ?? "";
+}
+
+/** An external (http/protocol-relative) or inline (data:) reference. */
+function isExternalOrInline(url: string): boolean {
+  return /^(https?:)?\/\//i.test(url) || /^data:/i.test(url);
+}
+
+/**
+ * Normalize image paths to the theme's `assets/` folder. Imported themes point
+ * at the old site's layout (`wp-content/themes/x/img/hero.jpg`, `../img/a.png`,
+ * a root-absolute `/images/a.jpg`); rewriting each to `assets/<file>` makes the
+ * references resolve once the files are dropped into the new theme's assets dir.
+ * External/inline images are left as-is and only counted (so the user can
+ * choose to bring them in). CLAUDE.md theme format: assets/ holds CSS/JS/images.
+ */
+function normalizeAssets(root: HTMLElement): { localized: number; external: number } {
+  let localized = 0;
+  let external = 0;
+  for (const img of root.querySelectorAll("img")) {
+    const src = img.getAttribute("src");
+    if (src == null || src.trim() === "") continue;
+    if (isExternalOrInline(src)) {
+      external += 1;
+      continue;
+    }
+    const base = assetBasename(src);
+    if (base === "") continue;
+    const next = `assets/${base}`;
+    if (src !== next) {
+      img.setAttribute("src", next);
+      localized += 1;
+    }
+  }
+  return { localized, external };
+}
+
 /** class/id keyword → a friendly Japanese section label. */
 const CLASS_LABELS: Record<string, string> = {
   hero: "ヒーロー",
@@ -406,6 +446,7 @@ export function importThemeHtml(raw: string): ImportResult {
   const menus = detectMenus(root);
   const repeats = markRepeats(root);
   const opt = optimizeMedia(root);
+  const assets = normalizeAssets(root);
   const { html: themed, count: labelled } = relabelSections(themeifyHtml(root.toString()));
   const { content, layout } = extractLayout(themed);
   const issues = validateThemeHtml(content);
@@ -420,6 +461,12 @@ export function importThemeHtml(raw: string): ImportResult {
   }
   if (opt.links > 0) {
     notes.push(`${opt.links}個の外部リンクに rel="noopener" を付与しました。`);
+  }
+  if (assets.localized > 0) {
+    notes.push(`${assets.localized}個の画像パスを assets/ に揃えました。`);
+  }
+  if (assets.external > 0) {
+    notes.push(`${assets.external}個の外部画像があります（必要に応じて取り込んでください）。`);
   }
   if (menus > 0) notes.push(`${menus}個のメニュー（ナビ）を検出しました。`);
   if (repeats > 0) {
