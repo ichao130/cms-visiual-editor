@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { PcmsApi, ThemeSummary } from "../../api/types.js";
 import type { Route } from "../../state/route.js";
+import { ThemeImport } from "../../components/ThemeImport.js";
 import { t } from "../../i18n.js";
 
 interface Props {
@@ -12,6 +13,7 @@ interface Props {
 /** Theme selection, and the entry point into the theme editor. */
 export function ThemeView({ api, siteId, onNavigate }: Props) {
   const [themes, setThemes] = useState<ThemeSummary[]>([]);
+  const [importing, setImporting] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -31,6 +33,7 @@ export function ThemeView({ api, siteId, onNavigate }: Props) {
           <button className="pcms-primary" onClick={openEditor}>
             {t("theme.openEditor")}
           </button>
+          <button onClick={() => setImporting(true)}>{t("theme.import")}</button>
           <button disabled title={t("common.comingSoon")}>
             {t("theme.importFigma")}
           </button>
@@ -61,6 +64,8 @@ export function ThemeView({ api, siteId, onNavigate }: Props) {
       </div>
 
       <p className="pcms-note">{t("theme.figmaRoadmap")}</p>
+
+      {importing && <ThemeImport api={api} onClose={() => setImporting(false)} />}
     </div>
   );
 }

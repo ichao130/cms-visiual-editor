@@ -45,3 +45,9 @@ export {
   HONEYPOT_FIELD,
   type FormEmbedOptions,
 } from "./formEmbed.js";
+export {
+  cleanImportedHtml,
+  importThemeHtml,
+  type ImportSource,
+  type ImportResult,
+} from "./import.js";
