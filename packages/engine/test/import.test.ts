@@ -172,6 +172,29 @@ describe("importThemeHtml — asset paths", () => {
   });
 });
 
+describe("importThemeHtml — forms", () => {
+  it("strips the form's server target and marks it, keeping fields", () => {
+    const raw =
+      "<body><section>" +
+      '<form action="/wp-admin/admin-post.php" method="post" enctype="multipart/form-data">' +
+      '<input type="hidden" name="_wpnonce" value="abc">' +
+      '<input type="text" name="name"><button>送信</button></form>' +
+      "</section></body>";
+    const { html, notes } = importThemeHtml(raw);
+    expect(html).not.toContain("admin-post.php");
+    expect(html).not.toContain("method=");
+    expect(html).not.toContain("_wpnonce");
+    expect(html).toContain('data-form="imported"');
+    expect(html).toContain('name="name"');
+    expect(notes.some((n) => n.includes("フォームを検出"))).toBe(true);
+  });
+
+  it("does not report a form when there is none", () => {
+    const { notes } = importThemeHtml('<body><section><p>本文</p></section></body>');
+    expect(notes.some((n) => n.includes("フォーム"))).toBe(false);
+  });
+});
+
 describe("importThemeHtml — section labels", () => {
   it("labels a section from its heading", () => {
     const { html } = importThemeHtml('<body><section class="x"><h2>お知らせ</h2><p>本文</p></section></body>');

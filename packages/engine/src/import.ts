@@ -364,6 +364,28 @@ function normalizeAssets(root: HTMLElement): { localized: number; external: numb
   return { localized, external };
 }
 
+/**
+ * Neutralize imported forms. An external theme's <form> posts to the old
+ * server (a PHP handler, a platform endpoint) that does not exist on a static
+ * KUMITO site, so leaving its action/method in place would silently send
+ * submissions nowhere. Strip the server-specific attributes, drop hidden
+ * server fields (WordPress nonces, referer), and mark the form so the operator
+ * wires it to KUMITO's form feature. Fields and labels are kept intact.
+ * CLAUDE.md: PHP は使わない / フォームは Firebase で受ける.
+ */
+function neutralizeForms(root: HTMLElement): number {
+  let count = 0;
+  for (const form of root.querySelectorAll("form")) {
+    form.removeAttribute("action");
+    form.removeAttribute("method");
+    form.removeAttribute("enctype");
+    form.setAttribute("data-form", "imported");
+    for (const hidden of form.querySelectorAll('input[type="hidden"]')) hidden.remove();
+    count += 1;
+  }
+  return count;
+}
+
 /** class/id keyword → a friendly Japanese section label. */
 const CLASS_LABELS: Record<string, string> = {
   hero: "ヒーロー",
@@ -552,6 +574,7 @@ export function importThemeHtml(raw: string): ImportResult {
   const repeats = markRepeats(root);
   const opt = optimizeMedia(root);
   const assets = normalizeAssets(root);
+  const forms = neutralizeForms(root);
   const { html: themed, count: labelled } = relabelSections(themeifyHtml(root.toString()));
   const { content, layout } = extractLayout(themed);
   const issues = validateThemeHtml(content);
@@ -572,6 +595,11 @@ export function importThemeHtml(raw: string): ImportResult {
   }
   if (assets.external > 0) {
     notes.push(`${assets.external}個の外部画像があります（必要に応じて取り込んでください）。`);
+  }
+  if (forms > 0) {
+    notes.push(
+      `${forms}個のフォームを検出しました（送信先を外しました。KUMITOのフォーム機能に接続してください）。`,
+    );
   }
   if (menus > 0) notes.push(`${menus}個のメニュー（ナビ）を検出しました。`);
   if (repeats > 0) {
