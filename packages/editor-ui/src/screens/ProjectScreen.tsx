@@ -1,10 +1,52 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { PcmsApi, SiteSummary } from "../api/types.js";
 import type { Route } from "../state/route.js";
 import { CreateCard } from "../components/CreateCard.js";
 import { CardRenameForm } from "../components/CardRenameForm.js";
+import { renderHomeThumbnail } from "../preview/render.js";
 import { useToast } from "../state/ToastContext.js";
 import { t } from "../i18n.js";
+
+/** Logical width the thumbnail iframe renders at before being scaled to fit. */
+const THUMB_BASE_WIDTH = 1200;
+
+/**
+ * A scaled, inert mini-render of a site's home page. The iframe renders the
+ * page at a fixed logical width and is scaled down to the card's width, so the
+ * card shows a faithful preview rather than a placeholder.
+ */
+function SitePreviewThumb({ html }: { html: string | null }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(THUMB_BASE_WIDTH ? 0.18 : 1);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const update = () => setScale(el.clientWidth / THUMB_BASE_WIDTH);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  return (
+    <div className="pcms-card__preview" ref={ref} aria-hidden="true">
+      {html ? (
+        <iframe
+          className="pcms-card__previewframe"
+          srcDoc={html}
+          sandbox=""
+          scrolling="no"
+          tabIndex={-1}
+          title=""
+          style={{ transform: `scale(${scale})` }}
+        />
+      ) : (
+        <div className="pcms-card__previewempty" />
+      )}
+    </div>
+  );
+}
 
 interface Props {
   api: PcmsApi;
@@ -18,11 +60,29 @@ interface Props {
 export function ProjectScreen({ api, projectId, onNavigate, onShellChange }: Props) {
   const [sites, setSites] = useState<SiteSummary[]>([]);
   const [renaming, setRenaming] = useState<string | null>(null);
+  const [thumbHtml, setThumbHtml] = useState<string | null>(null);
   const toast = useToast();
 
   useEffect(() => {
     let active = true;
     void api.listSites(projectId).then((s) => active && setSites(s));
+    return () => {
+      active = false;
+    };
+  }, [api, projectId]);
+
+  // Build a home-page thumbnail for the site cards. (The mock exposes one site,
+  // so cards share it; a per-site implementation loads each site's project.)
+  useEffect(() => {
+    let active = true;
+    void Promise.all([api.loadProject(), api.listMedia()]).then(([project, media]) => {
+      if (!active) return;
+      try {
+        setThumbHtml(renderHomeThumbnail(project, media));
+      } catch {
+        setThumbHtml(null);
+      }
+    });
     return () => {
       active = false;
     };
@@ -71,9 +131,10 @@ export function ProjectScreen({ api, projectId, onNavigate, onShellChange }: Pro
             ) : (
               <div key={s.id} className="pcms-cardwrap">
                 <button
-                  className="pcms-card"
+                  className="pcms-card pcms-card--site"
                   onClick={() => onNavigate({ screen: "site", siteId: s.id, tab: "info" })}
                 >
+                  <SitePreviewThumb html={thumbHtml} />
                   <span className="pcms-card__title">{s.name}</span>
                   <span className="pcms-card__meta">{s.domain}</span>
                   <span className={`pcms-badge ${s.published ? "is-live" : "is-draft"}`}>

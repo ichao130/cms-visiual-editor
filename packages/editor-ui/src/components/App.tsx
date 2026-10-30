@@ -1,3 +1,4 @@
+/// <reference path="../assets.d.ts" />
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AccountView, PcmsApi, ProjectSummary, SiteSummary } from "../api/types.js";
 import { INITIAL_ROUTE, routeSiteId, type Route } from "../state/route.js";
@@ -8,6 +9,7 @@ import { ProjectScreen } from "../screens/ProjectScreen.js";
 import { SiteScreen } from "../screens/SiteScreen.js";
 import { ThemeEditorScreen } from "../screens/ThemeEditorScreen.js";
 import { t, useLocale, setLocale } from "../i18n.js";
+import kumitoMark from "../assets/kumito-mark.png";
 
 interface AppProps {
   api: PcmsApi;
@@ -124,7 +126,8 @@ export function App({ api }: AppProps) {
     <div className="pcms-shell">
       <header className="pcms-topbar">
         <button className="pcms-topbar__brand" onClick={() => navigate(INITIAL_ROUTE)}>
-          {t("app.brand")}
+          <img className="pcms-topbar__logo" src={kumitoMark} alt="" />
+          <span>{t("app.brand")}</span>
         </button>
         <Breadcrumb
           route={route}

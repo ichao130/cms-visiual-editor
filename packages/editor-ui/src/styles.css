@@ -502,7 +502,8 @@ button.pcms-danger { color: var(--pcms-danger); border-color: var(--pcms-danger-
 .pcms-shell__main { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 
 .pcms-topbar { display: flex; align-items: center; gap: 0.75rem; padding: 0.4rem 1rem; background: var(--pcms-panel); border-bottom: 1px solid var(--pcms-border); box-shadow: var(--pcms-shadow-sm); position: relative; z-index: 5; }
-.pcms-topbar__brand { font-weight: 650; font-size: 0.98rem; letter-spacing: 0.01em; border: none; background: none; box-shadow: none; color: var(--pcms-text); padding: 0.2rem 0.3rem; }
+.pcms-topbar__brand { display: inline-flex; align-items: center; gap: 0.4rem; font-weight: 650; font-size: 0.98rem; letter-spacing: 0.01em; border: none; background: none; box-shadow: none; color: var(--pcms-text); padding: 0.2rem 0.3rem; }
+.pcms-topbar__logo { height: 17px; width: auto; display: block; }
 .pcms-topbar__brand:hover:not(:disabled) { background: none; color: var(--pcms-accent); }
 .pcms-topbar__spacer { flex: 1; }
 .pcms-topbar__account { border: 1px solid var(--pcms-border); border-radius: 999px; padding: 0.3rem 0.8rem; font-size: 0.85rem; }
@@ -536,6 +537,32 @@ button.pcms-danger { color: var(--pcms-danger); border-color: var(--pcms-danger-
 .pcms-card--form { gap: 0.5rem; border-style: dashed; }
 .pcms-card--form input { width: 100%; box-sizing: border-box; font: inherit; padding: 0.4rem 0.5rem; border: 1px solid var(--pcms-border); border-radius: 6px; }
 .pcms-card__formactions { display: flex; gap: 0.4rem; }
+
+/* Site card: home-page preview thumbnail */
+.pcms-card--site { gap: 0.5rem; }
+.pcms-card__preview {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  margin-bottom: 0.15rem;
+  border: 1px solid var(--pcms-border);
+  border-radius: var(--pcms-radius);
+  overflow: hidden;
+  background: #fff;
+}
+.pcms-card__previewframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1200px;
+  height: 750px;
+  border: 0;
+  background: #fff;
+  transform-origin: top left;
+  pointer-events: none;
+}
+.pcms-card__previewempty { position: absolute; inset: 0; background: var(--pcms-sunken); }
+.pcms-card--site:hover .pcms-card__preview { border-color: var(--pcms-accent-border); }
 
 .pcms-badge { font-size: 0.72rem; font-weight: 500; letter-spacing: 0.01em; padding: 0.1rem 0.5rem; border-radius: 999px; }
 .pcms-badge.is-live { background: var(--pcms-success-weak); color: var(--pcms-success); }

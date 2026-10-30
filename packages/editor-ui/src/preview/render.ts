@@ -25,11 +25,11 @@ function itemUrl(item: ContentItem, site: SiteConfig): string {
 }
 
 function buildCollections(
-  state: EditorState,
+  content: ContentItem[],
   site: SiteConfig,
 ): Record<string, ContentItem[]> {
   const byType: Record<string, ContentItem[]> = {};
-  for (const item of state.content) {
+  for (const item of content) {
     const prepared: ContentItem = {
       ...item,
       fields: { ...item.fields, url: itemUrl(item, site) },
@@ -81,7 +81,7 @@ export function renderPreview(
 ): string {
   const site = project.site;
   const theme = state.settings.theme ?? project.theme.config;
-  const collections = buildCollections(state, site);
+  const collections = buildCollections(state.content, site);
   const base = { site, theme, menus: state.menus, collections };
 
   let html: string;
@@ -132,6 +132,41 @@ export function renderPreview(
 
   // The sandboxed iframe can't load site-relative `media/...` paths, so swap
   // media references to their data URLs for display.
+  return inlineMedia(html, media);
+}
+
+/**
+ * Render a site's home page to a full, static HTML document for a thumbnail —
+ * theme CSS only, no editor overlay or runtime script (so it's clean and inert
+ * for a sandboxed, non-interactive preview in the site list).
+ */
+export function renderHomeThumbnail(
+  project: ProjectData,
+  media: MediaItem[] = [],
+): string {
+  const site = project.site;
+  const theme = project.settings.theme ?? project.theme.config;
+  const collections = buildCollections(project.content, site);
+  const base = { site, theme, menus: project.menus, collections };
+  const page = project.settings.pages.index ?? {};
+
+  let html: string;
+  if (page.instances && page.instances.length > 0) {
+    html = renderComposedPage(page.instances, project.theme.sections ?? {}, base, {
+      layout: project.theme.layout,
+    });
+  } else {
+    const scope: RenderScope = { ...base, page };
+    const name = pageTemplateName(project, "index");
+    html = renderTemplate(templateHtml(project, name), scope, {
+      layout: project.theme.layout,
+    });
+  }
+
+  // Strip any theme scripts; the thumbnail iframe is sandboxed with no scripts.
+  html = html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "");
+  const head = `<style>\n${project.previewCss}\n</style>`;
+  html = html.includes("</head>") ? html.replace("</head>", `${head}</head>`) : `${head}${html}`;
   return inlineMedia(html, media);
 }
 
