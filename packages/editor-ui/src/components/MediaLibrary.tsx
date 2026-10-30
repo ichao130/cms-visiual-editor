@@ -34,6 +34,8 @@ interface MediaLibraryProps {
   onDelete?: (item: MediaItem) => void;
   /** When set, each item gets an editable default alt-text field (browse mode). */
   onAltChange?: (item: MediaItem, alt: string) => void;
+  /** Reference count per media path, for the "used N times" badge (browse mode). */
+  usage?: Record<string, number>;
   onImport: () => void;
   onClose: () => void;
 }
@@ -60,6 +62,7 @@ export function MediaLibrary({
   onSelect,
   onDelete,
   onAltChange,
+  usage,
   onImport,
   onClose,
 }: MediaLibraryProps) {
@@ -68,7 +71,14 @@ export function MediaLibrary({
   const q = query.trim().toLowerCase();
   const shown = q ? media.filter((m) => m.fileName.toLowerCase().includes(q)) : media;
   const confirmDelete = (item: MediaItem) => {
-    if (window.confirm(t("media.deleteConfirm").replace("{name}", item.fileName))) {
+    const used = usage?.[item.path] ?? 0;
+    const msg =
+      used > 0
+        ? t("media.deleteUsedConfirm")
+            .replace("{name}", item.fileName)
+            .replace("{count}", String(used))
+        : t("media.deleteConfirm").replace("{name}", item.fileName);
+    if (window.confirm(msg)) {
       onDelete?.(item);
     }
   };
@@ -127,6 +137,15 @@ export function MediaLibrary({
                     <span className="pcms-media__name">{item.fileName}</span>
                     {mediaMeta(item) && (
                       <span className="pcms-media__meta">{mediaMeta(item)}</span>
+                    )}
+                    {usage && (
+                      <span
+                        className={`pcms-media__usage${(usage[item.path] ?? 0) === 0 ? " is-unused" : ""}`}
+                      >
+                        {(usage[item.path] ?? 0) === 0
+                          ? t("media.unused")
+                          : t("media.usedCount").replace("{count}", String(usage[item.path]))}
+                      </span>
                     )}
                     {onAltChange && (
                       <AltField item={item} onCommit={(alt) => onAltChange(item, alt)} />

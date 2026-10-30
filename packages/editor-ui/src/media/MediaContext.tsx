@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import type { MediaItem } from "@pcms/shared";
+import { mediaUsageCounts } from "@pcms/engine";
 import type { PcmsApi } from "../api/types.js";
 import { importImages } from "./import.js";
 import { MediaLibrary } from "../components/MediaLibrary.js";
@@ -53,6 +54,7 @@ export function useMediaLibrary(api: PcmsApi): {
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [importing, setImporting] = useState(false);
   const [mode, setMode] = useState<"closed" | "browse" | "pick">("closed");
+  const [usage, setUsage] = useState<Record<string, number>>({});
   const resolverRef = useRef<((path: string | null) => void) | null>(null);
   const toast = useToast();
 
@@ -98,6 +100,19 @@ export function useMediaLibrary(api: PcmsApi): {
 
   const openLibrary = useCallback(() => setMode("browse"), []);
 
+  // In browse mode, compute how many times each image is referenced across the
+  // site data, so the user can see usage before deleting.
+  useEffect(() => {
+    if (mode !== "browse") return;
+    let active = true;
+    void api.loadProject().then((project) => {
+      if (active) setUsage(mediaUsageCounts(project, media.map((m) => m.path)));
+    });
+    return () => {
+      active = false;
+    };
+  }, [mode, api, media]);
+
   const pickImage = useCallback(
     () =>
       new Promise<string | null>((resolve) => {
@@ -133,6 +148,7 @@ export function useMediaLibrary(api: PcmsApi): {
         onSelect={mode === "pick" ? (item) => settle(item.path) : undefined}
         onDelete={mode === "browse" ? deleteMedia : undefined}
         onAltChange={mode === "browse" ? setMediaAlt : undefined}
+        usage={mode === "browse" ? usage : undefined}
         onClose={() => settle(null)}
       />
     );

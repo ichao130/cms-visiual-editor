@@ -378,6 +378,8 @@ button.pcms-aibtn:hover:not(:disabled) { filter: brightness(1.08); background: v
 .pcms-media__pick:not(:disabled):hover { border-color: var(--pcms-accent); }
 .pcms-media__name { font-size: 0.72rem; color: var(--pcms-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pcms-media__meta { font-size: 0.68rem; color: var(--pcms-muted); opacity: 0.8; white-space: nowrap; }
+.pcms-media__usage { font-size: 0.68rem; color: var(--pcms-accent); white-space: nowrap; }
+.pcms-media__usage.is-unused { color: var(--pcms-muted); }
 .pcms-media__alt { width: 100%; box-sizing: border-box; font: inherit; font-size: 0.72rem; padding: 0.25rem 0.4rem; border: 1px solid var(--pcms-border); border-radius: 4px; }
 
 .pcms-visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }

@@ -54,3 +54,4 @@ export {
   type ImportSource,
   type ImportResult,
 } from "./import.js";
+export { mediaUsageCounts } from "./media.js";
