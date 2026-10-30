@@ -33,6 +33,7 @@ export function ThemeImport({ api, onClose }: Props) {
   const [source, setSource] = useState<ImportSource>("auto");
   const [result, setResult] = useState<ImportResult | null>(null);
   const [partName, setPartName] = useState("");
+  const [target, setTarget] = useState<"section" | "template">("section");
   const [aiBusy, setAiBusy] = useState(false);
   const [saving, setSaving] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -71,8 +72,9 @@ export function ThemeImport({ api, onClose }: Props) {
     if (!result || hasErrors || slug === "") return;
     setSaving(true);
     try {
-      await api.writeThemeFile(`sections/${slug}.html`, result.html);
-      toast(t("themeImport.saved").replace("{name}", slug));
+      const dir = target === "template" ? "templates" : "sections";
+      await api.writeThemeFile(`${dir}/${slug}.html`, result.html);
+      toast(t("themeImport.saved").replace("{name}", `${dir}/${slug}.html`));
       onClose();
     } finally {
       setSaving(false);
@@ -173,6 +175,14 @@ export function ThemeImport({ api, onClose }: Props) {
             </div>
 
             <div className="pcms-themeimport__save">
+              <select
+                value={target}
+                onChange={(e) => setTarget(e.target.value as "section" | "template")}
+                aria-label={t("themeImport.target")}
+              >
+                <option value="section">{t("themeImport.target.section")}</option>
+                <option value="template">{t("themeImport.target.template")}</option>
+              </select>
               <input
                 type="text"
                 value={partName}

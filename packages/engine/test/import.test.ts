@@ -35,8 +35,49 @@ describe("cleanImportedHtml", () => {
     );
     expect(html).toContain("本文");
     expect(html).not.toContain("<title>");
-    expect(html).not.toContain("<style>");
+    // <style> is lifted out of the head and kept (covered in the styles suite).
     expect(notes.some((n) => n.includes("head"))).toBe(true);
+  });
+});
+
+describe("cleanImportedHtml — styles", () => {
+  it("keeps <style> and lifts it above the extracted body", () => {
+    const { html, notes } = cleanImportedHtml(
+      "<html><head><style>.hero{color:red}</style></head><body><section>x</section></body></html>",
+    );
+    expect(html).toContain("<style>");
+    expect(html).toContain(".hero{color:red}");
+    expect(notes.some((n) => n.includes("スタイル"))).toBe(true);
+  });
+});
+
+describe("importThemeHtml — repeats", () => {
+  it("collapses a list of similar cards into one data-repeat item", () => {
+    const raw =
+      '<body><section class="products">' +
+      '<article class="card"><h3>A</h3><p>説明A</p></article>' +
+      '<article class="card"><h3>B</h3><p>説明B</p></article>' +
+      '<article class="card"><h3>C</h3><p>説明C</p></article>' +
+      "</section></body>";
+    const { html, notes } = importThemeHtml(raw);
+    // Exactly one repeat item remains, with bare field names.
+    expect((html.match(/data-repeat=/g) ?? [])).toHaveLength(1);
+    expect((html.match(/<article/g) ?? [])).toHaveLength(1);
+    expect(html).toContain('data-field="f1"');
+    expect(html).not.toContain("説明B");
+    expect(notes.some((n) => n.includes("繰り返し"))).toBe(true);
+  });
+
+  it("does not collapse distinct top-level sections", () => {
+    const raw =
+      "<body>" +
+      '<section class="hero"><h1>見出し</h1></section>' +
+      '<section class="news"><h2>お知らせ</h2></section>' +
+      '<section class="about"><h2>紹介</h2></section>' +
+      "</body>";
+    const { html } = importThemeHtml(raw);
+    expect((html.match(/data-repeat=/g) ?? [])).toHaveLength(0);
+    expect((html.match(/<section/g) ?? [])).toHaveLength(3);
   });
 });
 
