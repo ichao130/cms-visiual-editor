@@ -375,6 +375,49 @@ describe("generateSite", () => {
     expect(out.files["post/page/2/index.html"]).toContain('<link rel="prev" href="/post/">');
   });
 
+  it("holds back scheduled (future-dated) items until their date", () => {
+    const out = generateSite({
+      site: sampleSite(),
+      settings: { pages: {} },
+      contentTypes: [],
+      content: [
+        { type: "post", slug: "past", fields: { title: "公開済み", date: "2026-02-01" }, body: "<p>a</p>" },
+        { type: "post", slug: "future", fields: { title: "予約記事", date: "2026-12-01" }, body: "<p>b</p>" },
+      ],
+      theme: sampleTheme(),
+      now: "2026-06-01",
+    });
+    expect(out.files["post/past/index.html"]).toBeDefined();
+    expect(out.files["post/future/index.html"]).toBeUndefined();
+    expect(out.files["sitemap.xml"]).not.toContain("/post/future/");
+    expect(out.files["feed.xml"]).not.toContain("予約記事");
+    expect(out.files["feed.xml"]).toContain("公開済み");
+  });
+
+  it("publishes a scheduled item once its date has arrived", () => {
+    const content = [
+      { type: "post", slug: "due", fields: { title: "時刻到来", date: "2026-06-01" }, body: "<p>a</p>" },
+    ];
+    const before = generateSite({
+      site: sampleSite(),
+      settings: { pages: {} },
+      contentTypes: [],
+      content,
+      theme: sampleTheme(),
+      now: "2026-05-31",
+    });
+    const after = generateSite({
+      site: sampleSite(),
+      settings: { pages: {} },
+      contentTypes: [],
+      content,
+      theme: sampleTheme(),
+      now: "2026-06-02",
+    });
+    expect(before.files["post/due/index.html"]).toBeUndefined();
+    expect(after.files["post/due/index.html"]).toBeDefined();
+  });
+
   it("excludes draft items from pages, the feed and the sitemap", () => {
     const out = generateSite({
       site: sampleSite(),

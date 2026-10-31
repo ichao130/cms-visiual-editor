@@ -13,6 +13,7 @@ import { NewContentModal } from "../../components/NewContentModal.js";
 import { ContentEditorPanel } from "./ContentEditorPanel.js";
 import { useToast } from "../../state/ToastContext.js";
 import { t } from "../../i18n.js";
+import { isScheduled } from "@pcms/engine";
 
 /** Posts (and custom post types). Pages live in their own view. */
 export function PostsView() {
@@ -25,6 +26,7 @@ export function PostsView() {
   const [checked, setChecked] = useState<Set<string>>(new Set());
 
   const postTypes = doc.contentTypes.filter((tp) => tp.name !== "page");
+  const now = Date.now();
   const q = query.trim().toLowerCase();
   const filtering = q !== "" || status !== "all";
   const posts = doc.content.filter((i) => {
@@ -193,6 +195,12 @@ export function PostsView() {
                           {String(i.fields.title ?? i.slug)}
                           {i.status === "draft" && (
                             <span className="pcms-draftbadge">{t("content.status.draft")}</span>
+                          )}
+                          {i.status !== "draft" && isScheduled(i, now) && (
+                            <span className="pcms-schedbadge">
+                              {t("content.scheduled")}
+                              {typeof i.fields.date === "string" ? `（${i.fields.date}）` : ""}
+                            </span>
                           )}
                         </span>
                         <span className="pcms-itemlist__slug">/{i.slug}</span>

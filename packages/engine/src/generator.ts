@@ -52,6 +52,11 @@ export interface SiteInput {
   media?: MediaItem[];
   /** Redirects (redirects.json): old URL → new URL, emitted as stub pages. */
   redirects?: Redirect[];
+  /**
+   * The moment the site is generated (ms epoch or parseable date). Items dated
+   * after this are scheduled and stay out of the output. Defaults to now.
+   */
+  now?: string | number;
 }
 
 export interface GeneratedSite {
@@ -70,10 +75,14 @@ export interface GeneratedSite {
 export function generateSite(input: SiteInput): GeneratedSite {
   const files: Record<string, string> = {};
 
-  // Draft items are kept in the editor but never generated (CLAUDE.md: AIは下書き
-  // …; drafts stay out of the published site). Filter them before anything else,
-  // so they are absent from pages, loops, archives, the feed and the sitemap.
-  const live = input.content.filter((item) => item.status !== "draft");
+  // Draft and scheduled items are kept in the editor but never generated
+  // (CLAUDE.md: drafts stay out of the published site; a future-dated item is a
+  // scheduled post not yet due). Filter them before anything else, so they are
+  // absent from pages, loops, archives, the feed and the sitemap.
+  const now = input.now != null ? Date.parse(String(input.now)) || Number(input.now) : Date.now();
+  const live = input.content.filter(
+    (item) => item.status !== "draft" && !isScheduled(item, now),
+  );
 
   // Content bodies are stored as HTML (authored in the rich text editor), so
   // they pass through as-is. Attach each item's own permalink up front, so loops
@@ -539,6 +548,20 @@ function feedCategories(item: ContentItem, taxonomies: TaxonomyDef[]): string[] 
     for (const term of toTerms(item.fields[tax.name])) terms.push(term);
   }
   return terms;
+}
+
+/**
+ * Whether a content item is scheduled for the future relative to `now` (ms).
+ * An item with no parseable date is never scheduled (publishes immediately).
+ * A date without a time counts from the start of that day, so a post dated
+ * today is published, not held back.
+ */
+export function isScheduled(item: ContentItem, now: number): boolean {
+  const value = item.fields.date;
+  if (typeof value !== "string" || value.trim() === "") return false;
+  const ms = Date.parse(value.replace(/\//g, "-"));
+  if (Number.isNaN(ms)) return false;
+  return ms > now;
 }
 
 /** Format a stored date ("2026-02-01", "2026/02/01") as an RFC 822 date. */

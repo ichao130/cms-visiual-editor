@@ -271,6 +271,7 @@ const ja = {
   "content.status.all": "すべて",
   "content.status.published": "公開",
   "content.status.draft": "下書き",
+  "content.scheduled": "予約投稿",
   "content.search": "タイトルやスラッグで絞り込み",
   "content.noMatch": "一致する投稿がありません。",
   "content.matchCount": "{count} 件",

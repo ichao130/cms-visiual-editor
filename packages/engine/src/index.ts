@@ -28,6 +28,7 @@ export { renderMarkdown, escapeHtml } from "./markdown.js";
 export { detectFieldType } from "./field-type.js";
 export {
   generateSite,
+  isScheduled,
   type SiteInput,
   type ThemeBundle,
   type GeneratedSite,
