@@ -1,8 +1,9 @@
 import { onRequest } from "firebase-functions/v2/https";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
-import { validateSubmission, type FormConfig } from "./validate.js";
+import { validateSubmission, captchaToken, type FormConfig } from "./validate.js";
 import { composeAutoReply, composeNotification } from "./mail/compose.js";
 import { makeMailer } from "./mail/mailer.js";
+import { makeCaptchaVerifier } from "./captcha/verify.js";
 
 /**
  * Contact-form receiver for static sites (no PHP). CLAUDE.md: 静的サイトからの送信は
@@ -42,6 +43,25 @@ export const submitForm = onRequest({ cors: true }, async (req, res) => {
   if (!result.ok) {
     res.status(400).json({ ok: false, errors: result.errors });
     return;
+  }
+
+  // Real captcha verification (スパム対策) when a secret is configured; the
+  // presence check above is the offline fallback. A verification failure or a
+  // provider outage rejects the submission rather than letting spam through.
+  const verifier = makeCaptchaVerifier();
+  if (verifier && config.requireToken) {
+    const token = captchaToken(body.data as Record<string, unknown>);
+    const remoteIp = (req.headers["cf-connecting-ip"] as string | undefined) ?? req.ip;
+    let verified = false;
+    try {
+      verified = (await verifier.verify(token, remoteIp)).ok;
+    } catch (err) {
+      console.error("captcha verify failed", err);
+    }
+    if (!verified) {
+      res.status(400).json({ ok: false, error: "captcha" });
+      return;
+    }
   }
 
   // Store the submission unless the form is set to forward-only (保存せずメール

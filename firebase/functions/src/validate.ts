@@ -52,6 +52,12 @@ export type SubmissionResult =
 
 const TOKEN_KEYS = ["token", "cf-turnstile-response", "g-recaptcha-response"];
 
+/** The captcha token from a submission (Turnstile / reCAPTCHA / generic), or "". */
+export function captchaToken(data: Record<string, unknown> | undefined): string {
+  const d = data ?? {};
+  return TOKEN_KEYS.map((k) => String(d[k] ?? "").trim()).find((v) => v !== "") ?? "";
+}
+
 export function validateSubmission(
   data: Record<string, unknown> | undefined,
   config: FormConfig,
