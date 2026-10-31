@@ -28,6 +28,19 @@ describe("generateSite", () => {
     expect(files["404.html"]).toContain('<meta name="robots" content="noindex">');
   });
 
+  it("gives sitemap entries a <lastmod> from the content date", () => {
+    const sitemap = files["sitemap.xml"]!;
+    // Item pages carry their own date.
+    expect(sitemap).toContain(
+      "<loc>https://example.test/post/open/</loc><lastmod>2026-02-01</lastmod>",
+    );
+    expect(sitemap).toContain(
+      "<loc>https://example.test/post/hours/</loc><lastmod>2026-02-10</lastmod>",
+    );
+    // A dateless page (home) gets a <loc> but no <lastmod>.
+    expect(sitemap).toContain("<url><loc>https://example.test/</loc></url>");
+  });
+
   it("renders HTML content bodies into item pages", () => {
     const post = files["post/open/index.html"]!;
     expect(post).toContain("<h2>ごあいさつ</h2>");
@@ -161,6 +174,10 @@ describe("generateSite", () => {
     const p2 = out.files["post/page/2/index.html"]!;
     expect(p1).toContain("<title>記事 | テスト珈琲店</title>");
     expect(p2).toContain("<title>記事（2ページ目） | テスト珈琲店</title>");
+    // Archive pages take their <lastmod> from the newest item they list.
+    expect(out.files["sitemap.xml"]).toContain(
+      "<loc>https://example.test/post/</loc><lastmod>2026-02-04</lastmod>",
+    );
   });
 
   it("excludes draft items from pages, the feed and the sitemap", () => {

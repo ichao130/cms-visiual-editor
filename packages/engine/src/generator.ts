@@ -104,6 +104,11 @@ export function generateSite(input: SiteInput): GeneratedSite {
   // them.
   const noindexPaths = new Set<string>();
 
+  // Output path → last-modified date (W3C date, e.g. "2026-02-01") for the
+  // sitemap's <lastmod>. Populated from content item dates; archives use their
+  // newest item. Pages without a known date simply get no <lastmod>.
+  const lastmod = new Map<string, string>();
+
   const siteLd = siteJsonLd(input.site);
   const analytics = analyticsTags(input.site);
   const home: Crumb = { name: input.site.name, url: "/" };
@@ -157,6 +162,8 @@ export function generateSite(input: SiteInput): GeneratedSite {
       // Paginated pages share the listing title; add the page number past the
       // first so titles stay unique across the site.
       const title = n > 1 ? `${opts.title}（${n}ページ目）` : opts.title;
+      const archiveDate = newestDate(opts.items);
+      if (archiveDate) lastmod.set(outPath, archiveDate);
       files[outPath] = finish(outPath, html, [breadcrumbJsonLd(opts.crumbs, input.site)], {
         title,
       });
@@ -197,6 +204,8 @@ export function generateSite(input: SiteInput): GeneratedSite {
     const url = itemUrl(item, input.site);
     const outPath = itemPath(item, input.site);
     if (item.noindex) noindexPaths.add(outPath);
+    const itemDate = w3cDate(item.fields.date);
+    if (itemDate) lastmod.set(outPath, itemDate);
     files[outPath] = finish(
       outPath,
       html,
@@ -276,7 +285,7 @@ export function generateSite(input: SiteInput): GeneratedSite {
   }
 
   // 6. Always-on outputs.
-  files["sitemap.xml"] = buildSitemap(files, input.site, noindexPaths);
+  files["sitemap.xml"] = buildSitemap(files, input.site, noindexPaths, lastmod);
   files["robots.txt"] = buildRobots(input.site);
   files["feed.xml"] = buildFeed(
     content.filter((item) => !item.noindex),
@@ -402,11 +411,16 @@ function buildSitemap(
   files: Record<string, string>,
   site: SiteConfig,
   noindexPaths: Set<string>,
+  lastmod: Map<string, string>,
 ): string {
   const base = site.baseUrl ?? "";
   const urls = Object.keys(files)
     .filter((p) => p.endsWith("index.html") && !noindexPaths.has(p))
-    .map((p) => `  <url><loc>${escapeXml(urlForPath(p, base))}</loc></url>`)
+    .map((p) => {
+      const loc = `<loc>${escapeXml(urlForPath(p, base))}</loc>`;
+      const mod = lastmod.get(p);
+      return `  <url>${loc}${mod ? `<lastmod>${mod}</lastmod>` : ""}</url>`;
+    })
     .join("\n");
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -489,6 +503,24 @@ function rfc822(value: FieldValue | undefined): string | undefined {
   const ms = Date.parse(value.replace(/\//g, "-"));
   if (Number.isNaN(ms)) return undefined;
   return new Date(ms).toUTCString();
+}
+
+/** Format a stored date as a W3C date ("2026-02-01") for sitemap <lastmod>. */
+function w3cDate(value: FieldValue | undefined): string | undefined {
+  if (typeof value !== "string" || value.trim() === "") return undefined;
+  const ms = Date.parse(value.replace(/\//g, "-"));
+  if (Number.isNaN(ms)) return undefined;
+  return new Date(ms).toISOString().slice(0, 10);
+}
+
+/** The newest (latest) W3C date among a set of items, or undefined if none dated. */
+function newestDate(items: ContentItem[]): string | undefined {
+  let best: string | undefined;
+  for (const item of items) {
+    const d = w3cDate(item.fields.date);
+    if (d && (best == null || d > best)) best = d;
+  }
+  return best;
 }
 
 /** Output file path for a redirect source URL ("/post/old/" → "post/old/index.html"). */
