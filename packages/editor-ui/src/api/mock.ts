@@ -39,6 +39,7 @@ import type {
   ThemeFileNode,
   ThemeSummary,
 } from "./types.js";
+import type { VisitStats } from "@pcms/shared";
 import { manifestOf, publishDiff } from "./publishDiff.js";
 
 // Read the sample-cafe theme at build time as raw strings (Vite ?raw). This
@@ -694,6 +695,30 @@ export function createMockApi(): PcmsApi {
         pages: outputCount(),
         visitSeries,
         recentInquiries: mockInquiries,
+      };
+    },
+    async fetchVisitStats(siteId: string, days = 14): Promise<VisitStats> {
+      // No analytics backend in the evaluation build: return deterministic
+      // sample data tagged source "mock" so the dashboard can label it. A real
+      // build calls the Firebase `visitStats` proxy (GA4 / MOKKEDA).
+      const span = Math.min(90, Math.max(1, Math.trunc(days)));
+      const today = Date.UTC(
+        new Date().getUTCFullYear(),
+        new Date().getUTCMonth(),
+        new Date().getUTCDate(),
+      );
+      const active = siteId === ACTIVE_SITE_ID;
+      const seed = [...siteId].reduce((a, c) => (a * 31 + c.charCodeAt(0)) | 0, 7);
+      const series = Array.from({ length: span }, (_, i) => {
+        const date = new Date(today - (span - 1 - i) * 86400000).toISOString().slice(0, 10);
+        const h = Math.abs(((seed + i * 2654435761) ^ (seed >> 3)) % 60);
+        return { date, visits: active ? 40 + h : 0 };
+      });
+      return {
+        total: series.reduce((a, p) => a + p.visits, 0),
+        series,
+        source: "mock",
+        days: span,
       };
     },
     async listThemes(): Promise<ThemeSummary[]> {

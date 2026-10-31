@@ -64,6 +64,8 @@ const api: PcmsApi = {
   renameSite: (projectId: string, siteId: string, name: string) =>
     ipcRenderer.invoke("pcms:renameSite", projectId, siteId, name),
   loadSiteStats: (siteId: string) => ipcRenderer.invoke("pcms:loadSiteStats", siteId),
+  fetchVisitStats: (siteId: string, days?: number) =>
+    ipcRenderer.invoke("pcms:fetchVisitStats", siteId, days),
   listThemes: () => ipcRenderer.invoke("pcms:listThemes"),
   listThemeFiles: () => ipcRenderer.invoke("pcms:listThemeFiles"),
   readThemeFile: (path: string) => ipcRenderer.invoke("pcms:readThemeFile", path),

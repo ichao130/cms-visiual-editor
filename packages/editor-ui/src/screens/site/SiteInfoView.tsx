@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { ContentItem, ContentTypeDef } from "@pcms/shared";
+import type { ContentItem, ContentTypeDef, VisitStats } from "@pcms/shared";
 import type { PcmsApi, SiteStats } from "../../api/types.js";
 import { t } from "../../i18n.js";
 
@@ -46,6 +46,7 @@ export function summarizeContent(
 /** Site overview: analytics tiles, a visit chart, and recent inquiries. */
 export function SiteInfoView({ api, siteId }: Props) {
   const [stats, setStats] = useState<SiteStats | null>(null);
+  const [visit, setVisit] = useState<VisitStats | null>(null);
   const [content, setContent] = useState<ContentSummary | null>(null);
   const [mediaCount, setMediaCount] = useState(0);
   const [redirectCount, setRedirectCount] = useState(0);
@@ -53,6 +54,8 @@ export function SiteInfoView({ api, siteId }: Props) {
   useEffect(() => {
     let active = true;
     void api.loadSiteStats(siteId).then((s) => active && setStats(s));
+    setVisit(null);
+    void api.fetchVisitStats(siteId).then((v) => active && setVisit(v));
     void Promise.all([api.loadProject(), api.listMedia(), api.loadRedirects()]).then(
       ([project, media, redirects]) => {
         if (!active) return;
@@ -85,17 +88,26 @@ export function SiteInfoView({ api, siteId }: Props) {
       )}
 
       <h2 className="pcms-col__title">{t("info.analytics")}</h2>
-      <p className="pcms-note">{t("info.mockNote")}</p>
+      <p className="pcms-note">
+        {visit == null
+          ? t("common.loading")
+          : visit.source === "mock"
+            ? t("info.mockNote")
+            : `${providerLabel(visit.source)} 連携・直近${visit.days}日`}
+      </p>
 
       <div className="pcms-tiles">
-        <Tile label={t("site.stat.visits")} value={stats.visits.toLocaleString()} />
+        <Tile
+          label={t("site.stat.visits")}
+          value={(visit ? visit.total : stats.visits).toLocaleString()}
+        />
         <Tile label={t("site.stat.inquiries")} value={String(stats.inquiries)} />
         <Tile label={t("site.stat.pages")} value={String(stats.pages)} />
       </div>
 
       <section className="pcms-info__block">
         <h2 className="pcms-col__title">{t("info.visitsChart")}</h2>
-        <VisitChart series={stats.visitSeries} />
+        <VisitChart series={(visit ? visit.series.map((p) => p.visits) : stats.visitSeries)} />
       </section>
 
       <section className="pcms-info__block">
@@ -119,6 +131,13 @@ export function SiteInfoView({ api, siteId }: Props) {
       </section>
     </div>
   );
+}
+
+/** Human label for an analytics provider id. */
+function providerLabel(source: string): string {
+  if (source === "ga4") return "Google アナリティクス";
+  if (source === "mokkeda") return "MOKKEDA";
+  return source;
 }
 
 function Tile({ label, value }: { label: string; value: string }) {

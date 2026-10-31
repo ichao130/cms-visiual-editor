@@ -11,7 +11,7 @@ import type {
   ThemeFileNode,
   ThemeSummary,
 } from "@pcms/editor-ui";
-import type { FormDef, FormSubmission } from "@pcms/shared";
+import type { FormDef, FormSubmission, VisitStats } from "@pcms/shared";
 import type { ThemeBundle } from "@pcms/engine";
 import { renameSection } from "@pcms/engine";
 import { loadProject } from "./project.js";
@@ -167,6 +167,16 @@ export async function renameSite(_projectId: string, siteId: string, name: strin
 
 export async function loadSiteStats(): Promise<SiteStats> {
   return { visits: 0, inquiries: 0, pages: 0, visitSeries: [], recentInquiries: [] };
+}
+
+/**
+ * Visit stats for the dashboard. The real read-back goes through the Firebase
+ * `visitStats` callable (GA4 / MOKKEDA); until that cloud wiring lands, return
+ * an empty, clearly-sourced result so the UI shows no fabricated numbers.
+ */
+export async function fetchVisitStats(_siteId: string, days = 14): Promise<VisitStats> {
+  const span = Math.min(90, Math.max(1, Math.trunc(days)));
+  return { total: 0, series: [], source: "mock", days: span };
 }
 
 export async function listThemes(): Promise<ThemeSummary[]> {

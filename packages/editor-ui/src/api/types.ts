@@ -9,6 +9,7 @@ import type {
   SiteConfig,
   SiteSettings,
   TaxonomyDef,
+  VisitStats,
 } from "@pcms/shared";
 import type { AiIssue, ThemeBundle } from "@pcms/engine";
 
@@ -95,6 +96,12 @@ export interface PcmsApi {
   /** Rename a site. */
   renameSite(projectId: string, siteId: string, name: string): Promise<void>;
   loadSiteStats(siteId: string): Promise<SiteStats>;
+  /**
+   * Visit numbers from the configured analytics provider (GA4 / MOKKEDA) via the
+   * Firebase proxy, or deterministic sample data when none is configured
+   * (source "mock"). `days` is the window size (default 14).
+   */
+  fetchVisitStats(siteId: string, days?: number): Promise<VisitStats>;
   listThemes(): Promise<ThemeSummary[]>;
 
   // Theme source files — for theme development / part authoring in the code

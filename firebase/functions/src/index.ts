@@ -4,3 +4,4 @@ initializeApp();
 
 export { submitForm } from "./forms.js";
 export { aiProxy } from "./aiProxy.js";
+export { visitStats } from "./visitStats.js";

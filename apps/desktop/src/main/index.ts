@@ -55,6 +55,7 @@ import {
   deleteSite,
   renameSite,
   loadSiteStats,
+  fetchVisitStats,
   listThemes,
   applyThemeOverlay,
   listThemeFiles,
@@ -207,6 +208,9 @@ function registerIpc(): void {
     renameSite(projectId, siteId, name),
   );
   ipcMain.handle("pcms:loadSiteStats", (_event, _siteId: string) => loadSiteStats());
+  ipcMain.handle("pcms:fetchVisitStats", (_event, siteId: string, days?: number) =>
+    fetchVisitStats(siteId, days),
+  );
   ipcMain.handle("pcms:listThemes", () => listThemes());
   ipcMain.handle("pcms:listThemeFiles", () => listThemeFiles());
   ipcMain.handle("pcms:readThemeFile", (_event, path: string) => readThemeFile(path));

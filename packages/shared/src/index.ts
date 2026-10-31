@@ -77,6 +77,29 @@ export interface AnalyticsConfig {
   headSnippet?: string;
 }
 
+/** One day's visit count, for the visit-stats series. */
+export interface VisitPoint {
+  /** W3C date, e.g. "2026-02-01". */
+  date: string;
+  visits: number;
+}
+
+/**
+ * Visit numbers read back from the site's analytics provider (GA4 Data API or
+ * MOKKEDA) through the Firebase proxy. `source` names the provider ("ga4",
+ * "mokkeda") or "mock" when none is configured, so the UI can label sample data.
+ */
+export interface VisitStats {
+  /** Total visits over the window. */
+  total: number;
+  /** Per-day visits, oldest first. */
+  series: VisitPoint[];
+  /** Provider the numbers came from: "ga4" | "mokkeda" | "mock". */
+  source: string;
+  /** Number of days the window covers. */
+  days: number;
+}
+
 /**
  * A stored redirect (redirects.json). Auto-added when a content URL changes
  * (e.g. the permalink pattern is edited), so old links keep working. Both are
