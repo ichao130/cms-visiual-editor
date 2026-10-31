@@ -30,6 +30,7 @@ export { blocksToHtml, htmlToBlocks, type Block } from "./blocks.js";
 export {
   generateSite,
   isScheduled,
+  contentUrl,
   type SiteInput,
   type ThemeBundle,
   type GeneratedSite,

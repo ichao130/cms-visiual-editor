@@ -318,6 +318,11 @@ function itemUrl(item: ContentItem, site: SiteConfig): string {
   return "/" + itemPath(item, site).replace(/index\.html$/, "");
 }
 
+/** Public site-relative URL of a content item (e.g. "/post/open/"), for the UI. */
+export function contentUrl(item: ContentItem, site: SiteConfig): string {
+  return itemUrl(item, site);
+}
+
 /**
  * An item's last-modified date: an explicit `updated`/`modified` field when
  * present, else its publication date. Drives og `article:modified_time` and the

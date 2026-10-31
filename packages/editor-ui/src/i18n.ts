@@ -156,6 +156,8 @@ const ja = {
   "menu.pick": "メニュー",
   "menu.label": "ラベル",
   "menu.add": "＋項目を追加",
+  "menu.pickTarget": "ページから選ぶ",
+  "menu.home": "ホーム",
   "content.delete": "削除",
   "content.deleteConfirm": "このコンテンツを削除しますか？この操作は元に戻せません。",
   "new.title": "新規作成",

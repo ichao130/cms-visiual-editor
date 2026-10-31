@@ -2,13 +2,21 @@ import { useState } from "react";
 import type { MenuItem } from "@pcms/shared";
 import { t } from "../i18n.js";
 
+/** A page/post the operator can link to, offered in the menu link picker. */
+export interface LinkTarget {
+  label: string;
+  url: string;
+}
+
 interface MenuManagerProps {
   menus: Record<string, MenuItem[]>;
   onCommit: (name: string, items: MenuItem[]) => void;
+  /** Existing pages/posts/archives, so URLs can be picked instead of typed. */
+  targets?: LinkTarget[];
 }
 
 /** Edit navigation menus (label + URL, add / remove / reorder). */
-export function MenuManager({ menus, onCommit }: MenuManagerProps) {
+export function MenuManager({ menus, onCommit, targets = [] }: MenuManagerProps) {
   const names = Object.keys(menus).length ? Object.keys(menus) : ["menu"];
   const [selected, setSelected] = useState(names[0] as string);
   const items = menus[selected] ?? [];
@@ -60,6 +68,30 @@ export function MenuManager({ menus, onCommit }: MenuManagerProps) {
               onChange={(e) => update(i, { url: e.target.value })}
               placeholder="/path/"
             />
+            {targets.length > 0 && (
+              <select
+                className="pcms-menuitem__pick"
+                value=""
+                aria-label={t("menu.pickTarget")}
+                onChange={(e) => {
+                  const target = targets.find((tg) => tg.url === e.target.value);
+                  if (!target) return;
+                  // Fill the label too when it is still empty or the default.
+                  const patch: Partial<MenuItem> =
+                    it.label.trim() === "" || it.label === "新しい項目"
+                      ? { url: target.url, label: target.label }
+                      : { url: target.url };
+                  update(i, patch);
+                }}
+              >
+                <option value="">{t("menu.pickTarget")}</option>
+                {targets.map((tg) => (
+                  <option key={tg.url} value={tg.url}>
+                    {tg.label}
+                  </option>
+                ))}
+              </select>
+            )}
             <div className="pcms-menuitem__actions">
               <button type="button" onClick={() => move(i, -1)} disabled={i === 0}>
                 ↑
