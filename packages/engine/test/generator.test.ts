@@ -122,6 +122,55 @@ describe("generateSite", () => {
     expect(files["post/open/index.html"]!).not.toContain('"author"');
   });
 
+  it("defaults html lang / og:locale / feed language to Japanese", () => {
+    // The sample layout writes lang="ja"; the engine keeps it and emits locale.
+    expect(files["index.html"]!).toContain('<html lang="ja">');
+    const head = files["index.html"]!.slice(0, files["index.html"]!.indexOf("</head>"));
+    expect(head).toContain('<meta property="og:locale" content="ja_JP">');
+    expect(files["feed.xml"]!).toContain("<language>ja</language>");
+  });
+
+  it("applies a configured site language everywhere, adding lang when the theme omits it", () => {
+    const out = generateSite({
+      site: { name: "Cafe", baseUrl: "https://example.test", lang: "en" },
+      settings: { pages: { index: {} } },
+      contentTypes: [],
+      content: [],
+      theme: {
+        config: {},
+        // No lang attribute on <html> — the engine must add one.
+        layout: "<html><head></head><body><main data-slot=\"content\"></main></body></html>",
+        templates: { index: "<section>home</section>" },
+      },
+    });
+    const home = out.files["index.html"]!;
+    expect(home).toContain('<html lang="en">');
+    expect(home.slice(0, home.indexOf("</head>"))).toContain(
+      '<meta property="og:locale" content="en_US">',
+    );
+    expect(out.files["feed.xml"]!).toContain("<language>en</language>");
+  });
+
+  it("derives og:locale from a region-tagged language", () => {
+    const out = generateSite({
+      site: { name: "Cafe", lang: "en-GB" },
+      settings: { pages: { index: {} } },
+      contentTypes: [],
+      content: [],
+      theme: {
+        config: {},
+        layout: "<html lang=\"xx\"><head></head><body><main data-slot=\"content\"></main></body></html>",
+        templates: { index: "<section>home</section>" },
+      },
+    });
+    const home = out.files["index.html"]!;
+    // The theme's placeholder lang is replaced with the configured one.
+    expect(home).toContain('<html lang="en-GB">');
+    expect(home.slice(0, home.indexOf("</head>"))).toContain(
+      '<meta property="og:locale" content="en_GB">',
+    );
+  });
+
   it("uses an explicit updated field for the modified date", () => {
     const out = generateSite({
       site: sampleSite(),

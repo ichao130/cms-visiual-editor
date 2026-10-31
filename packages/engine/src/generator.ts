@@ -20,6 +20,7 @@ import {
   injectHeadMeta,
   injectHeadStyle,
   injectHeadTitle,
+  injectHtmlLang,
   injectJsonLd,
   siteJsonLd,
   type Crumb,
@@ -111,6 +112,8 @@ export function generateSite(input: SiteInput): GeneratedSite {
 
   const siteLd = siteJsonLd(input.site);
   const analytics = analyticsTags(input.site);
+  // Content language, applied to <html lang>, the feed and og:locale.
+  const lang = (input.site.lang ?? "ja").trim() || "ja";
   const home: Crumb = { name: input.site.name, url: "/" };
   // `path` is the page's own output path (for its canonical URL). `opts` carries
   // per-page head overrides (title, description, og:type) applied to this page
@@ -127,6 +130,7 @@ export function generateSite(input: SiteInput): GeneratedSite {
     out = injectHeadStyle(out, RESPONSIVE_CSS);
     out = injectHeadMeta(out, siteHeadMeta(input.site, metaOpts) + pageHeadMeta(path, input.site));
     if (analytics) out = injectHeadMeta(out, analytics);
+    out = injectHtmlLang(out, lang);
     return injectHeadTitle(out, title);
   };
   const typeLabel = (type: string): string =>
@@ -484,7 +488,7 @@ function buildFeed(
     `    <title>${escapeXml(site.name)}</title>`,
     `    <link>${escapeXml(base)}</link>`,
     `    <description>${channelDesc}</description>`,
-    `    <language>ja</language>`,
+    `    <language>${escapeXml((site.lang ?? "ja").trim() || "ja")}</language>`,
     `    <atom:link href="${escapeXml(selfLink)}" rel="self" type="application/rss+xml"/>`,
   ];
   if (lastBuild) channel.push(`    <lastBuildDate>${lastBuild}</lastBuildDate>`);
@@ -514,6 +518,21 @@ function rfc822(value: FieldValue | undefined): string | undefined {
   const ms = Date.parse(value.replace(/\//g, "-"));
   if (Number.isNaN(ms)) return undefined;
   return new Date(ms).toUTCString();
+}
+
+/**
+ * Open Graph locale ("ja_JP", "en_US") from a BCP 47 language tag. A tag with a
+ * region ("en-US") maps to "en_US"; a bare language uses a small default-region
+ * table (ja→ja_JP, en→en_US) and otherwise repeats the language ("fr"→"fr_FR"
+ * is not assumed — unknown bare tags fall back to just the language).
+ */
+function ogLocale(lang: string | undefined): string {
+  const tag = (lang ?? "ja").trim() || "ja";
+  const [primary, region] = tag.split(/[-_]/);
+  const lc = (primary ?? "ja").toLowerCase();
+  if (region) return `${lc}_${region.toUpperCase()}`;
+  const defaults: Record<string, string> = { ja: "ja_JP", en: "en_US" };
+  return defaults[lc] ?? lc;
 }
 
 /** Format a stored date as a W3C date ("2026-02-01") for sitemap <lastmod>. */
@@ -650,6 +669,7 @@ function siteHeadMeta(site: SiteConfig, opts?: PageMetaOpts): string {
   const tags: string[] = [
     `<meta property="og:site_name" content="${escapeXml(site.name)}">`,
     `<meta property="og:type" content="${escapeXml(opts?.ogType ?? "website")}">`,
+    `<meta property="og:locale" content="${escapeXml(ogLocale(site.lang))}">`,
   ];
   // Published but hidden from search: keep following links, just don't index.
   if (opts?.noindex) {

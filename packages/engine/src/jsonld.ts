@@ -116,6 +116,22 @@ export function injectHeadTitle(html: string, title: string): string {
   return `${tag}${html}`;
 }
 
+/**
+ * Ensure the document's `<html>` element carries a `lang` attribute. When the
+ * tag already has a `lang`, it is replaced with `lang`; when it has none, one is
+ * added. A document with no `<html>` tag is returned unchanged (the renderer
+ * always produces one, but imported fragments may not). Keeps `lang` correct
+ * for screen readers and search engines regardless of what the theme wrote.
+ */
+export function injectHtmlLang(html: string, lang: string): string {
+  if (!lang) return html;
+  const safe = lang.replace(/"/g, "");
+  return html.replace(/<html\b([^>]*)>/i, (_m, attrs: string) => {
+    const without = attrs.replace(/\s+lang\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/i, "");
+    return `<html${without} lang="${safe}">`;
+  });
+}
+
 export function injectJsonLd(html: string, objects: object[]): string {
   if (objects.length === 0) return html;
   const scripts = objects

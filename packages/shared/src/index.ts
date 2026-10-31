@@ -45,6 +45,11 @@ export interface SiteConfig {
   logo?: string;
   /** Permalink pattern for content items, e.g. "/:type/:slug/". Default per type. */
   permalink?: string;
+  /**
+   * Content language (BCP 47), e.g. "ja" or "en". Applied to the output's
+   * `<html lang>`, the RSS `<language>`, and `og:locale`. Default "ja".
+   */
+  lang?: string;
   /** Items per page on archive / taxonomy listings. Default 10. */
   archivePageSize?: number;
   ogpDefault?: {

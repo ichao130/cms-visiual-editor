@@ -96,6 +96,14 @@ export function SiteSettingsView() {
           placeholder="/:type/:slug/"
         />
       </label>
+      <label className="pcms-field">
+        <span className="pcms-field__label">{t("siteSettings.lang")}</span>
+        <input
+          value={site.lang ?? ""}
+          onChange={(e) => update({ lang: e.target.value.trim() || undefined })}
+          placeholder="ja"
+        />
+      </label>
       <ImageField
         label={t("siteSettings.logo")}
         value={site.logo ?? ""}

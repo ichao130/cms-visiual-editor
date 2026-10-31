@@ -306,6 +306,7 @@ const ja = {
   "siteSettings.name": "サイト名",
   "siteSettings.baseUrl": "公開URL",
   "siteSettings.permalink": "パーマリンク形式",
+  "siteSettings.lang": "言語（lang）",
   "siteSettings.logo": "ロゴ画像のパス",
   "siteSettings.archivePageSize": "一覧ページの表示件数",
   "siteSettings.section.basic": "基本",
