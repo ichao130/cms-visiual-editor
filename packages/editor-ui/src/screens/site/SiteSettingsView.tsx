@@ -63,6 +63,14 @@ export function SiteSettingsView() {
     update({ verificationTags: next });
   };
 
+  const updateAnalytics = (patch: Partial<NonNullable<SiteConfig["analytics"]>>) => {
+    const next = { ...site.analytics, ...patch };
+    // Drop empty fields so an unset config stays undefined (no empty object).
+    if (!next.ga4) delete next.ga4;
+    if (!next.headSnippet) delete next.headSnippet;
+    update({ analytics: Object.keys(next).length > 0 ? next : undefined });
+  };
+
   return (
     <div className="pcms-settingsview">
       <h1 className="pcms-page__title">{t("site.tab.settings")}</h1>
@@ -136,6 +144,26 @@ export function SiteSettingsView() {
         <input
           value={site.verificationTags?.bing ?? ""}
           onChange={(e) => updateVerification("bing", e.target.value)}
+        />
+      </label>
+
+      <h2 className="pcms-settingsview__section">{t("siteSettings.section.analytics")}</h2>
+      <p className="pcms-field__hint">{t("siteSettings.analyticsHint")}</p>
+      <label className="pcms-field">
+        <span className="pcms-field__label">{t("siteSettings.ga4")}</span>
+        <input
+          value={site.analytics?.ga4 ?? ""}
+          onChange={(e) => updateAnalytics({ ga4: e.target.value.trim() || undefined })}
+          placeholder="G-XXXXXXXXXX"
+        />
+      </label>
+      <label className="pcms-field">
+        <span className="pcms-field__label">{t("siteSettings.analyticsSnippet")}</span>
+        <textarea
+          value={site.analytics?.headSnippet ?? ""}
+          onChange={(e) => updateAnalytics({ headSnippet: e.target.value || undefined })}
+          rows={4}
+          placeholder="<!-- 解析サービスのタグを貼り付け（例: MOKKEDA） -->"
         />
       </label>
     </div>

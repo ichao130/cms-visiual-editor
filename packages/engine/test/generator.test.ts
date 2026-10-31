@@ -213,6 +213,45 @@ describe("generateSite", () => {
     expect(plainHead).toContain('<meta name="description" content="駅前の小さな自家焙煎珈琲店です。">');
   });
 
+  it("injects the GA4 gtag snippet into every page when a measurement ID is set", () => {
+    const site = { ...sampleSite(), analytics: { ga4: "G-ABC123" } };
+    const out = generateSite({
+      site,
+      settings: sampleSettings(),
+      contentTypes: [],
+      content: [{ type: "post", slug: "p", fields: { title: "記事" }, body: "<p>x</p>" }],
+      theme: sampleTheme(),
+    });
+    for (const path of ["index.html", "post/p/index.html"]) {
+      const head = out.files[path]!.split("</head>")[0]!;
+      expect(head, path).toContain(
+        'src="https://www.googletagmanager.com/gtag/js?id=G-ABC123"',
+      );
+      expect(head, path).toContain("gtag('config','G-ABC123')");
+    }
+  });
+
+  it("injects a custom analytics snippet verbatim and ignores a malformed GA4 id", () => {
+    const site = {
+      ...sampleSite(),
+      analytics: { ga4: "not-an-id", headSnippet: '<script src="https://mokkeda.example/t.js"></script>' },
+    };
+    const out = generateSite({
+      site,
+      settings: sampleSettings(),
+      contentTypes: [],
+      content: [],
+      theme: sampleTheme(),
+    });
+    const head = out.files["index.html"]!.split("</head>")[0]!;
+    expect(head).toContain('<script src="https://mokkeda.example/t.js"></script>');
+    expect(head).not.toContain("googletagmanager");
+  });
+
+  it("adds no analytics tags when none are configured", () => {
+    expect(files["index.html"]).not.toContain("googletagmanager");
+  });
+
   it("emits redirect stub pages and a _redirects file", () => {
     const out = generateSite({
       site: sampleSite(),

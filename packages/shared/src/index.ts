@@ -53,6 +53,23 @@ export interface SiteConfig {
   };
   /** Site verification meta tags, keyed by provider. */
   verificationTags?: Record<string, string>;
+  /** Access-analytics tags injected into every published page's <head>. */
+  analytics?: AnalyticsConfig;
+}
+
+/**
+ * Access-analytics configuration. Only public tracking tags live here (a GA4
+ * Measurement ID is public), never API secrets — reporting-API credentials
+ * belong in the Firebase proxy, not in site.json.
+ */
+export interface AnalyticsConfig {
+  /** Google Analytics 4 Measurement ID, e.g. "G-XXXXXXXXXX". */
+  ga4?: string;
+  /**
+   * Any other analytics / heatmap service's tag (e.g. MOKKEDA), inserted
+   * verbatim into the published <head>. Operator-provided; output only.
+   */
+  headSnippet?: string;
 }
 
 /**

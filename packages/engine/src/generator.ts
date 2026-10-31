@@ -105,6 +105,7 @@ export function generateSite(input: SiteInput): GeneratedSite {
   const noindexPaths = new Set<string>();
 
   const siteLd = siteJsonLd(input.site);
+  const analytics = analyticsTags(input.site);
   const home: Crumb = { name: input.site.name, url: "/" };
   // `path` is the page's own output path (for its canonical URL). `opts` carries
   // per-page head overrides (title, description, og:type) applied to this page
@@ -120,6 +121,7 @@ export function generateSite(input: SiteInput): GeneratedSite {
     let out = injectJsonLd(html, [...siteLd, ...extra]);
     out = injectHeadStyle(out, RESPONSIVE_CSS);
     out = injectHeadMeta(out, siteHeadMeta(input.site, metaOpts) + pageHeadMeta(path, input.site));
+    if (analytics) out = injectHeadMeta(out, analytics);
     return injectHeadTitle(out, title);
   };
   const typeLabel = (type: string): string =>
@@ -635,6 +637,30 @@ function siteHeadMeta(site: SiteConfig, opts?: PageMetaOpts): string {
     }
   }
   return tags.join("");
+}
+
+/**
+ * Access-analytics `<head>` tags for the published site: the GA4 gtag snippet
+ * (when a valid Measurement ID is set) and any operator-provided custom tag
+ * (e.g. MOKKEDA), inserted verbatim. Output only — these never run in the
+ * editor preview, which does not go through generateSite.
+ */
+function analyticsTags(site: SiteConfig): string {
+  const a = site.analytics;
+  if (!a) return "";
+  const parts: string[] = [];
+  const ga = (a.ga4 ?? "").trim();
+  // Only a well-formed Measurement ID is emitted, so the id can't inject markup.
+  if (/^G-[A-Z0-9]+$/i.test(ga)) {
+    parts.push(
+      `<script async src="https://www.googletagmanager.com/gtag/js?id=${ga}"></script>` +
+        `<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}` +
+        `gtag('js',new Date());gtag('config','${ga}');</script>`,
+    );
+  }
+  const snippet = (a.headSnippet ?? "").trim();
+  if (snippet) parts.push(snippet);
+  return parts.join("");
 }
 
 function escapeXml(text: string): string {
