@@ -14,7 +14,8 @@
     "test:e2e": "playwright test",
     "lint": "eslint .",
     "typecheck": "pnpm -r typecheck",
-    "firebase:emu": "firebase emulators:start --only functions,firestore,storage,auth"
+    "firebase:emu": "firebase emulators:start --only functions,firestore,storage,auth",
+    "test:rules": "firebase emulators:exec --only firestore,storage --project demo-pcms --config firebase/firebase.json \"vitest run firebase/functions/test/firestore.rules.test.ts firebase/functions/test/storage.rules.test.ts\""
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",

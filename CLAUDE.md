@@ -68,6 +68,7 @@ pnpm test:e2e            # Playwright
 pnpm lint && pnpm typecheck
 pnpm build               # 手元のOS向けにビルド
 pnpm firebase:emu        # Firebaseエミュレーター起動
+pnpm test:rules          # Firestore/Storage ルールをエミュレーター上で検証（要 Java/JRE）
 pnpm sftp:test           # Dockerでテスト用SFTPサーバーを起動
 ```
 

@@ -39,12 +39,19 @@ describe.skipIf(!up)("storage.rules", () => {
     const owner = env.authenticatedContext(OWNER).storage();
     await assertSucceeds(uploadString(ref(owner, "users/owner-1/media.webp"), "x"));
     await assertSucceeds(getBytes(ref(owner, "users/owner-1/backup.enc")));
+    // The backup store writes nested paths (users/{uid}/backups/<id>.json) —
+    // the {allPaths=**} glob must cover those too.
+    await assertSucceeds(
+      uploadString(ref(owner, "users/owner-1/backups/20260101120000-abc.json"), "{}"),
+    );
   });
 
   it("blocks access to another user's files", async () => {
     const other = env.authenticatedContext(OTHER).storage();
     await assertFails(getBytes(ref(other, "users/owner-1/backup.enc")));
     await assertFails(uploadString(ref(other, "users/owner-1/evil.txt"), "x"));
+    // Another user cannot read someone's encrypted backups either.
+    await assertFails(getBytes(ref(other, "users/owner-1/backups/20260101120000-abc.json")));
   });
 
   it("blocks unauthenticated access", async () => {
