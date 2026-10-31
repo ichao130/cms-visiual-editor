@@ -1,6 +1,8 @@
 import { onRequest } from "firebase-functions/v2/https";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { validateSubmission, type FormConfig } from "./validate.js";
+import { composeAutoReply, composeNotification } from "./mail/compose.js";
+import { makeMailer } from "./mail/mailer.js";
 
 /**
  * Contact-form receiver for static sites (no PHP). CLAUDE.md: 静的サイトからの送信は
@@ -42,13 +44,33 @@ export const submitForm = onRequest({ cors: true }, async (req, res) => {
     return;
   }
 
-  await db.collection(`sites/${siteId}/submissions`).add({
-    formId,
-    fields: result.fields,
-    createdAt: FieldValue.serverTimestamp(),
-  });
+  // Store the submission unless the form is set to forward-only (保存せずメール
+  // 転送だけ — CLAUDE.md privacy option).
+  const stored = config.storeSubmission !== false;
+  if (stored) {
+    await db.collection(`sites/${siteId}/submissions`).add({
+      formId,
+      fields: result.fields,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  }
 
-  // Notification mail / auto-reply (複数宛先・自動返信) are a later step; the
-  // foundation stores the submission and the owner reads it in the app.
-  res.json({ ok: true });
+  // Notification mail (複数宛先) + auto-reply (自動返信). A mail failure must not
+  // fail the submission the visitor just made, so each send is best-effort.
+  const siteName = (formSnap.get("siteName") as string | undefined) ?? undefined;
+  const mailer = makeMailer();
+  const messages = [
+    composeNotification(config, result.fields, { siteName }),
+    composeAutoReply(config, result.fields),
+  ];
+  for (const message of messages) {
+    if (!message) continue;
+    try {
+      await mailer.send(message);
+    } catch (err) {
+      console.error("form mail failed", err);
+    }
+  }
+
+  res.json({ ok: true, stored });
 });

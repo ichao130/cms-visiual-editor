@@ -7,6 +7,8 @@
 
 export interface FormFieldDef {
   name: string;
+  /** Human label, used in notification / auto-reply mail. */
+  label?: string;
   required?: boolean;
   maxLength?: number;
   /** Field type; "email" adds a format check. Others are treated as free text. */
@@ -18,11 +20,29 @@ export interface FormFieldDef {
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export interface FormConfig {
+  /** Form display name, used in mail subjects. */
+  name?: string;
   fields: FormFieldDef[];
   /** Hidden field that must stay empty; non-empty means a bot. */
   honeypotField?: string;
   /** Require a captcha token field to be present. */
   requireToken?: boolean;
+  /** Notification recipients (複数宛先). */
+  notifyEmails?: string[];
+  /** Override the notification subject. */
+  notifySubject?: string;
+  /** Send an auto-reply to the submitter's email field. */
+  autoReply?: boolean;
+  /** Override the auto-reply subject / body. */
+  autoReplySubject?: string;
+  autoReplyBody?: string;
+  /** Message shown on the completion page (also the auto-reply fallback body). */
+  completionMessage?: string;
+  /**
+   * Store the submission in Firestore. Default true; false = 「保存せずメール
+   * 転送だけ」 (CLAUDE.md privacy option) — only the notification mail is sent.
+   */
+  storeSubmission?: boolean;
 }
 
 export type SubmissionResult =
