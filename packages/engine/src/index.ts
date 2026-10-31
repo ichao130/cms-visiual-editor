@@ -55,3 +55,4 @@ export {
   type ImportResult,
 } from "./import.js";
 export { mediaUsageCounts } from "./media.js";
+export { preflight, type PreflightIssue, type SiteFileSet } from "./preflight.js";

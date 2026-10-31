@@ -18,6 +18,7 @@ import {
   draftText,
   rewriteText,
   seoSuggest,
+  preflight,
 } from "@pcms/engine";
 import type { ThemeBundle } from "@pcms/engine";
 import type {
@@ -28,6 +29,7 @@ import type {
   ProjectData,
   ProjectSummary,
   PublishHistoryEntry,
+  PublishIssue,
   PublishPreview,
   PublishReport,
   SiteStats,
@@ -245,9 +247,9 @@ function saveJson(key: string, value: unknown): void {
 
 const MOCK_TARGET = "ブラウザのモック（実際の送信は行いません）";
 
-/** Count the pages the engine would generate — a real preview number. */
-function outputCount(): number {
-  const generated = generateSite({
+/** Generate the whole site output, as the engine would for a publish. */
+function generateMockSite(): Record<string, string> {
+  return generateSite({
     site: { name: "テスト珈琲店", baseUrl: "https://example.test", permalink: "/:type/:slug/" },
     settings: loadDraft() ?? defaultSettings,
     contentTypes: loadTypes(),
@@ -255,8 +257,17 @@ function outputCount(): number {
     theme: buildTheme(),
     menus: loadMenus(),
     taxonomies: loadTaxonomies(),
-  });
-  return Object.keys(generated.files).length;
+  }).files;
+}
+
+/** Count the pages the engine would generate — a real preview number. */
+function outputCount(): number {
+  return Object.keys(generateMockSite()).length;
+}
+
+/** Run the real pre-publish checks over the generated output. */
+function preflightIssues(): PublishIssue[] {
+  return preflight(generateMockSite());
 }
 
 // ---------------------------------------------------------------------------
@@ -471,12 +482,32 @@ export function createMockApi(): PcmsApi {
       /* no-op in the mock */
     },
     async previewPublish(): Promise<PublishPreview> {
-      return { issues: [], upload: outputCount(), delete: 0, unchanged: 0, target: MOCK_TARGET };
+      return {
+        issues: preflightIssues(),
+        upload: outputCount(),
+        delete: 0,
+        unchanged: 0,
+        target: MOCK_TARGET,
+      };
     },
     async publishSite(): Promise<PublishReport> {
+      const issues = preflightIssues();
+      const blocked = issues.some((i) => i.level === "error");
+      if (blocked) {
+        return {
+          ok: false,
+          blocked: true,
+          issues,
+          uploaded: 0,
+          deleted: 0,
+          unchanged: 0,
+          target: MOCK_TARGET,
+          publishedAt: new Date().toISOString(),
+        };
+      }
       return {
         ok: true,
-        issues: [],
+        issues,
         uploaded: outputCount(),
         deleted: 0,
         unchanged: 0,
