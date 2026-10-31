@@ -9,6 +9,7 @@ import { SiteInfoView } from "./site/SiteInfoView.js";
 import { PostsView } from "./site/PostsView.js";
 import { PagesView } from "./site/PagesView.js";
 import { FormsView } from "./site/FormsView.js";
+import { RedirectsView } from "./site/RedirectsView.js";
 import { SiteSettingsView } from "./site/SiteSettingsView.js";
 import { ThemeView } from "./site/ThemeView.js";
 import { PublishFlow } from "../components/PublishFlow.js";
@@ -65,6 +66,7 @@ const NAV: NavGroup[] = [
     heading: "nav.group.ops",
     items: [
       { kind: "tab", id: "forms", label: "site.tab.forms" },
+      { kind: "tab", id: "redirects", label: "site.tab.redirects" },
       { kind: "tab", id: "publish", label: "site.tab.publish" },
     ],
   },
@@ -178,6 +180,7 @@ export function SiteScreen({ api, route, onNavigate }: Props) {
           )}
           {tab === "menus" && <MenuManager menus={doc.menus} onCommit={onMenuCommit} />}
           {tab === "forms" && <FormsView api={api} siteId={siteId} />}
+          {tab === "redirects" && <RedirectsView api={api} siteId={siteId} />}
           {tab === "settings" && <SiteSettingsView />}
           {tab === "theme" && <ThemeView api={api} siteId={siteId} onNavigate={onNavigate} />}
           {tab === "publish" && (

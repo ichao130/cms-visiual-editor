@@ -5,6 +5,7 @@ import type {
   FormSubmission,
   MediaItem,
   MenuItem,
+  Redirect,
   SiteConfig,
   SiteSettings,
   TaxonomyDef,
@@ -115,6 +116,11 @@ export interface PcmsApi {
   listForms(): Promise<FormDef[]>;
   saveForms(forms: FormDef[]): Promise<void>;
   listSubmissions(formId: string): Promise<FormSubmission[]>;
+
+  // Redirects (redirects.json). Auto-added when the permalink pattern changes,
+  // and editable here so the operator can review, add or remove mappings.
+  loadRedirects(): Promise<Redirect[]>;
+  saveRedirects(redirects: Redirect[]): Promise<void>;
 }
 
 // ---------------------------------------------------------------------------

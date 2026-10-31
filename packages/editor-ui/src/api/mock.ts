@@ -729,6 +729,12 @@ export function createMockApi(): PcmsApi {
     async listSubmissions(formId: string): Promise<FormSubmission[]> {
       return mockSubmissions.filter((s) => s.formId === formId);
     },
+    async loadRedirects(): Promise<Redirect[]> {
+      return loadRedirects();
+    },
+    async saveRedirects(redirects: Redirect[]): Promise<void> {
+      saveJson(REDIRECTS_KEY, redirects);
+    },
     async deleteContent(type: string, slug: string): Promise<void> {
       const next = loadContent().filter((i) => !(i.type === type && i.slug === slug));
       saveJson(CONTENT_KEY, next);

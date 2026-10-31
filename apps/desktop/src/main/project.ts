@@ -275,7 +275,7 @@ function redirectsPath(): string {
   return join(siteDir(), "redirects.json");
 }
 
-function loadRedirects(): Redirect[] {
+export function loadRedirects(): Redirect[] {
   const path = redirectsPath();
   if (!existsSync(path)) return [];
   try {
@@ -283,6 +283,10 @@ function loadRedirects(): Redirect[] {
   } catch {
     return [];
   }
+}
+
+export function saveRedirects(redirects: Redirect[]): void {
+  writeFileSync(redirectsPath(), JSON.stringify(redirects, null, 2), "utf8");
 }
 
 /** A content item's URL under a given permalink pattern ("/post/open/"). */

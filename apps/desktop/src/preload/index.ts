@@ -4,6 +4,7 @@ import type {
   ContentTypeDef,
   FormDef,
   MenuItem,
+  Redirect,
   SiteConfig,
   SiteSettings,
   TaxonomyDef,
@@ -75,6 +76,8 @@ const api: PcmsApi = {
   listForms: () => ipcRenderer.invoke("pcms:listForms"),
   saveForms: (forms: FormDef[]) => ipcRenderer.invoke("pcms:saveForms", forms),
   listSubmissions: (formId: string) => ipcRenderer.invoke("pcms:listSubmissions", formId),
+  loadRedirects: () => ipcRenderer.invoke("pcms:loadRedirects"),
+  saveRedirects: (redirects: Redirect[]) => ipcRenderer.invoke("pcms:saveRedirects", redirects),
 };
 
 contextBridge.exposeInMainWorld("pcms", api);

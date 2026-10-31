@@ -12,6 +12,7 @@ export type SiteTab =
   | "taxonomies"
   | "menus"
   | "forms"
+  | "redirects"
   | "settings"
   | "theme"
   | "publish";

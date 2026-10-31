@@ -923,3 +923,11 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline: non
 /* Grouped site sub-nav */
 .pcms-subnav__group { display: flex; flex-direction: column; gap: 0.1rem; margin-bottom: 0.4rem; }
 .pcms-subnav__heading { font-size: 0.68rem; color: var(--pcms-muted); letter-spacing: 0.04em; padding: 0.5rem 0.6rem 0.15rem; text-transform: none; }
+
+/* Redirect manager */
+.pcms-redirects__table { margin-top: 0.8rem; }
+.pcms-redirects__path { font-family: var(--pcms-mono, ui-monospace, monospace); font-size: 0.82rem; }
+.pcms-redirects__empty { color: var(--pcms-muted); margin: 0.8rem 0; }
+.pcms-redirects__add { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.9rem; flex-wrap: wrap; }
+.pcms-redirects__input { flex: 1 1 12rem; min-width: 8rem; }
+.pcms-redirects__arrow { color: var(--pcms-muted); }

@@ -13,6 +13,7 @@ import type {
   ContentTypeDef,
   FormDef,
   MenuItem,
+  Redirect,
   SiteConfig,
   SiteSettings,
   TaxonomyDef,
@@ -31,6 +32,8 @@ import {
   saveMedia,
   deleteMedia,
   setMediaAlt,
+  loadRedirects,
+  saveRedirects,
 } from "./project.js";
 import {
   getDeployConfig,
@@ -218,6 +221,8 @@ function registerIpc(): void {
   ipcMain.handle("pcms:listForms", () => listForms());
   ipcMain.handle("pcms:saveForms", (_event, forms: FormDef[]) => saveForms(forms));
   ipcMain.handle("pcms:listSubmissions", (_event, formId: string) => listSubmissions(formId));
+  ipcMain.handle("pcms:loadRedirects", () => loadRedirects());
+  ipcMain.handle("pcms:saveRedirects", (_event, redirects: Redirect[]) => saveRedirects(redirects));
 }
 
 /**

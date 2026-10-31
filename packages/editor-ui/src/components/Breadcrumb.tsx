@@ -22,6 +22,7 @@ const TAB_LABEL: Record<SiteTab, MessageKey> = {
   taxonomies: "site.tab.taxonomies",
   menus: "site.tab.menus",
   forms: "site.tab.forms",
+  redirects: "site.tab.redirects",
   settings: "site.tab.settings",
   theme: "site.tab.theme",
   publish: "site.tab.publish",
