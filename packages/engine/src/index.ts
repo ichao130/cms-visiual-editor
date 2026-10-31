@@ -59,6 +59,7 @@ export {
   rewriteText,
   seoSuggest,
   diagnoseThemeHtml,
+  diagnoseDeployError,
   type AiIssue,
   type AiDiagnosis,
 } from "./ai.js";

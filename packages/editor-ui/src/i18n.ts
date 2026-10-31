@@ -138,6 +138,8 @@ const ja = {
   "publish.failed": "公開に失敗しました",
   "publish.rolledBack": "直前の状態に戻しました。",
   "publish.noIssues": "問題は見つかりませんでした。",
+  "publish.diagFix": "対処：",
+  "publish.diagDetail": "詳細（技術情報）",
   "toolbar.menus": "メニュー",
   "toolbar.tax": "分類",
   "tax.title": "分類（タクソノミー）",

@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { diagnoseDeployError } from "@pcms/engine";
 import type {
   DeployConfigView,
   PcmsApi,
@@ -195,8 +196,9 @@ export function PublishFlow({ api }: { api: PcmsApi }) {
               ? t("publish.blocked")
               : report.ok
                 ? `${t("publish.done")}（${t("publish.willUpload")} ${report.uploaded} / ${t("publish.willDelete")} ${report.deleted}）`
-                : `${t("publish.failed")}${report.rolledBack ? " — " + t("publish.rolledBack") : ""}${report.error ? "：" + report.error : ""}`}
+                : `${t("publish.failed")}${report.rolledBack ? " — " + t("publish.rolledBack") : ""}`}
           </p>
+          {!report.ok && !report.blocked && report.error && <DeployErrorDiagnosis message={report.error} />}
           <IssueList issues={report.issues} />
         </section>
       )}
@@ -254,6 +256,28 @@ function PathList({
         ))}
       </ul>
     </details>
+  );
+}
+
+/**
+ * Plain-Japanese diagnosis of a failed publish: what went wrong and how to fix
+ * it, derived from the raw transport error. The raw message is kept in a
+ * collapsible for support. CLAUDE.md phase 6: エラー診断.
+ */
+function DeployErrorDiagnosis({ message }: { message: string }) {
+  const d = diagnoseDeployError(message);
+  return (
+    <div className="pcms-publish__diagnosis" role="alert">
+      <p className="pcms-publish__diagmsg">{d.message}</p>
+      <p className="pcms-publish__diagfix">
+        <span className="pcms-publish__diaglabel">{t("publish.diagFix")}</span>
+        {d.fix}
+      </p>
+      <details className="pcms-publish__diagraw">
+        <summary>{t("publish.diagDetail")}</summary>
+        <pre>{message}</pre>
+      </details>
+    </div>
   );
 }
 

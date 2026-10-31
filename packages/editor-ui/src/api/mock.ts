@@ -364,6 +364,33 @@ function saveJson(key: string, value: unknown): void {
 
 const MOCK_TARGET = "ブラウザのモック（実際の送信は行いません）";
 const PUBLISHED_KEY = "pcms.mock.published";
+const DEPLOY_KEY = "pcms.mock.deploy";
+
+type StoredDeploy =
+  | { type: "local"; dir: string }
+  | { type: "sftp"; host: string; port: number; username: string; remoteDir: string; hasPassword: boolean };
+
+function loadDeploy(): StoredDeploy {
+  try {
+    const raw = localStorage.getItem(DEPLOY_KEY);
+    if (raw) return JSON.parse(raw) as StoredDeploy;
+  } catch {
+    /* ignore storage failures in the mock */
+  }
+  return { type: "local", dir: MOCK_TARGET };
+}
+
+/**
+ * The eval build has no real SFTP server, so an SFTP publish cannot actually
+ * succeed. Return a representative transport error (keyed on the saved config)
+ * instead of pretending it worked — this is both honest and what drives the
+ * publish-error diagnosis in the UI.
+ */
+function simulatedSftpError(c: Extract<StoredDeploy, { type: "sftp" }>): string {
+  if (c.host.trim() === "") return "getaddrinfo ENOTFOUND ";
+  if (!c.hasPassword) return "Error: All configured authentication methods failed";
+  return `connect ETIMEDOUT ${c.host}:${c.port}`;
+}
 
 /** Content hash per output path for the current generated site. */
 function currentManifest(): Record<string, string> {
@@ -626,10 +653,23 @@ export function createMockApi(): PcmsApi {
       saveJson(TAX_KEY, taxonomies);
     },
     async getDeployConfig(): Promise<DeployConfigView> {
-      return { type: "local", dir: MOCK_TARGET };
+      return loadDeploy();
     },
-    async setDeployConfig(): Promise<void> {
-      /* no-op in the mock */
+    async setDeployConfig(config): Promise<void> {
+      if (config.type === "local") {
+        saveJson(DEPLOY_KEY, { type: "local", dir: config.dir } satisfies StoredDeploy);
+      } else {
+        const prev = loadDeploy();
+        const prevHasPw = prev.type === "sftp" && prev.hasPassword;
+        saveJson(DEPLOY_KEY, {
+          type: "sftp",
+          host: config.host,
+          port: config.port ?? 22,
+          username: config.username,
+          remoteDir: config.remoteDir,
+          hasPassword: config.password != null ? config.password !== "" : prevHasPw,
+        } satisfies StoredDeploy);
+      }
     },
     async previewPublish(): Promise<PublishPreview> {
       const diff = publishDiff(loadPublished(), currentManifest());
@@ -655,6 +695,22 @@ export function createMockApi(): PcmsApi {
           deleted: 0,
           unchanged: 0,
           target: MOCK_TARGET,
+          publishedAt: new Date().toISOString(),
+        };
+      }
+      // No real SFTP server in the eval build: report a representative transport
+      // failure so the diagnosis UI can be exercised (local keeps succeeding).
+      const deploy = loadDeploy();
+      if (deploy.type === "sftp") {
+        return {
+          ok: false,
+          issues,
+          uploaded: 0,
+          deleted: 0,
+          unchanged: 0,
+          target: `SFTP: ${deploy.username}@${deploy.host}:${deploy.remoteDir}`,
+          error: simulatedSftpError(deploy),
+          rolledBack: true,
           publishedAt: new Date().toISOString(),
         };
       }

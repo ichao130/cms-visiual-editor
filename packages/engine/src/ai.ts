@@ -267,6 +267,95 @@ export function diagnoseThemeHtml(html: string): AiDiagnosis[] {
   return out;
 }
 
+// ---------------------------------------------------------------------------
+// Deploy-error diagnosis — turn a raw transport failure message (FTP/SFTP/
+// network/filesystem) into a plain-Japanese cause + concrete fix, so the
+// operator is not left staring at "All configured authentication methods
+// failed" or "connect ETIMEDOUT". Pure: message in, diagnosis out, no I/O.
+// CLAUDE.md phase 6: エラー診断 / 利用者向けの日本語メッセージ.
+// ---------------------------------------------------------------------------
+
+interface DeployErrorRule {
+  /** Matched against the raw message (code tokens are lower-cased first). */
+  test: RegExp;
+  message: string;
+  fix: string;
+}
+
+// Ordered most-specific first; the first matching rule wins.
+const DEPLOY_ERROR_RULES: DeployErrorRule[] = [
+  {
+    test: /ルート外|outside .*root/,
+    message: "送信先が公開フォルダの外を指しています。",
+    fix: "送信先のパスを、このサイトの公開フォルダの中に設定し直してください。",
+  },
+  {
+    test: /enospc|quota|disk ?full|no space|552/,
+    message: "サーバーの空き容量が足りません。",
+    fix: "サーバー上の不要なファイルを削除するか、容量プランを確認してください。",
+  },
+  {
+    test: /enotfound|getaddrinfo|name or service|nodename|unknown host|could not resolve/,
+    message: "サーバー名（ホスト）が見つかりません。",
+    fix: "ホスト名のつづりを確認してください。インターネット接続も確認してください。",
+  },
+  {
+    test: /econnrefused|connection refused|refused/,
+    message: "サーバーが接続を拒否しました。",
+    fix: "ホスト名とポート番号（SFTPは通常22）を確認してください。サーバーが起動しているかも確認してください。",
+  },
+  {
+    test: /etimedout|timed ?out|timeout|ehostunreach|host is (down|unreachable)/,
+    message: "サーバーへの接続がタイムアウトしました。",
+    fix: "ネットワーク接続と、ホスト名・ポート番号を確認してください。社内ネットワークではファイアウォールの設定も確認してください。",
+  },
+  {
+    test: /econnreset|enetunreach|network is unreachable|epipe|socket hang ?up/,
+    message: "通信が途中で切断されました。",
+    fix: "ネットワーク接続が不安定な可能性があります。接続を確認して、もう一度公開してください。",
+  },
+  {
+    test: /cert|self[- ]signed|unable to verify|ssl|\btls\b/,
+    message: "サーバーの証明書を確認できませんでした。",
+    fix: "サーバーの証明書が正しいか確認してください。社内サーバーの場合は管理者に確認してください。",
+  },
+  {
+    test: /auth|530|password|credential|publickey|permission denied \(/,
+    message: "ログイン（認証）に失敗しました。",
+    fix: "ユーザー名とパスワード（または鍵）を確認してください。大文字・小文字や余分な空白にもご注意ください。",
+  },
+  {
+    test: /enoent|no such file|not found|550|directory/,
+    message: "送信先のフォルダが見つかりません。",
+    fix: "サーバー上の送信先フォルダ（リモートディレクトリ）のパスを確認してください。",
+  },
+  {
+    test: /eacces|access denied|permission/,
+    message: "送信先に書き込む権限がありません。",
+    fix: "サーバー上の送信先フォルダの書き込み権限を確認してください。レンタルサーバーの場合は公開フォルダ（例: public_html）を指定してください。",
+  },
+];
+
+/**
+ * Diagnose a failed publish from its raw error message. Always returns a
+ * diagnosis: a matched rule, or a generic fallback that still echoes the
+ * original message for support.
+ */
+export function diagnoseDeployError(message: string): AiDiagnosis {
+  const raw = (message ?? "").trim();
+  const hay = raw.toLowerCase();
+  for (const rule of DEPLOY_ERROR_RULES) {
+    if (rule.test.test(hay)) {
+      return { level: "error", message: rule.message, fix: rule.fix };
+    }
+  }
+  return {
+    level: "error",
+    message: raw === "" ? "公開中に不明なエラーが発生しました。" : `公開中にエラーが発生しました：${raw}`,
+    fix: "送信先の設定（ホスト・ユーザー名・パスワード・フォルダ）とネットワーク接続を確認して、もう一度お試しください。",
+  };
+}
+
 function stripTags(html: string): string {
   return html.replace(/<[^>]*>/g, "");
 }

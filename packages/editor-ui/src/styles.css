@@ -204,6 +204,13 @@ button.pcms-aibtn:hover:not(:disabled) { filter: brightness(1.08); background: v
 .pcms-publish__issue { font-size: 0.82rem; padding: 0.15rem 0; }
 .pcms-publish__issue.is-error { color: var(--pcms-danger); }
 .pcms-publish__issue.is-warning { color: var(--pcms-warning); }
+.pcms-publish__diagnosis { margin: 0.5rem 0 0; padding: 0.6rem 0.75rem; border-radius: 6px; background: var(--pcms-danger-weak); border: 1px solid var(--pcms-danger); }
+.pcms-publish__diagmsg { margin: 0; font-size: 0.88rem; font-weight: 600; color: var(--pcms-danger); }
+.pcms-publish__diagfix { margin: 0.35rem 0 0; font-size: 0.84rem; color: var(--pcms-text); }
+.pcms-publish__diaglabel { font-weight: 600; margin-right: 0.2rem; }
+.pcms-publish__diagraw { margin: 0.4rem 0 0; }
+.pcms-publish__diagraw summary { font-size: 0.78rem; color: var(--pcms-text-weak); cursor: pointer; }
+.pcms-publish__diagraw pre { margin: 0.3rem 0 0; padding: 0.4rem 0.5rem; background: var(--pcms-surface); border-radius: 4px; font-size: 0.76rem; white-space: pre-wrap; word-break: break-word; }
 .pcms-publish__history ul { list-style: none; padding: 0; margin: 0; }
 .pcms-publish__histitem { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; padding: 0.3rem 0; font-size: 0.85rem; border-bottom: 1px solid var(--pcms-border); }
 

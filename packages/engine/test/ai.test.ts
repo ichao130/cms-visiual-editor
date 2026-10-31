@@ -6,6 +6,7 @@ import {
   rewriteText,
   seoSuggest,
   diagnoseThemeHtml,
+  diagnoseDeployError,
   parseTemplate,
 } from "../src/index.js";
 
@@ -115,5 +116,72 @@ describe("diagnoseThemeHtml", () => {
       '<section data-section="s1"><h2 data-field="s1.title" data-type="text">見出し</h2></section>',
     );
     expect(d).toEqual([]);
+  });
+});
+
+describe("diagnoseDeployError", () => {
+  it("maps an SFTP auth failure to a login diagnosis", () => {
+    const d = diagnoseDeployError("Error: All configured authentication methods failed");
+    expect(d.level).toBe("error");
+    expect(d.message).toContain("認証");
+    expect(d.fix).toContain("パスワード");
+  });
+
+  it("maps a 530 FTP response to a login diagnosis", () => {
+    const d = diagnoseDeployError("530 Login incorrect");
+    expect(d.message).toContain("認証");
+  });
+
+  it("maps host-not-found to a hostname diagnosis", () => {
+    const d = diagnoseDeployError("getaddrinfo ENOTFOUND ftp.example.com");
+    expect(d.message).toContain("ホスト");
+  });
+
+  it("maps a timeout to a timeout diagnosis", () => {
+    const d = diagnoseDeployError("connect ETIMEDOUT 203.0.113.1:22");
+    expect(d.message).toContain("タイムアウト");
+  });
+
+  it("maps connection-refused to a refused diagnosis", () => {
+    const d = diagnoseDeployError("connect ECONNREFUSED 127.0.0.1:22");
+    expect(d.message).toContain("拒否");
+    expect(d.fix).toContain("ポート");
+  });
+
+  it("maps a remote permission error to a write-permission diagnosis", () => {
+    const d = diagnoseDeployError("EACCES: permission denied, open '/public_html/index.html'");
+    expect(d.message).toContain("権限");
+    expect(d.fix).toContain("public_html");
+  });
+
+  it("maps a missing remote directory to a folder diagnosis", () => {
+    const d = diagnoseDeployError("550 /wwwroot: No such file or directory");
+    expect(d.message).toContain("フォルダ");
+  });
+
+  it("maps disk-full to a capacity diagnosis", () => {
+    const d = diagnoseDeployError("ENOSPC: no space left on device");
+    expect(d.message).toContain("空き容量");
+  });
+
+  it("maps a TLS certificate error to a certificate diagnosis", () => {
+    const d = diagnoseDeployError("unable to verify the first certificate");
+    expect(d.message).toContain("証明書");
+  });
+
+  it("maps the local out-of-root guard to a publish-folder diagnosis", () => {
+    const d = diagnoseDeployError("パスがルート外を指しています: ../etc");
+    expect(d.message).toContain("公開フォルダ");
+  });
+
+  it("echoes an unrecognized message in the fallback", () => {
+    const d = diagnoseDeployError("something weird happened");
+    expect(d.message).toContain("something weird happened");
+    expect(d.fix).not.toBe("");
+  });
+
+  it("gives a generic message for an empty error", () => {
+    const d = diagnoseDeployError("");
+    expect(d.message).toContain("不明なエラー");
   });
 });
