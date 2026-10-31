@@ -505,6 +505,49 @@ button.pcms-danger { color: var(--pcms-danger); border-color: var(--pcms-danger-
 .pcms-rte__content .ProseMirror a { color: var(--pcms-accent); }
 .pcms-rte__content .ProseMirror ul, .pcms-rte__content .ProseMirror ol { padding-left: 1.4rem; margin: 0 0 0.6rem; }
 
+/* Block editor (content body) */
+.pcms-blocks { border: 1px solid var(--pcms-border); border-radius: 8px; overflow: hidden; }
+.pcms-blocks__inline { position: sticky; top: 0; z-index: 2; display: flex; gap: 0.15rem; padding: 0.3rem; background: var(--pcms-hover); border-bottom: 1px solid var(--pcms-border); }
+.pcms-blocks__inline button { padding: 0.2rem 0.5rem; font-size: 0.78rem; border: 1px solid transparent; background: transparent; border-radius: 5px; }
+.pcms-blocks__inline button:hover { background: var(--pcms-surface); border-color: var(--pcms-border); }
+.pcms-blocks__empty { margin: 0; padding: 1rem 0.8rem; color: var(--pcms-muted); font-size: 0.82rem; }
+.pcms-block { position: relative; display: grid; grid-template-columns: auto 1fr; gap: 0.4rem; padding: 0.5rem 0.6rem; border-bottom: 1px solid var(--pcms-border); }
+.pcms-block:last-of-type { border-bottom: none; }
+.pcms-block__controls { display: flex; flex-direction: column; gap: 0.15rem; }
+.pcms-block__controls button { width: 1.5rem; height: 1.3rem; font-size: 0.6rem; padding: 0; border: 1px solid var(--pcms-border); background: var(--pcms-surface); border-radius: 4px; color: var(--pcms-muted); }
+.pcms-block__controls button:hover:not(:disabled) { background: var(--pcms-hover); }
+.pcms-block__controls button:disabled { opacity: 0.35; }
+.pcms-block__controls button.pcms-danger:hover { color: var(--pcms-danger); border-color: var(--pcms-danger); }
+.pcms-block__body { min-width: 0; }
+.pcms-block__text { min-height: 1.6rem; padding: 0.35rem 0.4rem; border: 1px solid transparent; border-radius: 5px; outline: none; font-size: 0.9rem; line-height: 1.7; }
+.pcms-block__text:focus { border-color: var(--pcms-accent-border); background: var(--pcms-surface); }
+.pcms-block__text:empty::before { content: attr(data-placeholder); color: var(--pcms-muted); pointer-events: none; }
+.pcms-block__text.is-h2 { font-size: 1.15rem; font-weight: 600; }
+.pcms-block__text.is-h3 { font-size: 1rem; font-weight: 600; }
+.pcms-block__text.is-quote { border-left: 3px solid var(--pcms-border); color: var(--pcms-muted); border-radius: 0; padding-left: 0.7rem; }
+.pcms-block__text a { color: var(--pcms-accent); }
+.pcms-block__headrow { display: flex; gap: 0.4rem; align-items: flex-start; }
+.pcms-blocks select.pcms-block__level { flex: 0 0 auto; width: 4.5rem; }
+.pcms-block__headrow .pcms-block__text { flex: 1 1 auto; min-width: 0; }
+.pcms-block__list { display: flex; flex-direction: column; gap: 0.3rem; }
+.pcms-block__listtype { display: flex; align-items: center; gap: 0.3rem; font-size: 0.78rem; color: var(--pcms-muted); }
+.pcms-block__list textarea, .pcms-block__html { width: 100%; font-size: 0.85rem; line-height: 1.6; }
+.pcms-block__html { font-family: var(--pcms-mono, monospace); }
+.pcms-block__image { display: flex; gap: 0.6rem; align-items: flex-start; }
+.pcms-block__imagemeta { display: flex; flex-direction: column; gap: 0.3rem; flex: 1; min-width: 0; }
+.pcms-block__divider { width: 100%; border: none; border-top: 2px solid var(--pcms-border); margin: 0.4rem 0; }
+.pcms-addblock { position: relative; grid-column: 2; margin-top: 0.1rem; }
+.pcms-block > .pcms-addblock { opacity: 0; transition: opacity 0.1s; }
+.pcms-block:hover > .pcms-addblock, .pcms-block:focus-within > .pcms-addblock { opacity: 1; }
+.pcms-addblock__btn { font-size: 0.74rem; padding: 0.15rem 0.5rem; border: 1px dashed var(--pcms-border); background: transparent; border-radius: 5px; color: var(--pcms-muted); }
+.pcms-addblock__btn:hover { border-style: solid; color: var(--pcms-text); }
+.pcms-addblock__btn.pcms-primary { border-style: solid; color: var(--pcms-on-accent); }
+.pcms-addblock__menu { position: absolute; z-index: 5; margin-top: 0.2rem; display: flex; flex-direction: column; min-width: 10rem; background: var(--pcms-surface); border: 1px solid var(--pcms-border); border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,0.18); padding: 0.25rem; }
+.pcms-addblock__menu button { text-align: left; padding: 0.35rem 0.5rem; font-size: 0.82rem; background: transparent; border: none; border-radius: 5px; }
+.pcms-addblock__menu button:hover { background: var(--pcms-hover); }
+.pcms-blocks__foot { padding: 0.5rem 0.6rem; }
+.pcms-blocks__foot .pcms-addblock { grid-column: auto; }
+
 /* Repeat editor */
 .pcms-repeat { margin-top: 1rem; border-top: 1px dashed var(--pcms-border); padding-top: 0.75rem; }
 .pcms-repeat__title { font-size: 0.85rem; margin: 0 0 0.5rem; }

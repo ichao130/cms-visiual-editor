@@ -22,7 +22,7 @@
 | パッケージ管理 | pnpm workspaces（モノレポ） |
 | デスクトップ | Electron、electron-builder、electron-updater |
 | UI | React |
-| エディタの記事本文 | 未定（Tiptap などのリッチテキスト。導入前に相談） |
+| エディタの記事本文 | ブロックエディタ（自作。HTMLを保存・出力。engine の `blocksToHtml`/`htmlToBlocks` で HTML⇄ブロック変換） |
 | クラウド | Firebase（Authentication、Firestore、Cloud Storage、Cloud Functions、App Check）。重い処理だけ Cloud Run |
 | 課金 | Stripe（Firebase拡張機能） |
 | テスト | Vitest（ユニット）、Playwright（エディタ・Electronの操作） |
@@ -188,4 +188,4 @@ MVPの完了条件：自社の運用代行案件で、1サイトを実際にこ�
 - 料金体系
 - フォーム受信の保存期間の初期値と、プライバシーポリシーのひな形
 - おまかせ公開先（Firebase Hosting）で多数のサイトを収容する方式
-- 記事本文のリッチテキストエディタに何を使うか
+- （決定済み）記事本文＝自作ブロックエディタ（HTML保存・出力）。Tiptap はビジュアルエディタのインライン編集で引き続き使用

@@ -26,6 +26,7 @@ export {
 export { parseFrontMatter, type ParsedFrontMatter } from "./frontmatter.js";
 export { renderMarkdown, escapeHtml } from "./markdown.js";
 export { detectFieldType } from "./field-type.js";
+export { blocksToHtml, htmlToBlocks, type Block } from "./blocks.js";
 export {
   generateSite,
   isScheduled,

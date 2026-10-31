@@ -1,6 +1,6 @@
 import type { FieldDef, FieldValue } from "@pcms/shared";
 import { ImageField } from "./FieldInput.js";
-import { RichTextEditor } from "./RichTextEditor.js";
+import { BlockEditor } from "./BlockEditor.js";
 import { AiRewriteAssist } from "./AiRewriteAssist.js";
 
 interface ContentFieldProps {
@@ -49,7 +49,7 @@ function control(
     case "image":
       return <ImageField id={id} value={str} onChange={onChange} />;
     case "richtext":
-      return <RichTextEditor value={str} onChange={onChange} />;
+      return <BlockEditor value={str} onChange={onChange} />;
     case "longtext":
       return (
         <textarea id={id} rows={5} value={str} onChange={(e) => onChange(e.target.value)} />
