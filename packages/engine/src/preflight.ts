@@ -41,6 +41,8 @@ export function preflight(files: SiteFileSet): PreflightIssue[] {
       issues.push({ level: "error", message: "空のHTMLページです", path });
       continue;
     }
+    // Redirect stubs (meta refresh) are not content pages — skip the SEO checks.
+    if (/http-equiv\s*=\s*["']refresh["']/i.test(html)) continue;
     const title = titleOf(html);
     if (title == null) {
       issues.push({ level: "warning", message: "タイトルが設定されていません", path });

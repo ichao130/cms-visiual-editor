@@ -5,6 +5,7 @@ import type {
   FormSubmission,
   MediaItem,
   MenuItem,
+  Redirect,
   SiteConfig,
   SiteSettings,
   TaxonomyDef,
@@ -63,6 +64,7 @@ const TYPES_KEY = "pcms.mock.types";
 const TAX_KEY = "pcms.mock.taxonomies";
 const MENUS_KEY = "pcms.mock.menus";
 const FORMS_KEY = "pcms.mock.forms";
+const REDIRECTS_KEY = "pcms.mock.redirects";
 
 const defaultForms: FormDef[] = [
   {
@@ -210,6 +212,51 @@ function loadMedia(): MediaItem[] {
   }
 }
 
+function loadRedirects(): Redirect[] {
+  try {
+    const raw = localStorage.getItem(REDIRECTS_KEY);
+    return raw ? (JSON.parse(raw) as Redirect[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** A content item's URL under a given permalink pattern ("/post/open/"). */
+function contentUrl(item: ContentItem, permalink: string): string {
+  const rel = (permalink || "/:type/:slug/")
+    .replace(/:type/g, item.type)
+    .replace(/:slug/g, item.slug)
+    .replace(/^\/+|\/+$/g, "");
+  return rel === "" ? "/" : `/${rel}/`;
+}
+
+/**
+ * When the permalink pattern changes, every content URL changes, so record a
+ * redirect from each old URL to the new one (CLAUDE.md: redirects.json is
+ * auto-added on URL change). Merges with the stored list, newest mapping wins,
+ * and chains are collapsed so an old→mid→new sequence points old straight at
+ * the final URL.
+ */
+function recordPermalinkRedirects(oldPermalink: string, newPermalink: string): void {
+  if (oldPermalink === newPermalink) return;
+  const existing = loadRedirects();
+  const byFrom = new Map(existing.map((r) => [r.from, r.to]));
+  for (const item of loadContent().filter((i) => i.status !== "draft")) {
+    const from = contentUrl(item, oldPermalink);
+    const to = contentUrl(item, newPermalink);
+    if (from === to) continue;
+    // Repoint any redirect that targeted the old URL at the new one.
+    for (const [f, t] of byFrom) if (t === from) byFrom.set(f, to);
+    byFrom.set(from, to);
+  }
+  // Drop entries whose source is now also a destination's... keep it simple:
+  // remove self-pointing and redirects whose source equals a live URL target.
+  const merged: Redirect[] = [...byFrom]
+    .filter(([from, to]) => from !== to)
+    .map(([from, to]) => ({ from, to }));
+  saveJson(REDIRECTS_KEY, merged);
+}
+
 function loadTypes(): ContentTypeDef[] {
   try {
     const raw = localStorage.getItem(TYPES_KEY);
@@ -259,6 +306,7 @@ function generateMockSite(): Record<string, string> {
     menus: loadMenus(),
     taxonomies: loadTaxonomies(),
     media,
+    redirects: loadRedirects(),
   });
   // Mirror the desktop's assembleOutput: the published set also carries the
   // theme's copied assets and the media files, so the pre-publish check resolves
@@ -465,7 +513,13 @@ export function createMockApi(): PcmsApi {
       };
     },
     async saveSite(site: SiteConfig): Promise<void> {
+      const prev = loadSite();
+      const oldPermalink = prev.permalink ?? "/:type/:slug/";
+      const newPermalink = site.permalink ?? "/:type/:slug/";
       saveJson(SITE_KEY, site);
+      // A changed permalink pattern moves every content URL — keep old links
+      // working by recording redirects (CLAUDE.md: redirects.json auto-added).
+      recordPermalinkRedirects(oldPermalink, newPermalink);
     },
     async saveDraft(settings: SiteSettings): Promise<void> {
       try {

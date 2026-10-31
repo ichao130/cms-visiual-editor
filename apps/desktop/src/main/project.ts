@@ -14,6 +14,7 @@ import type {
   FieldValue,
   MediaItem,
   MenuItem,
+  Redirect,
   SiteConfig,
   SiteSettings,
   TaxonomyDef,
@@ -263,7 +264,55 @@ function loadSite(): SiteConfig {
 }
 
 export function saveSite(site: SiteConfig): void {
+  const oldPermalink = loadSite().permalink ?? "/:type/:slug/";
   writeFileSync(sitePath(), JSON.stringify(site, null, 2), "utf8");
+  // A changed permalink pattern moves every content URL — record redirects so
+  // old links keep working (CLAUDE.md: redirects.json auto-added on URL change).
+  recordPermalinkRedirects(oldPermalink, site.permalink ?? "/:type/:slug/");
+}
+
+function redirectsPath(): string {
+  return join(siteDir(), "redirects.json");
+}
+
+function loadRedirects(): Redirect[] {
+  const path = redirectsPath();
+  if (!existsSync(path)) return [];
+  try {
+    return JSON.parse(readFileSync(path, "utf8")) as Redirect[];
+  } catch {
+    return [];
+  }
+}
+
+/** A content item's URL under a given permalink pattern ("/post/open/"). */
+function contentUrl(item: ContentItem, permalink: string): string {
+  const rel = (permalink || "/:type/:slug/")
+    .replace(/:type/g, item.type)
+    .replace(/:slug/g, item.slug)
+    .replace(/^\/+|\/+$/g, "");
+  return rel === "" ? "/" : `/${rel}/`;
+}
+
+/**
+ * Record a redirect from each content item's old URL to its new one after the
+ * permalink pattern changes, merging with redirects.json. Newest mapping wins
+ * and chains are collapsed (old→mid→new becomes old→new).
+ */
+function recordPermalinkRedirects(oldPermalink: string, newPermalink: string): void {
+  if (oldPermalink === newPermalink) return;
+  const byFrom = new Map(loadRedirects().map((r) => [r.from, r.to]));
+  for (const item of loadContent().filter((i) => i.status !== "draft")) {
+    const from = contentUrl(item, oldPermalink);
+    const to = contentUrl(item, newPermalink);
+    if (from === to) continue;
+    for (const [f, t] of byFrom) if (t === from) byFrom.set(f, to);
+    byFrom.set(from, to);
+  }
+  const merged: Redirect[] = [...byFrom]
+    .filter(([from, to]) => from !== to)
+    .map(([from, to]) => ({ from, to }));
+  writeFileSync(redirectsPath(), JSON.stringify(merged, null, 2), "utf8");
 }
 
 export function loadProject(): ProjectData {
@@ -323,6 +372,7 @@ export function assembleOutput(): FileSet {
     menus: project.menus,
     taxonomies: project.taxonomies,
     media: listMedia(),
+    redirects: loadRedirects(),
   });
 
   const files: FileSet = { ...generated.files };

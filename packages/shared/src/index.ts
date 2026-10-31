@@ -55,6 +55,16 @@ export interface SiteConfig {
   verificationTags?: Record<string, string>;
 }
 
+/**
+ * A stored redirect (redirects.json). Auto-added when a content URL changes
+ * (e.g. the permalink pattern is edited), so old links keep working. Both are
+ * site-relative URL paths with a leading slash, e.g. "/post/old/" → "/old/".
+ */
+export interface Redirect {
+  from: string;
+  to: string;
+}
+
 // ---------------------------------------------------------------------------
 // Theme settings (colors / fonts / spacing presets)
 // ---------------------------------------------------------------------------

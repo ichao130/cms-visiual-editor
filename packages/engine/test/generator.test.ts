@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { generateSite } from "../src/index.js";
+import { generateSite, preflight } from "../src/index.js";
 import { sampleInput, sampleSettings, sampleSite, sampleTheme } from "./fixtures.js";
 
 describe("generateSite", () => {
@@ -211,6 +211,58 @@ describe("generateSite", () => {
     // A page without its own description keeps the site default.
     const plainHead = out.files["post/plain/index.html"]!.split("</head>")[0]!;
     expect(plainHead).toContain('<meta name="description" content="駅前の小さな自家焙煎珈琲店です。">');
+  });
+
+  it("emits redirect stub pages and a _redirects file", () => {
+    const out = generateSite({
+      site: sampleSite(),
+      settings: { pages: {} },
+      contentTypes: [],
+      content: [{ type: "post", slug: "new", fields: { title: "新URL" }, body: "<p>x</p>" }],
+      theme: sampleTheme(),
+      redirects: [{ from: "/post/old/", to: "/post/new/" }],
+    });
+    const stub = out.files["post/old/index.html"]!;
+    expect(stub).toContain('<meta http-equiv="refresh" content="0; url=/post/new/">');
+    expect(stub).toContain('<meta name="robots" content="noindex">');
+    expect(stub).toContain('<link rel="canonical" href="https://example.test/post/new/">');
+    // The _redirects file carries the same mapping for Netlify/Cloudflare.
+    expect(out.files["_redirects"]).toContain("/post/old/ /post/new/ 301");
+    // The stub is noindex, so it stays out of the sitemap.
+    expect(out.files["sitemap.xml"]).not.toContain("/post/old/");
+  });
+
+  it("never lets a redirect shadow a real page", () => {
+    const out = generateSite({
+      site: sampleSite(),
+      settings: { pages: {} },
+      contentTypes: [],
+      content: [{ type: "post", slug: "keep", fields: { title: "現役" }, body: "<p>本文</p>" }],
+      theme: sampleTheme(),
+      redirects: [{ from: "/post/keep/", to: "/elsewhere/" }],
+    });
+    // The real page wins; no redirect stub overwrites it.
+    expect(out.files["post/keep/index.html"]).toContain("現役");
+    expect(out.files["post/keep/index.html"]).not.toContain('http-equiv="refresh"');
+    expect(out.files["_redirects"]).toBeUndefined();
+  });
+
+  it("does not flag redirect stubs in the pre-publish check", () => {
+    const out = generateSite({
+      site: sampleSite(),
+      settings: sampleSettings(),
+      contentTypes: [],
+      content: [{ type: "post", slug: "new", fields: { title: "新URL" }, body: "<p>x</p>" }],
+      theme: sampleTheme(),
+      redirects: [
+        { from: "/post/old/", to: "/post/new/" },
+        { from: "/page/gone/", to: "/" },
+      ],
+    });
+    const issues = preflight(out.files);
+    // No stub triggers a missing-title/description or duplicate-title warning.
+    expect(issues.some((i) => i.path === "post/old/index.html")).toBe(false);
+    expect(issues.some((i) => i.path === "page/gone/index.html")).toBe(false);
   });
 
   it("orders a loop by the operator's manual order, overriding date", () => {

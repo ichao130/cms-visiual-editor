@@ -5,6 +5,7 @@ import type {
   MediaItem,
   MenuItem,
   PageSettings,
+  Redirect,
   SiteConfig,
   SiteSettings,
   TaxonomyDef,
@@ -48,6 +49,8 @@ export interface SiteInput {
   taxonomies?: TaxonomyDef[];
   /** Stored media, used to supply default `alt` text for image fields. */
   media?: MediaItem[];
+  /** Redirects (redirects.json): old URL → new URL, emitted as stub pages. */
+  redirects?: Redirect[];
 }
 
 export interface GeneratedSite {
@@ -250,7 +253,27 @@ export function generateSite(input: SiteInput): GeneratedSite {
     }
   }
 
-  // 5. Always-on outputs.
+  // 5. Redirects (redirects.json → stub pages + a _redirects file). Emitted
+  // before the sitemap so the stub pages are excluded from it (they are
+  // noindex). A redirect whose source path is a real page is skipped.
+  const redirectLines: string[] = [];
+  for (const r of input.redirects ?? []) {
+    const from = r.from.trim();
+    const to = r.to.trim();
+    if (from === "" || to === "" || from === to) continue;
+    const outPath = redirectPath(from);
+    if (files[outPath] != null) continue; // never shadow a real page
+    files[outPath] = buildRedirect(to, input.site);
+    noindexPaths.add(outPath);
+    redirectLines.push(`${from} ${to} 301`);
+  }
+  if (redirectLines.length > 0) {
+    // Netlify / Cloudflare Pages read this; other static hosts use the stub
+    // pages above. Both ship, so redirects work everywhere.
+    files["_redirects"] = redirectLines.join("\n") + "\n";
+  }
+
+  // 6. Always-on outputs.
   files["sitemap.xml"] = buildSitemap(files, input.site, noindexPaths);
   files["robots.txt"] = buildRobots(input.site);
   files["feed.xml"] = buildFeed(
@@ -464,6 +487,36 @@ function rfc822(value: FieldValue | undefined): string | undefined {
   const ms = Date.parse(value.replace(/\//g, "-"));
   if (Number.isNaN(ms)) return undefined;
   return new Date(ms).toUTCString();
+}
+
+/** Output file path for a redirect source URL ("/post/old/" → "post/old/index.html"). */
+function redirectPath(from: string): string {
+  const clean = from.split(/[?#]/)[0] ?? from;
+  if (clean.endsWith(".html")) return trimSlashes(clean);
+  const rel = trimSlashes(clean);
+  return rel === "" ? "index.html" : `${rel}/index.html`;
+}
+
+/**
+ * A static redirect stub: works on any host (meta refresh + a link), tells
+ * search engines the canonical destination, and is marked noindex so the old
+ * URL is not indexed.
+ */
+function buildRedirect(to: string, site: SiteConfig): string {
+  const base = (site.baseUrl ?? "").replace(/\/+$/, "");
+  const canonical = base ? escapeXml(absoluteTo(to, base)) : escapeXml(to);
+  const href = escapeXml(to);
+  return `<!doctype html>
+<html lang="ja">
+<head><meta charset="utf-8"><title>移動しました</title><meta name="robots" content="noindex"><link rel="canonical" href="${canonical}"><meta http-equiv="refresh" content="0; url=${href}"></head>
+<body><p>このページは <a href="${href}">こちら</a> に移動しました。</p></body>
+</html>
+`;
+}
+
+function absoluteTo(to: string, base: string): string {
+  if (/^https?:/i.test(to)) return to;
+  return base + (to.startsWith("/") ? to : `/${to}`);
 }
 
 function build404(site: SiteConfig): string {
