@@ -418,6 +418,26 @@ describe("generateSite", () => {
     expect(after.files["post/due/index.html"]).toBeDefined();
   });
 
+  it("uses a content item's own image for its og:image and a large twitter card", () => {
+    const out = generateSite({
+      site: { ...sampleSite(), ogpDefault: { image: "/default-og.png" } },
+      settings: { pages: {} },
+      contentTypes: [],
+      content: [
+        { type: "post", slug: "withimg", fields: { title: "写真つき", image: "/media/hero.jpg" }, body: "<p>a</p>" },
+        { type: "post", slug: "noimg", fields: { title: "写真なし" }, body: "<p>b</p>" },
+      ],
+      theme: sampleTheme(),
+    });
+    const withImg = out.files["post/withimg/index.html"]!;
+    const noImg = out.files["post/noimg/index.html"]!;
+    // Its own image wins over the site default.
+    expect(withImg).toContain('<meta property="og:image" content="https://example.test/media/hero.jpg">');
+    expect(withImg).toContain('<meta name="twitter:card" content="summary_large_image">');
+    // No item image → the site default still applies.
+    expect(noImg).toContain('<meta property="og:image" content="https://example.test/default-og.png">');
+  });
+
   it("excludes draft items from pages, the feed and the sitemap", () => {
     const out = generateSite({
       site: sampleSite(),

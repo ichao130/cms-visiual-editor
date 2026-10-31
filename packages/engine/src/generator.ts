@@ -239,6 +239,7 @@ export function generateSite(input: SiteInput): GeneratedSite {
         title: String(item.fields.title ?? item.slug),
         description: itemDescription(item),
         ogType: "article",
+        image: itemImage(item),
         noindex: item.noindex,
         publishedTime: w3cDate(item.fields.date),
         modifiedTime: w3cDate(itemModified(item)),
@@ -330,6 +331,13 @@ export function contentUrl(item: ContentItem, site: SiteConfig): string {
  */
 function itemModified(item: ContentItem): FieldValue | undefined {
   return item.fields.updated ?? item.fields.modified ?? item.fields.date;
+}
+
+/** A content item's own social-card image, from an image/thumbnail field. */
+function itemImage(item: ContentItem): string | undefined {
+  const value = item.fields.image ?? item.fields.thumbnail;
+  const src = typeof value === "string" ? value.trim() : "";
+  return src || undefined;
 }
 
 /** A content item's own meta description, from a description/excerpt field. */
@@ -692,6 +700,8 @@ interface PageMetaOpts {
   publishedTime?: string;
   /** Article last-modified date (ISO), emitted as og `article:modified_time`. */
   modifiedTime?: string;
+  /** Page's own Open Graph image (overrides the site default og:image). */
+  image?: string;
   /** Previous paginated-archive page (site-relative), emitted as `rel="prev"`. */
   prevUrl?: string;
   /** Next paginated-archive page (site-relative), emitted as `rel="next"`. */
@@ -769,19 +779,22 @@ function siteHeadMeta(site: SiteConfig, opts?: PageMetaOpts): string {
     tags.push(`<meta name="description" content="${desc}">`);
     tags.push(`<meta property="og:description" content="${desc}">`);
   }
-  if (og?.image) {
+  // A content page's own image takes priority over the site default, so each
+  // post's social card shows its own picture.
+  const ogImage = opts?.image ?? og?.image;
+  if (ogImage) {
     const baseUrl = (site.baseUrl ?? "").replace(/\/+$/, "");
-    const img = /^https?:/i.test(og.image)
-      ? og.image
+    const img = /^https?:/i.test(ogImage)
+      ? ogImage
       : baseUrl === ""
-        ? og.image
-        : baseUrl + (og.image.startsWith("/") ? og.image : `/${og.image}`);
+        ? ogImage
+        : baseUrl + (ogImage.startsWith("/") ? ogImage : `/${ogImage}`);
     tags.push(`<meta property="og:image" content="${escapeXml(img)}">`);
   }
   // Twitter uses a large image card when an OGP image is available, else a
   // plain summary. Pairs with the og:* tags above.
   tags.push(
-    `<meta name="twitter:card" content="${og?.image ? "summary_large_image" : "summary"}">`,
+    `<meta name="twitter:card" content="${ogImage ? "summary_large_image" : "summary"}">`,
   );
   for (const [provider, token] of Object.entries(site.verificationTags ?? {})) {
     if (token) {
