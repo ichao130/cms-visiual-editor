@@ -8,17 +8,27 @@ interface NewContentModalProps {
   types: ContentTypeDef[];
   onCreate: (type: string, title: string, slug: string) => void;
   onClose: () => void;
+  /**
+   * The slug that will actually be stored for (type, slug) — callers append a
+   * number to avoid colliding with an existing item. When it differs from what
+   * the user typed, the modal shows the final slug so the change is not silent.
+   */
+  resolveSlug?: (type: string, slug: string) => string;
 }
 
 /** Modal to create a new content item of a chosen type. */
-export function NewContentModal({ types, onCreate, onClose }: NewContentModalProps) {
+export function NewContentModal({ types, onCreate, onClose, resolveSlug }: NewContentModalProps) {
   const [type, setType] = useState(types[0]?.name ?? "post");
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [slugEdited, setSlugEdited] = useState(false);
 
   const effectiveSlug = slugEdited ? slug : slugify(title, type);
-  const canCreate = title.trim() !== "" && effectiveSlug.trim() !== "";
+  const trimmedSlug = effectiveSlug.trim();
+  const canCreate = title.trim() !== "" && trimmedSlug !== "";
+  // When the typed slug is already taken, the caller stores a numbered variant.
+  const finalSlug = resolveSlug && trimmedSlug !== "" ? resolveSlug(type, trimmedSlug) : trimmedSlug;
+  const slugAdjusted = finalSlug !== trimmedSlug;
   const ref = useDialog<HTMLDivElement>(onClose);
 
   return (
@@ -58,6 +68,11 @@ export function NewContentModal({ types, onCreate, onClose }: NewContentModalPro
               setSlugEdited(true);
             }}
           />
+          {slugAdjusted && (
+            <span className="pcms-field__hint">
+              {t("new.slugTaken")}「{finalSlug}」
+            </span>
+          )}
         </label>
 
         <div className="pcms-modal__actions">

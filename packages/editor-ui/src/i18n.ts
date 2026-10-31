@@ -162,6 +162,7 @@ const ja = {
   "new.type": "種類",
   "new.titleField": "タイトル",
   "new.slug": "スラッグ（URL）",
+  "new.slugTaken": "このスラッグは使用中のため、保存時は次になります:",
   "new.create": "作成",
   "types.title": "コンテンツタイプの定義",
   "types.hint": "投稿タイプ（カスタム投稿）とそのフィールドを定義します。",

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useSiteWorkspace } from "../../state/SiteWorkspace.js";
-import { createContent, slugExists } from "../../state/editorState.js";
+import { createContent, uniqueSlug } from "../../state/editorState.js";
 import { NewContentModal } from "../../components/NewContentModal.js";
 import { ContentEditorPanel } from "./ContentEditorPanel.js";
 import { t } from "../../i18n.js";
@@ -29,9 +29,7 @@ export function PagesView() {
   const pageTypes = doc.contentTypes.filter((tp) => tp.name === PAGE_TYPE);
 
   const createPage = (title: string, slugBase: string, parent?: string) => {
-    let slug = slugBase || "page";
-    let n = 2;
-    while (slugExists(doc, PAGE_TYPE, slug)) slug = `${slugBase || "page"}-${n++}`;
+    const slug = uniqueSlug(doc, PAGE_TYPE, slugBase || "page");
     let next = createContent(doc, PAGE_TYPE, title, slug);
     if (parent) {
       next = {
@@ -157,6 +155,7 @@ export function PagesView() {
           types={pageTypes}
           onCreate={(type, title, slug) => createPage(title, slug)}
           onClose={() => setNewOpen(false)}
+          resolveSlug={(type, slug) => uniqueSlug(doc, type, slug)}
         />
       )}
     </div>

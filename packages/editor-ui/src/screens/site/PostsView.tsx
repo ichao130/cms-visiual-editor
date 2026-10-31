@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useSiteWorkspace } from "../../state/SiteWorkspace.js";
 import {
   createContent,
-  slugExists,
+  uniqueSlug,
   setContentStatusMany,
   removeContentMany,
   moveContent,
@@ -90,9 +90,7 @@ export function PostsView() {
   };
 
   const onCreate = (type: string, title: string, slug: string) => {
-    let unique = slug;
-    let n = 2;
-    while (slugExists(doc, type, unique)) unique = `${slug}-${n++}`;
+    const unique = uniqueSlug(doc, type, slug);
     commit(createContent(doc, type, title, unique));
     setDirty(true);
     setNewOpen(false);
@@ -250,6 +248,7 @@ export function PostsView() {
           types={postTypes}
           onCreate={onCreate}
           onClose={() => setNewOpen(false)}
+          resolveSlug={(type, slug) => uniqueSlug(doc, type, slug)}
         />
       )}
     </div>
