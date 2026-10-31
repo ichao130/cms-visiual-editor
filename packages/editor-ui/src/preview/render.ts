@@ -170,6 +170,44 @@ export function renderHomeThumbnail(
   return inlineMedia(html, media);
 }
 
+/**
+ * Render one content item to a full, static HTML document showing how its
+ * published page will look — theme CSS and media inlined, scripts stripped, and
+ * NO editor overlay or runtime (unlike renderPreview). Used by the content
+ * editor's「プレビュー」so the operator sees the real page, draft included.
+ */
+export function renderItemPreview(
+  project: ProjectData,
+  state: EditorState,
+  type: string,
+  slug: string,
+  media: MediaItem[] = [],
+): string {
+  const site = project.site;
+  const theme = state.settings.theme ?? project.theme.config;
+  const collections = buildCollections(state.content, site);
+  const base = { site, theme, menus: state.menus, collections };
+  const item = findItem(state, type, slug);
+  const prepared: ContentItem | undefined = item && {
+    ...item,
+    fields: { ...item.fields, url: itemUrl(item, site) },
+    bodyHtml: item.body,
+  };
+  const scope: RenderScope = {
+    ...base,
+    page: state.settings.pages[type] ?? {},
+    item: prepared,
+  };
+  const name = contentTemplateName(project, type);
+  let html = renderTemplate(templateHtml(project, name), scope, {
+    layout: project.theme.layout,
+  });
+  html = html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "");
+  const head = `<style>\n${project.previewCss}\n</style>`;
+  html = html.includes("</head>") ? html.replace("</head>", `${head}</head>`) : `${head}${html}`;
+  return inlineMedia(html, media);
+}
+
 function inlineMedia(html: string, media: MediaItem[]): string {
   let out = html;
   for (const m of media) {

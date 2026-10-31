@@ -1,4 +1,8 @@
+import { useState } from "react";
 import { useSiteWorkspace } from "../../state/SiteWorkspace.js";
+import { useMedia } from "../../media/MediaContext.js";
+import { renderItemPreview } from "../../preview/render.js";
+import { ContentPreviewModal } from "../../components/ContentPreviewModal.js";
 import { useToast } from "../../state/ToastContext.js";
 import {
   duplicateContent,
@@ -23,8 +27,10 @@ interface Props {
 
 /** Editing form for one content item, wired to the shared site workspace. */
 export function ContentEditorPanel({ type, slug, onDeleted, onDuplicated }: Props) {
-  const { api, doc, commit, setDirty } = useSiteWorkspace();
+  const { api, project, doc, commit, setDirty } = useSiteWorkspace();
+  const { media } = useMedia();
   const toast = useToast();
+  const [previewHtml, setPreviewHtml] = useState<string | null>(null);
   const item = findItem(doc, type, slug);
   if (!item) return <p className="pcms-empty">{t("content.notFound")}</p>;
 
@@ -73,19 +79,31 @@ export function ContentEditorPanel({ type, slug, onDeleted, onDuplicated }: Prop
     onDuplicated?.(type, newSlug);
   };
 
+  const onPreview = () => setPreviewHtml(renderItemPreview(project, doc, type, slug, media));
+
   return (
-    <ContentForm
-      item={item}
-      def={typeDef(doc, type)}
-      taxonomies={taxonomiesFor(doc, type)}
-      onChange={onChange}
-      onTermsChange={onTermsChange}
-      onStatusChange={onStatusChange}
-      onNoindexChange={onNoindexChange}
-      aiSeo={aiSeo}
-      aiRewrite={aiRewrite}
-      onDuplicate={onDuplicate}
-      onDelete={onDelete}
-    />
+    <>
+      <ContentForm
+        item={item}
+        def={typeDef(doc, type)}
+        taxonomies={taxonomiesFor(doc, type)}
+        onChange={onChange}
+        onTermsChange={onTermsChange}
+        onStatusChange={onStatusChange}
+        onNoindexChange={onNoindexChange}
+        aiSeo={aiSeo}
+        aiRewrite={aiRewrite}
+        onDuplicate={onDuplicate}
+        onPreview={onPreview}
+        onDelete={onDelete}
+      />
+      {previewHtml != null && (
+        <ContentPreviewModal
+          html={previewHtml}
+          title={title}
+          onClose={() => setPreviewHtml(null)}
+        />
+      )}
+    </>
   );
 }

@@ -23,6 +23,8 @@ interface ContentFormProps {
   /** AI rewrite for rich-text fields (given current text + instruction). */
   aiRewrite?: (text: string, instruction: string) => Promise<string>;
   onDuplicate?: () => void;
+  /** Open a preview of how this item's published page will look. */
+  onPreview?: () => void;
   onDelete: () => void;
 }
 
@@ -44,6 +46,7 @@ export function ContentForm({
   aiSeo,
   aiRewrite,
   onDuplicate,
+  onPreview,
   onDelete,
 }: ContentFormProps) {
   const fields = def?.fields ?? fallbackFields(item);
@@ -68,6 +71,11 @@ export function ContentForm({
             <option value="published">{t("content.status.published")}</option>
             <option value="draft">{t("content.status.draft")}</option>
           </select>
+          {onPreview && (
+            <button type="button" onClick={onPreview}>
+              {t("content.preview")}
+            </button>
+          )}
           {onDuplicate && (
             <button type="button" onClick={onDuplicate}>
               {t("content.duplicate")}

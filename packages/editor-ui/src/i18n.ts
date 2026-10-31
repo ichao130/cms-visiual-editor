@@ -274,6 +274,7 @@ const ja = {
   "content.status.published": "公開",
   "content.status.draft": "下書き",
   "content.scheduled": "予約投稿",
+  "content.preview": "プレビュー",
   "blocks.empty": "まだブロックがありません。「＋ ブロックを追加」から始めましょう。",
   "blocks.add": "ブロックを追加",
   "blocks.addHere": "ここに追加",

@@ -412,6 +412,8 @@ button.pcms-danger { color: var(--pcms-danger); border-color: var(--pcms-danger-
 
 .pcms-modal__panel--narrow { width: min(420px, 92vw); }
 .pcms-modal__panel--wide { width: min(880px, 94vw); }
+.pcms-previewmodal { display: flex; flex-direction: column; height: min(88vh, 900px); }
+.pcms-previewmodal__frame { flex: 1; width: 100%; border: 1px solid var(--pcms-border); border-radius: 8px; background: #fff; }
 .pcms-modal__actions { display: flex; justify-content: flex-end; margin-top: 1rem; }
 
 /* Site-structure pages (content types / taxonomies / menus) */
