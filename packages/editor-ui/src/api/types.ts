@@ -11,7 +11,7 @@ import type {
   TaxonomyDef,
   VisitStats,
 } from "@pcms/shared";
-import type { AiIssue, EncryptedBackup, ThemeBundle } from "@pcms/engine";
+import type { AiIssue, BackupRef, EncryptedBackup, ThemeBundle } from "@pcms/engine";
 
 /**
  * The project data the editor works on. The theme and content are read-only
@@ -135,6 +135,15 @@ export interface PcmsApi {
    */
   createBackup(passphrase: string): Promise<EncryptedBackup>;
   restoreBackup(backup: EncryptedBackup, passphrase: string): Promise<void>;
+  /**
+   * Save an encrypted backup to the backup store (cloud in a real build, local
+   * history in the eval / desktop), and manage that history. Only ciphertext is
+   * ever stored — the store never sees the passphrase.
+   */
+  uploadBackup(passphrase: string): Promise<BackupRef>;
+  listBackups(): Promise<BackupRef[]>;
+  restoreFromBackup(id: string, passphrase: string): Promise<void>;
+  deleteBackup(id: string): Promise<void>;
 }
 
 // ---------------------------------------------------------------------------

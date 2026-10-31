@@ -1,5 +1,5 @@
-import { useRef, useState } from "react";
-import type { EncryptedBackup } from "@pcms/engine";
+import { useEffect, useRef, useState } from "react";
+import type { BackupRef, EncryptedBackup } from "@pcms/engine";
 import { useSiteWorkspace } from "../state/SiteWorkspace.js";
 import { useToast } from "../state/ToastContext.js";
 import { t } from "../i18n.js";
@@ -16,7 +16,57 @@ export function BackupPanel() {
   const [pass, setPass] = useState("");
   const [restorePass, setRestorePass] = useState("");
   const [busy, setBusy] = useState(false);
+  const [list, setList] = useState<BackupRef[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const refreshList = () => {
+    void api.listBackups().then(setList).catch(() => setList([]));
+  };
+  useEffect(refreshList, [api]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const saveToStore = async () => {
+    if (pass.trim() === "") {
+      toast(t("backup.needPass"), "error");
+      return;
+    }
+    setBusy(true);
+    try {
+      await api.uploadBackup(pass);
+      toast(t("backup.saved"));
+      setPass("");
+      refreshList();
+    } catch (e) {
+      toast((e as Error).message || t("backup.failed"), "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const restoreStored = async (ref: BackupRef) => {
+    const phrase = window.prompt(t("backup.passphrase"));
+    if (phrase == null || phrase.trim() === "") return;
+    if (!window.confirm(t("backup.restoreConfirm"))) return;
+    setBusy(true);
+    try {
+      await api.restoreFromBackup(ref.id, phrase);
+      toast(t("backup.restored"));
+      window.setTimeout(() => window.location.reload(), 700);
+    } catch (e) {
+      toast((e as Error).message || t("backup.failed"), "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const removeStored = async (ref: BackupRef) => {
+    if (!window.confirm(t("backup.deleteConfirm"))) return;
+    try {
+      await api.deleteBackup(ref.id);
+      refreshList();
+    } catch (e) {
+      toast((e as Error).message || t("backup.failed"), "error");
+    }
+  };
 
   const create = async () => {
     if (pass.trim() === "") {
@@ -82,7 +132,38 @@ export function BackupPanel() {
         <button type="button" onClick={create} disabled={busy}>
           {t("backup.create")}
         </button>
+        <button type="button" onClick={saveToStore} disabled={busy}>
+          {t("backup.save")}
+        </button>
       </div>
+
+      {list.length > 0 && (
+        <div className="pcms-backup__list">
+          <h4 className="pcms-backup__listhead">{t("backup.history")}</h4>
+          <ul>
+            {list.map((ref) => (
+              <li key={ref.id} className="pcms-backup__item">
+                <span className="pcms-backup__when">
+                  {new Date(ref.createdAt).toLocaleString()}（{Math.ceil(ref.size / 1024)}KB）
+                </span>
+                <span className="pcms-backup__itemactions">
+                  <button type="button" onClick={() => restoreStored(ref)} disabled={busy}>
+                    {t("backup.restore")}
+                  </button>
+                  <button
+                    type="button"
+                    className="pcms-danger"
+                    onClick={() => removeStored(ref)}
+                    disabled={busy}
+                  >
+                    {t("content.delete")}
+                  </button>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="pcms-backup__row">
         <input ref={fileRef} type="file" accept="application/json,.json" aria-label={t("backup.restoreFile")} />

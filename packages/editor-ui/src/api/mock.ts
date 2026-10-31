@@ -43,8 +43,11 @@ import type { VisitStats } from "@pcms/shared";
 import {
   createEncryptedBackup,
   openEncryptedBackup,
+  KvBackupStore,
   type BackupData,
+  type BackupRef,
   type EncryptedBackup,
+  type KvAdapter,
 } from "@pcms/engine";
 import { manifestOf, publishDiff } from "./publishDiff.js";
 
@@ -291,6 +294,65 @@ function loadTaxonomies(): TaxonomyDef[] {
     return BUILTIN_TAXONOMIES;
   }
 }
+
+/** All site data for a backup — never the deploy/connection config (CLAUDE.md). */
+function gatherBackupData(): BackupData {
+  return {
+    site: loadSite(),
+    settings: loadDraft() ?? defaultSettings,
+    content: loadContent(),
+    contentTypes: loadTypes(),
+    taxonomies: loadTaxonomies(),
+    menus: loadMenus(),
+    redirects: loadRedirects(),
+    media: loadMedia(),
+  };
+}
+
+/** Overwrite every site-data store from a restored backup. */
+function applyBackupData(data: BackupData): void {
+  saveJson(SITE_KEY, data.site);
+  saveJson(DRAFT_KEY, data.settings);
+  saveJson(CONTENT_KEY, data.content);
+  saveJson(TYPES_KEY, data.contentTypes);
+  saveJson(TAX_KEY, data.taxonomies);
+  saveJson(MENUS_KEY, data.menus);
+  saveJson(REDIRECTS_KEY, data.redirects);
+  saveJson(MEDIA_KEY, data.media);
+}
+
+/** Backup history store, backed by browser storage in the eval build. */
+const backupKv: KvAdapter = {
+  async get(key) {
+    try {
+      return localStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  },
+  async set(key, value) {
+    try {
+      localStorage.setItem(key, value);
+    } catch {
+      /* ignore storage failures in the mock */
+    }
+  },
+  async delete(key) {
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      /* ignore */
+    }
+  },
+  async keys() {
+    try {
+      return Object.keys(localStorage);
+    } catch {
+      return [];
+    }
+  },
+};
+const backupStore = new KvBackupStore(backupKv, "pcms.mock.backup.");
 
 function saveJson(key: string, value: unknown): void {
   try {
@@ -785,30 +847,25 @@ export function createMockApi(): PcmsApi {
       return mockSubmissions.filter((s) => s.formId === formId);
     },
     async createBackup(passphrase: string): Promise<EncryptedBackup> {
-      // Gather all site data — but never the deploy/connection config
-      // (CLAUDE.md: サーバー接続情報はクラウドに送らない・保存しない).
-      const data: BackupData = {
-        site: loadSite(),
-        settings: loadDraft() ?? defaultSettings,
-        content: loadContent(),
-        contentTypes: loadTypes(),
-        taxonomies: loadTaxonomies(),
-        menus: loadMenus(),
-        redirects: loadRedirects(),
-        media: loadMedia(),
-      };
-      return createEncryptedBackup(data, passphrase);
+      return createEncryptedBackup(gatherBackupData(), passphrase);
     },
     async restoreBackup(backup: EncryptedBackup, passphrase: string): Promise<void> {
-      const { data } = await openEncryptedBackup(backup, passphrase);
-      saveJson(SITE_KEY, data.site);
-      saveJson(DRAFT_KEY, data.settings);
-      saveJson(CONTENT_KEY, data.content);
-      saveJson(TYPES_KEY, data.contentTypes);
-      saveJson(TAX_KEY, data.taxonomies);
-      saveJson(MENUS_KEY, data.menus);
-      saveJson(REDIRECTS_KEY, data.redirects);
-      saveJson(MEDIA_KEY, data.media);
+      applyBackupData((await openEncryptedBackup(backup, passphrase)).data);
+    },
+    async uploadBackup(passphrase: string): Promise<BackupRef> {
+      // "Cloud" in the eval build is browser storage; a real build points the
+      // same store at Firebase Storage. Only ciphertext is ever stored.
+      return backupStore.save(await createEncryptedBackup(gatherBackupData(), passphrase));
+    },
+    async listBackups(): Promise<BackupRef[]> {
+      return backupStore.list();
+    },
+    async restoreFromBackup(id: string, passphrase: string): Promise<void> {
+      const blob = await backupStore.load(id);
+      applyBackupData((await openEncryptedBackup(blob, passphrase)).data);
+    },
+    async deleteBackup(id: string): Promise<void> {
+      await backupStore.remove(id);
     },
     async loadRedirects(): Promise<Redirect[]> {
       return loadRedirects();

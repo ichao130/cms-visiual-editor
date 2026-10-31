@@ -562,6 +562,12 @@ button.pcms-danger { color: var(--pcms-danger); border-color: var(--pcms-danger-
 .pcms-backup__row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-bottom: 0.6rem; }
 .pcms-backup__row input[type="password"] { flex: 1; min-width: 10rem; font: inherit; padding: 0.4rem 0.5rem; border: 1px solid var(--pcms-border); border-radius: 6px; }
 .pcms-backup__row input[type="file"] { flex: 1; min-width: 12rem; font-size: 0.82rem; }
+.pcms-backup__list { margin-top: 0.8rem; }
+.pcms-backup__listhead { margin: 0 0 0.4rem; font-size: 0.85rem; }
+.pcms-backup__item { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; padding: 0.35rem 0; border-top: 1px solid var(--pcms-border); font-size: 0.82rem; }
+.pcms-backup__when { color: var(--pcms-muted); font-family: ui-monospace, monospace; }
+.pcms-backup__itemactions { display: flex; gap: 0.3rem; flex: none; }
+.pcms-backup__itemactions button { padding: 0.2rem 0.5rem; font-size: 0.78rem; }
 
 /* Repeat editor */
 .pcms-repeat { margin-top: 1rem; border-top: 1px dashed var(--pcms-border); padding-top: 0.75rem; }

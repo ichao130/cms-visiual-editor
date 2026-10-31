@@ -37,6 +37,10 @@ import {
   saveRedirects,
   createBackup,
   restoreBackup,
+  uploadBackup,
+  listBackups,
+  restoreFromBackup,
+  deleteBackup,
 } from "./project.js";
 import {
   getDeployConfig,
@@ -234,6 +238,12 @@ function registerIpc(): void {
   ipcMain.handle("pcms:restoreBackup", (_event, backup: EncryptedBackup, passphrase: string) =>
     restoreBackup(backup, passphrase),
   );
+  ipcMain.handle("pcms:uploadBackup", (_event, passphrase: string) => uploadBackup(passphrase));
+  ipcMain.handle("pcms:listBackups", () => listBackups());
+  ipcMain.handle("pcms:restoreFromBackup", (_event, id: string, passphrase: string) =>
+    restoreFromBackup(id, passphrase),
+  );
+  ipcMain.handle("pcms:deleteBackup", (_event, id: string) => deleteBackup(id));
 }
 
 /**

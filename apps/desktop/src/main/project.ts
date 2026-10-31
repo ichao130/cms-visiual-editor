@@ -26,8 +26,11 @@ import {
   renderMarkdown,
   createEncryptedBackup,
   openEncryptedBackup,
+  KvBackupStore,
   type BackupData,
+  type BackupRef,
   type EncryptedBackup,
+  type KvAdapter,
 } from "@pcms/engine";
 import type { FileSet } from "@pcms/deploy";
 import type { MediaUpload, ProjectData } from "@pcms/editor-ui";
@@ -530,4 +533,47 @@ export async function restoreBackup(
   saveMenus(data.menus);
   saveRedirects(data.redirects);
   restoreMedia(data.media);
+}
+
+/**
+ * Backup history store. On the desktop this is an app-data folder of encrypted
+ * files (off-machine cloud sync plugs into the same BackupStore interface by
+ * swapping this adapter for a Firebase Storage one). Only ciphertext is stored.
+ */
+function backupsDir(): string {
+  const dir = join(app.getPath("userData"), "backups");
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+  return dir;
+}
+const backupFsKv: KvAdapter = {
+  async get(key) {
+    const f = join(backupsDir(), `${basename(key)}.json`);
+    return existsSync(f) ? readFileSync(f, "utf8") : null;
+  },
+  async set(key, value) {
+    writeFileSync(join(backupsDir(), `${basename(key)}.json`), value, "utf8");
+  },
+  async delete(key) {
+    const f = join(backupsDir(), `${basename(key)}.json`);
+    if (existsSync(f)) unlinkSync(f);
+  },
+  async keys() {
+    return readdirSync(backupsDir())
+      .filter((f) => f.endsWith(".json"))
+      .map((f) => f.slice(0, -5));
+  },
+};
+const backupStore = new KvBackupStore(backupFsKv, "");
+
+export async function uploadBackup(passphrase: string): Promise<BackupRef> {
+  return backupStore.save(await createBackup(passphrase));
+}
+export async function listBackups(): Promise<BackupRef[]> {
+  return backupStore.list();
+}
+export async function restoreFromBackup(id: string, passphrase: string): Promise<void> {
+  await restoreBackup(await backupStore.load(id), passphrase);
+}
+export async function deleteBackup(id: string): Promise<void> {
+  await backupStore.remove(id);
 }

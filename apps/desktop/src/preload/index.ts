@@ -84,6 +84,11 @@ const api: PcmsApi = {
   createBackup: (passphrase: string) => ipcRenderer.invoke("pcms:createBackup", passphrase),
   restoreBackup: (backup: EncryptedBackup, passphrase: string) =>
     ipcRenderer.invoke("pcms:restoreBackup", backup, passphrase),
+  uploadBackup: (passphrase: string) => ipcRenderer.invoke("pcms:uploadBackup", passphrase),
+  listBackups: () => ipcRenderer.invoke("pcms:listBackups"),
+  restoreFromBackup: (id: string, passphrase: string) =>
+    ipcRenderer.invoke("pcms:restoreFromBackup", id, passphrase),
+  deleteBackup: (id: string) => ipcRenderer.invoke("pcms:deleteBackup", id),
 };
 
 contextBridge.exposeInMainWorld("pcms", api);

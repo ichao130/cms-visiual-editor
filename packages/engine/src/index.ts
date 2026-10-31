@@ -39,6 +39,12 @@ export {
   type EncryptedBackup,
 } from "./backup.js";
 export {
+  KvBackupStore,
+  type BackupStore,
+  type BackupRef,
+  type KvAdapter,
+} from "./backupStore.js";
+export {
   generateSite,
   isScheduled,
   contentUrl,
