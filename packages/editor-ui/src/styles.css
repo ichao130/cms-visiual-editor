@@ -187,6 +187,19 @@ button.pcms-aibtn:hover:not(:disabled) { filter: brightness(1.08); background: v
 .pcms-publish__status { padding: 0.5rem 0.7rem; border-radius: 6px; font-size: 0.9rem; }
 .pcms-publish__status.is-ok { background: var(--pcms-success-weak); color: var(--pcms-success); }
 .pcms-publish__status.is-bad { background: var(--pcms-danger-weak); color: var(--pcms-danger); }
+.pcms-publish__files { margin: 0.35rem 0 0; font-size: 0.82rem; }
+.pcms-publish__files > summary { cursor: pointer; color: var(--pcms-text-muted); }
+.pcms-publish__files.is-delete > summary { color: var(--pcms-danger); }
+.pcms-publish__filelist {
+  list-style: none;
+  margin: 0.25rem 0 0;
+  padding: 0.25rem 0 0 0.6rem;
+  max-height: 10rem;
+  overflow: auto;
+  font-family: var(--pcms-mono, ui-monospace, monospace);
+  color: var(--pcms-text-muted);
+}
+.pcms-publish__files.is-delete .pcms-publish__filelist { color: var(--pcms-danger); }
 .pcms-publish__issues { list-style: none; padding: 0; margin: 0.5rem 0 0; }
 .pcms-publish__issue { font-size: 0.82rem; padding: 0.15rem 0; }
 .pcms-publish__issue.is-error { color: var(--pcms-danger); }

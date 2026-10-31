@@ -218,6 +218,10 @@ export interface PublishPreview {
   upload: number;
   delete: number;
   unchanged: number;
+  /** Paths that will be uploaded (new or changed since the last publish). */
+  uploadPaths: string[];
+  /** Paths that will be deleted (present last publish, gone now). */
+  deletePaths: string[];
   target: string;
 }
 

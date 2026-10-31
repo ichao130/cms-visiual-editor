@@ -39,6 +39,7 @@ import type {
   ThemeFileNode,
   ThemeSummary,
 } from "./types.js";
+import { manifestOf, publishDiff } from "./publishDiff.js";
 
 // Read the sample-cafe theme at build time as raw strings (Vite ?raw). This
 // keeps the dev harness free of any filesystem access at runtime.
@@ -293,6 +294,21 @@ function saveJson(key: string, value: unknown): void {
 }
 
 const MOCK_TARGET = "ブラウザのモック（実際の送信は行いません）";
+const PUBLISHED_KEY = "pcms.mock.published";
+
+/** Content hash per output path for the current generated site. */
+function currentManifest(): Record<string, string> {
+  return manifestOf(generateMockSite());
+}
+
+function loadPublished(): Record<string, string> | null {
+  try {
+    const raw = localStorage.getItem(PUBLISHED_KEY);
+    return raw ? (JSON.parse(raw) as Record<string, string>) : null;
+  } catch {
+    return null;
+  }
+}
 
 /** Generate the whole site output, as the engine would for a publish. */
 function generateMockSite(): Record<string, string> {
@@ -547,11 +563,14 @@ export function createMockApi(): PcmsApi {
       /* no-op in the mock */
     },
     async previewPublish(): Promise<PublishPreview> {
+      const diff = publishDiff(loadPublished(), currentManifest());
       return {
         issues: preflightIssues(),
-        upload: outputCount(),
-        delete: 0,
-        unchanged: 0,
+        upload: diff.upload.length,
+        delete: diff.delete.length,
+        unchanged: diff.unchanged.length,
+        uploadPaths: diff.upload,
+        deletePaths: diff.delete,
         target: MOCK_TARGET,
       };
     },
@@ -570,12 +589,17 @@ export function createMockApi(): PcmsApi {
           publishedAt: new Date().toISOString(),
         };
       }
+      // Diff against the last publish, then record this publish as the new
+      // baseline so the next preview shows only what changed since.
+      const next = currentManifest();
+      const diff = publishDiff(loadPublished(), next);
+      saveJson(PUBLISHED_KEY, next);
       return {
         ok: true,
         issues,
-        uploaded: outputCount(),
-        deleted: 0,
-        unchanged: 0,
+        uploaded: diff.upload.length,
+        deleted: diff.delete.length,
+        unchanged: diff.unchanged.length,
         target: MOCK_TARGET,
         publishedAt: new Date().toISOString(),
       };

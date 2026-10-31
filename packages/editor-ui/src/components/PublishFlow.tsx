@@ -170,6 +170,20 @@ export function PublishFlow({ api }: { api: PcmsApi }) {
             {t("publish.changes")}: {t("publish.willUpload")} {preview.upload} / {t("publish.willDelete")}{" "}
             {preview.delete} / {t("publish.unchanged")} {preview.unchanged}
           </p>
+          {preview.deletePaths.length > 0 && (
+            <PathList
+              label={`${t("publish.willDelete")}（${preview.deletePaths.length}）`}
+              paths={preview.deletePaths}
+              danger
+              open
+            />
+          )}
+          {preview.uploadPaths.length > 0 && (
+            <PathList
+              label={`${t("publish.willUpload")}（${preview.uploadPaths.length}）`}
+              paths={preview.uploadPaths}
+            />
+          )}
           <IssueList issues={preview.issues} />
         </section>
       )}
@@ -216,6 +230,30 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
       <span className="pcms-field__label">{label}</span>
       {children}
     </label>
+  );
+}
+
+/** A collapsible list of output paths (the diff's upload / delete set). */
+function PathList({
+  label,
+  paths,
+  danger,
+  open,
+}: {
+  label: string;
+  paths: string[];
+  danger?: boolean;
+  open?: boolean;
+}) {
+  return (
+    <details className={`pcms-publish__files${danger ? " is-delete" : ""}`} open={open}>
+      <summary>{label}</summary>
+      <ul className="pcms-publish__filelist">
+        {paths.map((p) => (
+          <li key={p}>{p}</li>
+        ))}
+      </ul>
+    </details>
   );
 }
 
