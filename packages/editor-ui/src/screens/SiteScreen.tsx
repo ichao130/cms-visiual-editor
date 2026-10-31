@@ -1,7 +1,6 @@
 import { useEffect, useMemo } from "react";
-import { contentUrl } from "@pcms/engine";
 import type { ContentTypeDef, MenuItem, TaxonomyDef } from "@pcms/shared";
-import type { LinkTarget } from "../components/MenuManager.js";
+import { buildLinkTargets } from "../state/linkTargets.js";
 import type { PcmsApi } from "../api/types.js";
 import type { Route, SiteTab } from "../state/route.js";
 import { useSiteWorkspace } from "../state/SiteWorkspace.js";
@@ -135,34 +134,8 @@ export function SiteScreen({ api, route, onNavigate }: Props) {
     setDirty(true);
   };
 
-  // Pages/posts/archives the operator can link to from a menu (instead of
-  // typing a URL). Drafts and scheduled posts are left out so a menu never
-  // links to a page the published site will not have.
-  const linkTargets = useMemo<LinkTarget[]>(() => {
-    const typeLabel = (type: string) =>
-      doc.contentTypes.find((t) => t.name === type)?.label ?? type;
-    const list: LinkTarget[] = [{ label: t("menu.home"), url: "/" }];
-    const now = Date.now();
-    for (const id of Object.keys(doc.settings.pages)) {
-      if (id === "index" || id === "home") continue;
-      list.push({ label: id, url: `/${id}/` });
-    }
-    for (const type of new Set(doc.content.map((i) => i.type))) {
-      list.push({ label: `${typeLabel(type)}一覧`, url: `/${type}/` });
-    }
-    for (const item of doc.content) {
-      if (item.status === "draft") continue;
-      const date = item.fields.date;
-      if (typeof date === "string" && date.trim() !== "" && Date.parse(date.replace(/\//g, "-")) > now) {
-        continue;
-      }
-      list.push({
-        label: `${typeLabel(item.type)}: ${String(item.fields.title ?? item.slug)}`,
-        url: contentUrl(item, doc.site),
-      });
-    }
-    return list;
-  }, [doc]);
+  // Pages/posts/archives the operator can link to (menu + redirect pickers).
+  const linkTargets = useMemo(() => buildLinkTargets(doc), [doc]);
 
   return (
     <MediaContext.Provider value={media.value}>

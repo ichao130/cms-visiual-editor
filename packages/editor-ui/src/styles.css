@@ -488,7 +488,7 @@ button.pcms-danger { color: var(--pcms-danger); border-color: var(--pcms-danger-
 .pcms-menuitem input { font: inherit; padding: 0.35rem 0.5rem; border: 1px solid var(--pcms-border); border-radius: 6px; }
 .pcms-menuitem__label { width: 38%; }
 .pcms-menuitem__url { flex: 1; min-width: 0; font-family: ui-monospace, monospace; }
-.pcms-menuitem__pick { flex: 0 0 auto; max-width: 9rem; font: inherit; padding: 0.3rem 0.4rem; border: 1px solid var(--pcms-border); border-radius: 6px; color: var(--pcms-muted); }
+.pcms-menuitem__pick, .pcms-redirects__pick { flex: 0 0 auto; max-width: 9rem; font: inherit; padding: 0.3rem 0.4rem; border: 1px solid var(--pcms-border); border-radius: 6px; color: var(--pcms-muted); }
 .pcms-menuitem__actions { display: flex; gap: 0.2rem; }
 .pcms-menuitem__actions button { padding: 0.2rem 0.45rem; font-size: 0.78rem; }
 

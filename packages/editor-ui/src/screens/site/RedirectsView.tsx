@@ -1,6 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Redirect } from "@pcms/shared";
 import type { PcmsApi } from "../../api/types.js";
+import { useSiteWorkspace } from "../../state/SiteWorkspace.js";
+import { buildLinkTargets } from "../../state/linkTargets.js";
 import { t } from "../../i18n.js";
 
 interface Props {
@@ -22,10 +24,14 @@ export function normalizePath(value: string): string {
  * via api.saveRedirects; the generator emits a static stub page per redirect.
  */
 export function RedirectsView({ api, siteId: _siteId }: Props) {
+  const { doc } = useSiteWorkspace();
   const [redirects, setRedirects] = useState<Redirect[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  // Destinations the operator can pick for "to" instead of typing (home is not
+  // a meaningful redirect target, so it is dropped).
+  const targets = useMemo(() => buildLinkTargets(doc).filter((tg) => tg.url !== "/"), [doc]);
 
   useEffect(() => {
     let active = true;
@@ -113,6 +119,23 @@ export function RedirectsView({ api, siteId: _siteId }: Props) {
           placeholder="/new/path/"
           aria-label={t("redirects.to")}
         />
+        {targets.length > 0 && (
+          <select
+            className="pcms-redirects__pick"
+            value=""
+            aria-label={t("menu.pickTarget")}
+            onChange={(e) => {
+              if (e.target.value) setTo(e.target.value);
+            }}
+          >
+            <option value="">{t("menu.pickTarget")}</option>
+            {targets.map((tg) => (
+              <option key={tg.url} value={tg.url}>
+                {tg.label}
+              </option>
+            ))}
+          </select>
+        )}
         <button type="button" disabled={!canAdd} onClick={add}>
           {t("redirects.add")}
         </button>

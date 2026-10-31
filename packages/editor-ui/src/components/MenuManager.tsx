@@ -1,12 +1,7 @@
 import { useState } from "react";
 import type { MenuItem } from "@pcms/shared";
+import type { LinkTarget } from "../state/linkTargets.js";
 import { t } from "../i18n.js";
-
-/** A page/post the operator can link to, offered in the menu link picker. */
-export interface LinkTarget {
-  label: string;
-  url: string;
-}
 
 interface MenuManagerProps {
   menus: Record<string, MenuItem[]>;
