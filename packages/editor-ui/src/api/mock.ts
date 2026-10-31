@@ -108,8 +108,8 @@ function svgDataUrl(label: string, color: string): string {
 }
 
 const defaultMedia: MediaItem[] = [
-  { id: "sample-beans", fileName: "sample-beans.svg", path: "media/sample-beans.svg", width: 320, height: 200, dataUrl: svgDataUrl("サンプル：豆", "#5a3e2b") },
-  { id: "sample-cup", fileName: "sample-cup.svg", path: "media/sample-cup.svg", width: 320, height: 200, dataUrl: svgDataUrl("サンプル：カップ", "#c98a3b") },
+  { id: "sample-beans", fileName: "sample-beans.svg", path: "media/sample-beans.svg", width: 320, height: 200, alt: "焙煎した珈琲豆", dataUrl: svgDataUrl("サンプル：豆", "#5a3e2b") },
+  { id: "sample-cup", fileName: "sample-cup.svg", path: "media/sample-cup.svg", width: 320, height: 200, alt: "淹れたての珈琲カップ", dataUrl: svgDataUrl("サンプル：カップ", "#c98a3b") },
 ];
 
 function bytesToWebpDataUrl(bytes: Uint8Array): string {
@@ -249,15 +249,26 @@ const MOCK_TARGET = "ブラウザのモック（実際の送信は行いませ�
 
 /** Generate the whole site output, as the engine would for a publish. */
 function generateMockSite(): Record<string, string> {
-  return generateSite({
-    site: { name: "テスト珈琲店", baseUrl: "https://example.test", permalink: "/:type/:slug/" },
+  const media = loadMedia();
+  const { files, assets } = generateSite({
+    site: loadSite(),
     settings: loadDraft() ?? defaultSettings,
     contentTypes: loadTypes(),
     content: loadContent(),
     theme: buildTheme(),
     menus: loadMenus(),
     taxonomies: loadTaxonomies(),
-  }).files;
+    media,
+  });
+  // Mirror the desktop's assembleOutput: the published set also carries the
+  // theme's copied assets and the media files, so the pre-publish check resolves
+  // links to them (otherwise /assets/style.css and media look broken) and counts
+  // them in the upload total.
+  const out: Record<string, string> = { ...files };
+  const themeFiles = mergedThemeFiles();
+  for (const rel of assets) out[rel] = themeFiles[rel] ?? "";
+  for (const m of media) out[m.path] = "";
+  return out;
 }
 
 /** Count the pages the engine would generate — a real preview number. */
