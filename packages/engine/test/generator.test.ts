@@ -89,6 +89,39 @@ describe("generateSite", () => {
     expect(files["index.html"]!).not.toContain("article:published_time");
   });
 
+  it("enriches Article JSON-LD with publisher, logo and author", () => {
+    const out = generateSite({
+      site: {
+        name: "テスト珈琲店",
+        baseUrl: "https://example.test",
+        logo: "/media/logo.svg",
+      },
+      settings: { pages: {} },
+      contentTypes: [],
+      content: [
+        {
+          type: "post",
+          slug: "signed",
+          fields: { title: "署名記事", date: "2026-02-01", author: "田中 太郎" },
+          body: "<p>x</p>",
+        },
+      ],
+      theme: sampleTheme(),
+    });
+    const post = out.files["post/signed/index.html"]!;
+    expect(post).toContain('"publisher":{"@type":"Organization","name":"テスト珈琲店"');
+    expect(post).toContain(
+      '"logo":{"@type":"ImageObject","url":"https://example.test/media/logo.svg"}',
+    );
+    expect(post).toContain('"author":{"@type":"Person","name":"田中 太郎"}');
+    expect(post).toContain(
+      '"mainEntityOfPage":{"@type":"WebPage","@id":"https://example.test/post/signed/"}',
+    );
+    // The sample post (no author field) still gets a publisher but no author.
+    expect(files["post/open/index.html"]!).toContain('"publisher":{"@type":"Organization"');
+    expect(files["post/open/index.html"]!).not.toContain('"author"');
+  });
+
   it("uses an explicit updated field for the modified date", () => {
     const out = generateSite({
       site: sampleSite(),

@@ -54,6 +54,18 @@ export function articleJsonLd(
   if (modified != null) obj.dateModified = String(modified);
   const image = item.fields.image;
   if (typeof image === "string" && image) obj.image = absUrl(image, b);
+  // The URL this structured data describes (Google's recommended property).
+  obj.mainEntityOfPage = { "@type": "WebPage", "@id": absUrl(url, b) };
+  // Publisher: the site as an Organization, with its logo as an ImageObject
+  // when one is set (required shape for the Article rich result).
+  const publisher: Record<string, unknown> = { "@type": "Organization", name: site.name };
+  if (site.logo) publisher.logo = { "@type": "ImageObject", url: absUrl(site.logo, b) };
+  obj.publisher = publisher;
+  // Author: a Person from the item's `author` field when present.
+  const author = item.fields.author;
+  if (typeof author === "string" && author.trim() !== "") {
+    obj.author = { "@type": "Person", name: author.trim() };
+  }
   return obj;
 }
 
