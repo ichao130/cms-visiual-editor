@@ -18,6 +18,7 @@ export type Block =
   | { type: "list"; ordered: boolean; items: string[] }
   | { type: "quote"; html: string }
   | { type: "image"; src: string; alt: string }
+  | { type: "gallery"; images: { src: string; alt: string }[] }
   | { type: "divider" }
   | { type: "html"; html: string };
 
@@ -83,6 +84,13 @@ export function blocksToHtml(blocks: Block[]): string {
       case "image":
         parts.push(`<img src="${escapeHtml(b.src)}" alt="${escapeHtml(b.alt)}">`);
         break;
+      case "gallery": {
+        const imgs = b.images
+          .map((im) => `<img src="${escapeHtml(im.src)}" alt="${escapeHtml(im.alt)}">`)
+          .join("");
+        parts.push(`<div class="pcms-gallery">${imgs}</div>`);
+        break;
+      }
       case "divider":
         parts.push("<hr>");
         break;
@@ -135,6 +143,17 @@ export function htmlToBlocks(html: string): Block[] {
         type: "image",
         src: node.getAttribute("src") ?? "",
         alt: node.getAttribute("alt") ?? "",
+      });
+    } else if (
+      name === "div" &&
+      (node.getAttribute("class") ?? "").split(/\s+/).includes("pcms-gallery")
+    ) {
+      blocks.push({
+        type: "gallery",
+        images: node.querySelectorAll("img").map((img) => ({
+          src: img.getAttribute("src") ?? "",
+          alt: img.getAttribute("alt") ?? "",
+        })),
       });
     } else if (name === "figure" && node.querySelector("img")) {
       const img = node.querySelector("img")!;

@@ -65,6 +65,21 @@ describe("htmlToBlocks / blocksToHtml", () => {
     ]);
   });
 
+  it("round-trips a gallery block", () => {
+    const html = '<div class="pcms-gallery"><img src="/m/1.jpg" alt="一"><img src="/m/2.jpg" alt="二"></div>';
+    const blocks = htmlToBlocks(html);
+    expect(blocks).toEqual<Block[]>([
+      {
+        type: "gallery",
+        images: [
+          { src: "/m/1.jpg", alt: "一" },
+          { src: "/m/2.jpg", alt: "二" },
+        ],
+      },
+    ]);
+    expect(blocksToHtml(blocks)).toBe(html);
+  });
+
   it("escapes special characters when serializing an image", () => {
     const html = blocksToHtml([{ type: "image", src: "/m/a&b.jpg", alt: '"q"' }]);
     expect(html).toBe('<img src="/m/a&amp;b.jpg" alt="&quot;q&quot;">');

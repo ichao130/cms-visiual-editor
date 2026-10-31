@@ -28,6 +28,7 @@ const KINDS = [
   "orderedlist",
   "quote",
   "image",
+  "gallery",
   "divider",
   "html",
 ] as const;
@@ -41,6 +42,7 @@ const KIND_LABEL: Record<Kind, string> = {
   orderedlist: "番号付き",
   quote: "引用",
   image: "画像",
+  gallery: "ギャラリー",
   divider: "区切り線",
   html: "HTML / 埋め込み",
 };
@@ -59,6 +61,8 @@ function newBlock(kind: Kind): Block {
       return { type: "quote", html: "" };
     case "image":
       return { type: "image", src: "", alt: "" };
+    case "gallery":
+      return { type: "gallery", images: [] };
     case "divider":
       return { type: "divider" };
     case "html":
@@ -256,6 +260,8 @@ function BlockBody({ block, onChange }: { block: Block; onChange: (b: Block) => 
       );
     case "image":
       return <ImageBlock block={block} onChange={onChange} />;
+    case "gallery":
+      return <GalleryBlock block={block} onChange={onChange} />;
     case "divider":
       return <hr className="pcms-block__divider" />;
     case "html":
@@ -300,6 +306,60 @@ function ImageBlock({
           onChange={(e) => onChange({ ...block, alt: e.target.value })}
         />
       </div>
+    </div>
+  );
+}
+
+function GalleryBlock({
+  block,
+  onChange,
+}: {
+  block: Extract<Block, { type: "gallery" }>;
+  onChange: (b: Block) => void;
+}) {
+  const { pickImage, resolveUrl } = useMedia();
+  const setImages = (images: { src: string; alt: string }[]) => onChange({ ...block, images });
+  const add = async () => {
+    const path = await pickImage();
+    if (path != null) setImages([...block.images, { src: path, alt: "" }]);
+  };
+  const change = async (idx: number) => {
+    const path = await pickImage();
+    if (path != null) setImages(block.images.map((im, i) => (i === idx ? { ...im, src: path } : im)));
+  };
+  return (
+    <div className="pcms-block__gallery">
+      <div className="pcms-block__gallerygrid">
+        {block.images.map((im, i) => (
+          <div className="pcms-block__galleryitem" key={i}>
+            <button type="button" className="pcms-imagefield__thumb" onClick={() => change(i)}>
+              {resolveUrl(im.src) ? (
+                <img src={resolveUrl(im.src)} alt="" />
+              ) : (
+                <span className="pcms-imagefield__placeholder">{t("media.pick")}</span>
+              )}
+            </button>
+            <input
+              type="text"
+              value={im.alt}
+              placeholder={t("blocks.alt")}
+              onChange={(e) =>
+                setImages(block.images.map((x, j) => (j === i ? { ...x, alt: e.target.value } : x)))
+              }
+            />
+            <button
+              type="button"
+              className="pcms-danger pcms-block__galleryremove"
+              onClick={() => setImages(block.images.filter((_, j) => j !== i))}
+            >
+              {t("blocks.remove")}
+            </button>
+          </div>
+        ))}
+      </div>
+      <button type="button" onClick={add}>
+        {t("blocks.addImage")}
+      </button>
     </div>
   );
 }
