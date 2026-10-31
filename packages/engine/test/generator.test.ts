@@ -28,6 +28,15 @@ describe("generateSite", () => {
     expect(files["404.html"]).toContain('<meta name="robots" content="noindex">');
   });
 
+  it("includes full article content in the feed via content:encoded", () => {
+    const feed = files["feed.xml"]!;
+    expect(feed).toContain('xmlns:content="http://purl.org/rss/1.0/modules/content/"');
+    // The sample post's body HTML is carried verbatim inside CDATA.
+    expect(feed).toContain(
+      "<content:encoded><![CDATA[<h2>ごあいさつ</h2><p>本日<strong>開店</strong>",
+    );
+  });
+
   it("gives sitemap entries a <lastmod> from the content date", () => {
     const sitemap = files["sitemap.xml"]!;
     // Item pages carry their own date.
@@ -169,6 +178,45 @@ describe("generateSite", () => {
     expect(home.slice(0, home.indexOf("</head>"))).toContain(
       '<meta property="og:locale" content="en_GB">',
     );
+  });
+
+  it("absolutizes relative URLs in feed content and leaves external ones", () => {
+    const out = generateSite({
+      site: { name: "Cafe", baseUrl: "https://example.test/" },
+      settings: { pages: {} },
+      contentTypes: [],
+      content: [
+        {
+          type: "post",
+          slug: "rich",
+          fields: { title: "画像記事", date: "2026-02-01" },
+          body:
+            '<p><img src="/media/a.webp"><img src="media/b.webp">' +
+            '<a href="https://other.example/x">ext</a><a href="#top">anchor</a></p>',
+        },
+      ],
+      theme: sampleTheme(),
+    });
+    const feed = out.files["feed.xml"]!;
+    expect(feed).toContain('src="https://example.test/media/a.webp"');
+    expect(feed).toContain('src="https://example.test/media/b.webp"');
+    // External, anchor and mailto-style URLs are untouched.
+    expect(feed).toContain('href="https://other.example/x"');
+    expect(feed).toContain('href="#top"');
+  });
+
+  it("omits content:encoded and absolutizing when no base URL is set", () => {
+    const out = generateSite({
+      site: { name: "Cafe" },
+      settings: { pages: {} },
+      contentTypes: [],
+      content: [
+        { type: "post", slug: "r", fields: { title: "T", date: "2026-02-01" }, body: '<img src="/media/a.webp">' },
+      ],
+      theme: sampleTheme(),
+    });
+    // Body still ships, but the relative URL stays relative without a base.
+    expect(out.files["feed.xml"]!).toContain('<content:encoded><![CDATA[<img src="/media/a.webp">');
   });
 
   it("uses an explicit updated field for the modified date", () => {

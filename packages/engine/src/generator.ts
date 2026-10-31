@@ -473,6 +473,14 @@ function buildFeed(
       if (pub) lines.push(`      <pubDate>${pub}</pubDate>`);
       const desc = itemDescription(item);
       if (desc) lines.push(`      <description>${escapeXml(desc)}</description>`);
+      const body = (item.bodyHtml ?? item.body ?? "").trim();
+      if (body) {
+        // Full article HTML for readers that render it. Relative links/images
+        // are made absolute so they resolve outside the site, then wrapped in
+        // CDATA (with any `]]>` split so it can't close the section early).
+        const full = absolutizeHtml(body, base).replace(/]]>/g, "]]]]><![CDATA[>");
+        lines.push(`      <content:encoded><![CDATA[${full}]]></content:encoded>`);
+      }
       for (const term of feedCategories(item, taxonomies)) {
         lines.push(`      <category>${escapeXml(term)}</category>`);
       }
@@ -493,13 +501,32 @@ function buildFeed(
   ];
   if (lastBuild) channel.push(`    <lastBuildDate>${lastBuild}</lastBuildDate>`);
   return `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
   <channel>
 ${channel.join("\n")}
 ${items}
   </channel>
 </rss>
 `;
+}
+
+/**
+ * Rewrite relative `src`/`href` URLs in a fragment of HTML to absolute ones,
+ * using `base` (the site's base URL, without a trailing slash). Absolute URLs,
+ * protocol-relative URLs, anchors, and mailto/tel/data links are left alone.
+ * Used for feed content so images and links resolve inside a reader. When no
+ * base URL is configured the HTML is returned unchanged.
+ */
+function absolutizeHtml(html: string, base: string): string {
+  if (!base) return html;
+  return html.replace(
+    /\b(src|href)\s*=\s*"([^"]*)"/gi,
+    (whole, attr: string, url: string) => {
+      if (url === "" || /^(?:[a-z][a-z0-9+.-]*:|\/\/|#)/i.test(url)) return whole;
+      const abs = url.startsWith("/") ? base + url : `${base}/${url}`;
+      return `${attr}="${abs}"`;
+    },
+  );
 }
 
 /** The taxonomy terms assigned to an item, for <category> tags in the feed. */
