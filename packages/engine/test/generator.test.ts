@@ -77,6 +77,39 @@ describe("generateSite", () => {
     expect(head("index.html")).toContain('<meta property="og:type" content="website">');
   });
 
+  it("emits article published/modified dates in head meta and JSON-LD", () => {
+    const post = files["post/open/index.html"]!;
+    const head = post.slice(0, post.indexOf("</head>"));
+    // The sample post is dated 2026-02-01 with no separate update date.
+    expect(head).toContain('<meta property="article:published_time" content="2026-02-01">');
+    expect(head).toContain('<meta property="article:modified_time" content="2026-02-01">');
+    expect(post).toContain('"datePublished":"2026-02-01"');
+    expect(post).toContain('"dateModified":"2026-02-01"');
+    // Non-article pages (home) carry no article:* timestamps.
+    expect(files["index.html"]!).not.toContain("article:published_time");
+  });
+
+  it("uses an explicit updated field for the modified date", () => {
+    const out = generateSite({
+      site: sampleSite(),
+      settings: { pages: {} },
+      contentTypes: [],
+      content: [
+        {
+          type: "post",
+          slug: "edited",
+          fields: { title: "改訂記事", date: "2026-02-01", updated: "2026-03-15" },
+          body: "<p>x</p>",
+        },
+      ],
+      theme: sampleTheme(),
+    });
+    const post = out.files["post/edited/index.html"]!;
+    expect(post).toContain('<meta property="article:published_time" content="2026-02-01">');
+    expect(post).toContain('<meta property="article:modified_time" content="2026-03-15">');
+    expect(post).toContain('"dateModified":"2026-03-15"');
+  });
+
   it("emits a canonical URL (and og:url) matching each page's own path", () => {
     const expectCanonical = (path: string, url: string) => {
       const head = files[path]!.slice(0, files[path]!.indexOf("</head>"));

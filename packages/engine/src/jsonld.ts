@@ -50,6 +50,8 @@ export function articleJsonLd(
     url: absUrl(url, b),
   };
   if (item.fields.date != null) obj.datePublished = String(item.fields.date);
+  const modified = item.fields.updated ?? item.fields.modified ?? item.fields.date;
+  if (modified != null) obj.dateModified = String(modified);
   const image = item.fields.image;
   if (typeof image === "string" && image) obj.image = absUrl(image, b);
   return obj;

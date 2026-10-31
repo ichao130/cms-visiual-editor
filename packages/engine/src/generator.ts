@@ -225,6 +225,8 @@ export function generateSite(input: SiteInput): GeneratedSite {
         description: itemDescription(item),
         ogType: "article",
         noindex: item.noindex,
+        publishedTime: w3cDate(item.fields.date),
+        modifiedTime: w3cDate(itemModified(item)),
       },
     );
   }
@@ -299,6 +301,15 @@ export function generateSite(input: SiteInput): GeneratedSite {
 
 function itemUrl(item: ContentItem, site: SiteConfig): string {
   return "/" + itemPath(item, site).replace(/index\.html$/, "");
+}
+
+/**
+ * An item's last-modified date: an explicit `updated`/`modified` field when
+ * present, else its publication date. Drives og `article:modified_time` and the
+ * Article JSON-LD `dateModified`.
+ */
+function itemModified(item: ContentItem): FieldValue | undefined {
+  return item.fields.updated ?? item.fields.modified ?? item.fields.date;
 }
 
 /** A content item's own meta description, from a description/excerpt field. */
@@ -590,6 +601,10 @@ interface PageMetaOpts {
   ogType?: string;
   /** Ask search engines not to index this page. */
   noindex?: boolean;
+  /** Article publication date (ISO), emitted as og `article:published_time`. */
+  publishedTime?: string;
+  /** Article last-modified date (ISO), emitted as og `article:modified_time`. */
+  modifiedTime?: string;
 }
 
 /**
@@ -639,6 +654,13 @@ function siteHeadMeta(site: SiteConfig, opts?: PageMetaOpts): string {
   // Published but hidden from search: keep following links, just don't index.
   if (opts?.noindex) {
     tags.push(`<meta name="robots" content="noindex, follow">`);
+  }
+  // Article timestamps (used by social cards and news/article rich results).
+  if (opts?.publishedTime) {
+    tags.push(`<meta property="article:published_time" content="${escapeXml(opts.publishedTime)}">`);
+  }
+  if (opts?.modifiedTime) {
+    tags.push(`<meta property="article:modified_time" content="${escapeXml(opts.modifiedTime)}">`);
   }
   const og = site.ogpDefault;
   const description = opts?.description ?? og?.description;
