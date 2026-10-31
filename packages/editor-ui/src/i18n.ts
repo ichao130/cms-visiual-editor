@@ -307,6 +307,8 @@ const ja = {
   "blocks.alt": "代替テキスト（alt）",
   "blocks.caption": "キャプション（任意）",
   "blocks.addImage": "＋画像を追加",
+  "blocks.btnText": "ボタンの文字",
+  "blocks.btnHref": "リンク先URL",
   "content.search": "タイトルやスラッグで絞り込み",
   "content.noMatch": "一致する投稿がありません。",
   "content.matchCount": "{count} 件",

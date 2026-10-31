@@ -19,6 +19,7 @@ export type Block =
   | { type: "quote"; html: string }
   | { type: "image"; src: string; alt: string; caption?: string }
   | { type: "gallery"; images: { src: string; alt: string }[] }
+  | { type: "button"; label: string; href: string }
   | { type: "divider" }
   | { type: "html"; html: string };
 
@@ -98,6 +99,11 @@ export function blocksToHtml(blocks: Block[]): string {
         parts.push(`<div class="pcms-gallery">${imgs}</div>`);
         break;
       }
+      case "button":
+        parts.push(
+          `<a class="pcms-button" href="${escapeHtml(b.href)}">${escapeHtml(b.label)}</a>`,
+        );
+        break;
       case "divider":
         parts.push("<hr>");
         break;
@@ -170,6 +176,15 @@ export function htmlToBlocks(html: string): Block[] {
         src: img.getAttribute("src") ?? "",
         alt: img.getAttribute("alt") ?? "",
         ...(caption ? { caption } : {}),
+      });
+    } else if (
+      name === "a" &&
+      (node.getAttribute("class") ?? "").split(/\s+/).includes("pcms-button")
+    ) {
+      blocks.push({
+        type: "button",
+        label: node.text.trim(),
+        href: node.getAttribute("href") ?? "",
       });
     } else if (name === "hr") {
       blocks.push({ type: "divider" });

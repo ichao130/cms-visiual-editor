@@ -74,6 +74,15 @@ describe("htmlToBlocks / blocksToHtml", () => {
     expect(blocksToHtml(blocks)).toBe(html);
   });
 
+  it("round-trips a button block", () => {
+    const html = '<a class="pcms-button" href="/contact/">お問い合わせ</a>';
+    const blocks = htmlToBlocks(html);
+    expect(blocks).toEqual<Block[]>([
+      { type: "button", label: "お問い合わせ", href: "/contact/" },
+    ]);
+    expect(blocksToHtml(blocks)).toBe(html);
+  });
+
   it("round-trips a gallery block", () => {
     const html = '<div class="pcms-gallery"><img src="/m/1.jpg" alt="一"><img src="/m/2.jpg" alt="二"></div>';
     const blocks = htmlToBlocks(html);

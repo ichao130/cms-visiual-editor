@@ -29,6 +29,7 @@ const KINDS = [
   "quote",
   "image",
   "gallery",
+  "button",
   "divider",
   "html",
 ] as const;
@@ -43,6 +44,7 @@ const KIND_LABEL: Record<Kind, string> = {
   quote: "引用",
   image: "画像",
   gallery: "ギャラリー",
+  button: "ボタン",
   divider: "区切り線",
   html: "HTML / 埋め込み",
 };
@@ -63,6 +65,8 @@ function newBlock(kind: Kind): Block {
       return { type: "image", src: "", alt: "" };
     case "gallery":
       return { type: "gallery", images: [] };
+    case "button":
+      return { type: "button", label: "", href: "" };
     case "divider":
       return { type: "divider" };
     case "html":
@@ -262,6 +266,23 @@ function BlockBody({ block, onChange }: { block: Block; onChange: (b: Block) => 
       return <ImageBlock block={block} onChange={onChange} />;
     case "gallery":
       return <GalleryBlock block={block} onChange={onChange} />;
+    case "button":
+      return (
+        <div className="pcms-block__button">
+          <input
+            type="text"
+            value={block.label}
+            placeholder={t("blocks.btnText")}
+            onChange={(e) => onChange({ ...block, label: e.target.value })}
+          />
+          <input
+            type="text"
+            value={block.href}
+            placeholder={t("blocks.btnHref")}
+            onChange={(e) => onChange({ ...block, href: e.target.value })}
+          />
+        </div>
+      );
     case "divider":
       return <hr className="pcms-block__divider" />;
     case "html":

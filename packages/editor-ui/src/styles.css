@@ -539,6 +539,8 @@ button.pcms-danger { color: var(--pcms-danger); border-color: var(--pcms-danger-
 .pcms-block__image { display: flex; gap: 0.6rem; align-items: flex-start; }
 .pcms-block__imagemeta { display: flex; flex-direction: column; gap: 0.3rem; flex: 1; min-width: 0; }
 .pcms-block__divider { width: 100%; border: none; border-top: 2px solid var(--pcms-border); margin: 0.4rem 0; }
+.pcms-block__button { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.pcms-block__button input { flex: 1; min-width: 8rem; font: inherit; padding: 0.35rem 0.4rem; border: 1px solid var(--pcms-border); border-radius: 5px; }
 .pcms-block__gallery { display: flex; flex-direction: column; gap: 0.5rem; }
 .pcms-block__gallerygrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr)); gap: 0.5rem; }
 .pcms-block__galleryitem { display: flex; flex-direction: column; gap: 0.25rem; }
