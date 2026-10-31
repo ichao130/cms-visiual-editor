@@ -557,6 +557,12 @@ button.pcms-danger { color: var(--pcms-danger); border-color: var(--pcms-danger-
 .pcms-blocks__foot { padding: 0.5rem 0.6rem; }
 .pcms-blocks__foot .pcms-addblock { grid-column: auto; }
 
+/* Encrypted backup */
+.pcms-backup { margin-top: 1.5rem; border-top: 1px solid var(--pcms-border); padding-top: 1rem; }
+.pcms-backup__row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-bottom: 0.6rem; }
+.pcms-backup__row input[type="password"] { flex: 1; min-width: 10rem; font: inherit; padding: 0.4rem 0.5rem; border: 1px solid var(--pcms-border); border-radius: 6px; }
+.pcms-backup__row input[type="file"] { flex: 1; min-width: 12rem; font-size: 0.82rem; }
+
 /* Repeat editor */
 .pcms-repeat { margin-top: 1rem; border-top: 1px dashed var(--pcms-border); padding-top: 0.75rem; }
 .pcms-repeat__title { font-size: 0.85rem; margin: 0 0 0.5rem; }

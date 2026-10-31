@@ -7,6 +7,7 @@ import {
   draftText,
   rewriteText,
   seoSuggest,
+  type EncryptedBackup,
 } from "@pcms/engine";
 import type {
   ContentItem,
@@ -34,6 +35,8 @@ import {
   setMediaAlt,
   loadRedirects,
   saveRedirects,
+  createBackup,
+  restoreBackup,
 } from "./project.js";
 import {
   getDeployConfig,
@@ -227,6 +230,10 @@ function registerIpc(): void {
   ipcMain.handle("pcms:listSubmissions", (_event, formId: string) => listSubmissions(formId));
   ipcMain.handle("pcms:loadRedirects", () => loadRedirects());
   ipcMain.handle("pcms:saveRedirects", (_event, redirects: Redirect[]) => saveRedirects(redirects));
+  ipcMain.handle("pcms:createBackup", (_event, passphrase: string) => createBackup(passphrase));
+  ipcMain.handle("pcms:restoreBackup", (_event, backup: EncryptedBackup, passphrase: string) =>
+    restoreBackup(backup, passphrase),
+  );
 }
 
 /**

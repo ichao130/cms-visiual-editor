@@ -40,6 +40,12 @@ import type {
   ThemeSummary,
 } from "./types.js";
 import type { VisitStats } from "@pcms/shared";
+import {
+  createEncryptedBackup,
+  openEncryptedBackup,
+  type BackupData,
+  type EncryptedBackup,
+} from "@pcms/engine";
 import { manifestOf, publishDiff } from "./publishDiff.js";
 
 // Read the sample-cafe theme at build time as raw strings (Vite ?raw). This
@@ -777,6 +783,32 @@ export function createMockApi(): PcmsApi {
     },
     async listSubmissions(formId: string): Promise<FormSubmission[]> {
       return mockSubmissions.filter((s) => s.formId === formId);
+    },
+    async createBackup(passphrase: string): Promise<EncryptedBackup> {
+      // Gather all site data — but never the deploy/connection config
+      // (CLAUDE.md: サーバー接続情報はクラウドに送らない・保存しない).
+      const data: BackupData = {
+        site: loadSite(),
+        settings: loadDraft() ?? defaultSettings,
+        content: loadContent(),
+        contentTypes: loadTypes(),
+        taxonomies: loadTaxonomies(),
+        menus: loadMenus(),
+        redirects: loadRedirects(),
+        media: loadMedia(),
+      };
+      return createEncryptedBackup(data, passphrase);
+    },
+    async restoreBackup(backup: EncryptedBackup, passphrase: string): Promise<void> {
+      const { data } = await openEncryptedBackup(backup, passphrase);
+      saveJson(SITE_KEY, data.site);
+      saveJson(DRAFT_KEY, data.settings);
+      saveJson(CONTENT_KEY, data.content);
+      saveJson(TYPES_KEY, data.contentTypes);
+      saveJson(TAX_KEY, data.taxonomies);
+      saveJson(MENUS_KEY, data.menus);
+      saveJson(REDIRECTS_KEY, data.redirects);
+      saveJson(MEDIA_KEY, data.media);
     },
     async loadRedirects(): Promise<Redirect[]> {
       return loadRedirects();

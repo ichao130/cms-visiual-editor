@@ -20,7 +20,15 @@ import type {
   TaxonomyDef,
 } from "@pcms/shared";
 import { BUILTIN_CONTENT_TYPES, BUILTIN_TAXONOMIES } from "@pcms/shared";
-import { generateSite, parseFrontMatter, renderMarkdown } from "@pcms/engine";
+import {
+  generateSite,
+  parseFrontMatter,
+  renderMarkdown,
+  createEncryptedBackup,
+  openEncryptedBackup,
+  type BackupData,
+  type EncryptedBackup,
+} from "@pcms/engine";
 import type { FileSet } from "@pcms/deploy";
 import type { MediaUpload, ProjectData } from "@pcms/editor-ui";
 
@@ -460,4 +468,66 @@ export function setMediaAlt(path: string, alt: string): void {
   if (alt === "") delete alts[name];
   else alts[name] = alt;
   writeFileSync(altSidecar(), JSON.stringify(alts, null, 2));
+}
+
+/** Decode a data: URL to bytes (base64 or URL-encoded), or null if malformed. */
+function dataUrlToBytes(url: string): Uint8Array | null {
+  const comma = url.indexOf(",");
+  if (!url.startsWith("data:") || comma < 0) return null;
+  const meta = url.slice(5, comma);
+  const payload = url.slice(comma + 1);
+  return /;base64$/i.test(meta)
+    ? new Uint8Array(Buffer.from(payload, "base64"))
+    : new Uint8Array(Buffer.from(decodeURIComponent(payload), "utf8"));
+}
+
+/** Write media files (from their data URLs) and alt sidecar from a backup. */
+function restoreMedia(items: MediaItem[]): void {
+  const dir = mediaDir();
+  const alts: Record<string, string> = {};
+  for (const m of items) {
+    const name = basename(m.path);
+    if (m.dataUrl) {
+      const bytes = dataUrlToBytes(m.dataUrl);
+      if (bytes) writeFileSync(join(dir, name), bytes);
+    }
+    if (m.alt) alts[name] = m.alt;
+  }
+  writeFileSync(altSidecar(), JSON.stringify(alts, null, 2));
+}
+
+/**
+ * Encrypted backup of all site data (never the deploy/connection config —
+ * CLAUDE.md). The passphrase encrypts on this machine before the blob is
+ * returned to the renderer to be written out.
+ */
+export async function createBackup(passphrase: string): Promise<EncryptedBackup> {
+  const p = loadProject();
+  const data: BackupData = {
+    site: p.site,
+    settings: p.settings,
+    content: p.content,
+    contentTypes: p.contentTypes,
+    taxonomies: p.taxonomies,
+    menus: p.menus,
+    redirects: loadRedirects(),
+    media: listMedia(),
+  };
+  return createEncryptedBackup(data, passphrase);
+}
+
+/** Decrypt a backup and overwrite the site data with its contents. */
+export async function restoreBackup(
+  backup: EncryptedBackup,
+  passphrase: string,
+): Promise<void> {
+  const { data } = await openEncryptedBackup(backup, passphrase);
+  saveSite(data.site);
+  saveDraft(data.settings);
+  saveContent(data.content);
+  saveContentTypes(data.contentTypes);
+  saveTaxonomies(data.taxonomies);
+  saveMenus(data.menus);
+  saveRedirects(data.redirects);
+  restoreMedia(data.media);
 }

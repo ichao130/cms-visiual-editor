@@ -10,6 +10,7 @@ import type {
   TaxonomyDef,
 } from "@pcms/shared";
 import type { DeployConfigInput, MediaUpload, PcmsApi } from "@pcms/editor-ui";
+import type { EncryptedBackup } from "@pcms/engine";
 
 /**
  * The preload exposes a minimal, explicit API over IPC — no generic
@@ -80,6 +81,9 @@ const api: PcmsApi = {
   listSubmissions: (formId: string) => ipcRenderer.invoke("pcms:listSubmissions", formId),
   loadRedirects: () => ipcRenderer.invoke("pcms:loadRedirects"),
   saveRedirects: (redirects: Redirect[]) => ipcRenderer.invoke("pcms:saveRedirects", redirects),
+  createBackup: (passphrase: string) => ipcRenderer.invoke("pcms:createBackup", passphrase),
+  restoreBackup: (backup: EncryptedBackup, passphrase: string) =>
+    ipcRenderer.invoke("pcms:restoreBackup", backup, passphrase),
 };
 
 contextBridge.exposeInMainWorld("pcms", api);

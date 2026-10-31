@@ -1,6 +1,7 @@
 import type { SiteConfig } from "@pcms/shared";
 import { useSiteWorkspace } from "../../state/SiteWorkspace.js";
 import { useMedia } from "../../media/MediaContext.js";
+import { BackupPanel } from "../../components/BackupPanel.js";
 import { t } from "../../i18n.js";
 
 /** A path input paired with a thumbnail preview and the media-library picker. */
@@ -174,6 +175,8 @@ export function SiteSettingsView() {
           placeholder="<!-- 解析サービスのタグを貼り付け（例: MOKKEDA） -->"
         />
       </label>
+
+      <BackupPanel />
     </div>
   );
 }

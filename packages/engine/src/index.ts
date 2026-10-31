@@ -28,6 +28,17 @@ export { renderMarkdown, escapeHtml } from "./markdown.js";
 export { detectFieldType } from "./field-type.js";
 export { blocksToHtml, htmlToBlocks, type Block } from "./blocks.js";
 export {
+  buildBackup,
+  parseBackup,
+  encryptBackup,
+  decryptBackup,
+  createEncryptedBackup,
+  openEncryptedBackup,
+  type BackupData,
+  type BackupManifest,
+  type EncryptedBackup,
+} from "./backup.js";
+export {
   generateSite,
   isScheduled,
   contentUrl,

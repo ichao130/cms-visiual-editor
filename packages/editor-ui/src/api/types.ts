@@ -11,7 +11,7 @@ import type {
   TaxonomyDef,
   VisitStats,
 } from "@pcms/shared";
-import type { AiIssue, ThemeBundle } from "@pcms/engine";
+import type { AiIssue, EncryptedBackup, ThemeBundle } from "@pcms/engine";
 
 /**
  * The project data the editor works on. The theme and content are read-only
@@ -128,6 +128,13 @@ export interface PcmsApi {
   // and editable here so the operator can review, add or remove mappings.
   loadRedirects(): Promise<Redirect[]>;
   saveRedirects(redirects: Redirect[]): Promise<void>;
+  /**
+   * Encrypted, zero-knowledge backup of all site data (never the deploy /
+   * connection config). The passphrase encrypts client-side before the blob
+   * leaves the machine; restoring applies the decrypted data.
+   */
+  createBackup(passphrase: string): Promise<EncryptedBackup>;
+  restoreBackup(backup: EncryptedBackup, passphrase: string): Promise<void>;
 }
 
 // ---------------------------------------------------------------------------
