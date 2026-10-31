@@ -65,6 +65,15 @@ describe("htmlToBlocks / blocksToHtml", () => {
     ]);
   });
 
+  it("round-trips an image with a caption as a figure", () => {
+    const html = '<figure><img src="/m/a.jpg" alt="写真"><figcaption>説明文</figcaption></figure>';
+    const blocks = htmlToBlocks(html);
+    expect(blocks).toEqual<Block[]>([
+      { type: "image", src: "/m/a.jpg", alt: "写真", caption: "説明文" },
+    ]);
+    expect(blocksToHtml(blocks)).toBe(html);
+  });
+
   it("round-trips a gallery block", () => {
     const html = '<div class="pcms-gallery"><img src="/m/1.jpg" alt="一"><img src="/m/2.jpg" alt="二"></div>';
     const blocks = htmlToBlocks(html);

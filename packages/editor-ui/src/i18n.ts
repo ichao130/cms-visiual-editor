@@ -289,6 +289,7 @@ const ja = {
   "blocks.listHint": "1行に1項目",
   "blocks.htmlHint": "HTML や埋め込みコードを貼り付け",
   "blocks.alt": "代替テキスト（alt）",
+  "blocks.caption": "キャプション（任意）",
   "blocks.addImage": "＋画像を追加",
   "content.search": "タイトルやスラッグで絞り込み",
   "content.noMatch": "一致する投稿がありません。",

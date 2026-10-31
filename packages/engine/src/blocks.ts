@@ -17,7 +17,7 @@ export type Block =
   | { type: "paragraph"; html: string }
   | { type: "list"; ordered: boolean; items: string[] }
   | { type: "quote"; html: string }
-  | { type: "image"; src: string; alt: string }
+  | { type: "image"; src: string; alt: string; caption?: string }
   | { type: "gallery"; images: { src: string; alt: string }[] }
   | { type: "divider" }
   | { type: "html"; html: string };
@@ -81,9 +81,16 @@ export function blocksToHtml(blocks: Block[]): string {
         parts.push(`<${t}>${items}</${t}>`);
         break;
       }
-      case "image":
-        parts.push(`<img src="${escapeHtml(b.src)}" alt="${escapeHtml(b.alt)}">`);
+      case "image": {
+        const img = `<img src="${escapeHtml(b.src)}" alt="${escapeHtml(b.alt)}">`;
+        const caption = (b.caption ?? "").trim();
+        // A caption wraps the image in a <figure>; without one, a bare <img>
+        // keeps the output (and the round-trip) minimal.
+        parts.push(
+          caption ? `<figure>${img}<figcaption>${escapeHtml(caption)}</figcaption></figure>` : img,
+        );
         break;
+      }
       case "gallery": {
         const imgs = b.images
           .map((im) => `<img src="${escapeHtml(im.src)}" alt="${escapeHtml(im.alt)}">`)
@@ -157,10 +164,12 @@ export function htmlToBlocks(html: string): Block[] {
       });
     } else if (name === "figure" && node.querySelector("img")) {
       const img = node.querySelector("img")!;
+      const caption = node.querySelector("figcaption")?.text.trim() ?? "";
       blocks.push({
         type: "image",
         src: img.getAttribute("src") ?? "",
         alt: img.getAttribute("alt") ?? "",
+        ...(caption ? { caption } : {}),
       });
     } else if (name === "hr") {
       blocks.push({ type: "divider" });

@@ -305,6 +305,12 @@ function ImageBlock({
           placeholder={t("blocks.alt")}
           onChange={(e) => onChange({ ...block, alt: e.target.value })}
         />
+        <input
+          type="text"
+          value={block.caption ?? ""}
+          placeholder={t("blocks.caption")}
+          onChange={(e) => onChange({ ...block, caption: e.target.value })}
+        />
       </div>
     </div>
   );
