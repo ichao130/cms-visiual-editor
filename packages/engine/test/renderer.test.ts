@@ -124,4 +124,39 @@ describe("image field alt text", () => {
     expect(out).toContain('src="media/photo.webp"');
     expect(out).not.toMatch(/alt="[^"]/);
   });
+
+  const sized = {
+    "media/photo.webp": {
+      id: "photo",
+      fileName: "photo.webp",
+      path: "media/photo.webp",
+      width: 800,
+      height: 600,
+    },
+  };
+
+  it("adds width/height from the media record and lazy/async hints", () => {
+    const out = renderTemplate(tmpl, imageScope(sized));
+    expect(out).toContain('width="800"');
+    expect(out).toContain('height="600"');
+    expect(out).toContain('loading="lazy"');
+    expect(out).toContain('decoding="async"');
+  });
+
+  it("keeps the theme's own width/height and loading attributes", () => {
+    const keep = '<img data-field="hero.image" width="200" height="100" loading="eager">';
+    const out = renderTemplate(keep, imageScope(sized));
+    expect(out).toContain('width="200"');
+    expect(out).toContain('height="100"');
+    expect(out).not.toContain('width="800"');
+    expect(out).toContain('loading="eager"');
+    expect(out).not.toContain('loading="lazy"');
+  });
+
+  it("still adds lazy/async when the media record has no dimensions", () => {
+    const out = renderTemplate(tmpl, imageScope(withAlt));
+    expect(out).not.toMatch(/width="/);
+    expect(out).toContain('loading="lazy"');
+    expect(out).toContain('decoding="async"');
+  });
 });

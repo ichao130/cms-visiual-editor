@@ -191,7 +191,10 @@ function deviceHideClass(style: SectionInstance["style"]): string {
  */
 export const RESPONSIVE_CSS =
   "@media(max-width:640px){.pcms-hide-mobile{display:none!important}}" +
-  "@media(min-width:641px){.pcms-hide-desktop{display:none!important}}";
+  "@media(min-width:641px){.pcms-hide-desktop{display:none!important}}" +
+  // Keep width/height attributes (added for CLS) from distorting a responsive
+  // image. `:where()` has zero specificity, so any theme rule still wins.
+  "img:where([width][height]){height:auto}";
 
 /** Editor-only "+" marker inserted at a gap between composed sections. */
 function insertMarker(index: number): string {
@@ -288,11 +291,28 @@ function applyField(el: HTMLElement, scope: RenderScope): boolean {
     case "image": {
       const src = stringify(value);
       el.setAttribute("src", src);
+      const record = scope.media?.[src];
       // Fill alt from the media record when the theme's <img> has none of its
       // own, so published images are not left without alternative text.
       const hasAlt = (el.getAttribute("alt") ?? "").trim() !== "";
-      const alt = scope.media?.[src]?.alt;
-      if (!hasAlt && alt != null && alt !== "") el.setAttribute("alt", alt);
+      if (!hasAlt && record?.alt != null && record.alt !== "") {
+        el.setAttribute("alt", record.alt);
+      }
+      // Supply intrinsic width/height from the media record (when the theme
+      // gave neither) so the browser can reserve space before load — this is
+      // the main defence against layout shift (CLS). A zero-specificity
+      // `height:auto` rule (IMG_CSS) keeps responsive themes undistorted.
+      if (el.getAttribute("width") == null && el.getAttribute("height") == null) {
+        if (record?.width && record?.height) {
+          el.setAttribute("width", String(record.width));
+          el.setAttribute("height", String(record.height));
+        }
+      }
+      // Performance hints, overridable by the theme: lazy-load and decode off
+      // the main thread. A theme can set loading="eager" on an above-the-fold
+      // image (e.g. the hero) to opt out.
+      if (el.getAttribute("loading") == null) el.setAttribute("loading", "lazy");
+      if (el.getAttribute("decoding") == null) el.setAttribute("decoding", "async");
       return false;
     }
     case "link":
