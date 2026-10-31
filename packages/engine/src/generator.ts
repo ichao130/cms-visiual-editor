@@ -18,6 +18,7 @@ import {
   breadcrumbJsonLd,
   injectHeadMeta,
   injectHeadStyle,
+  injectHeadTitle,
   injectJsonLd,
   siteJsonLd,
   type Crumb,
@@ -101,15 +102,23 @@ export function generateSite(input: SiteInput): GeneratedSite {
   const noindexPaths = new Set<string>();
 
   const siteLd = siteJsonLd(input.site);
-  const siteMeta = siteHeadMeta(input.site);
   const home: Crumb = { name: input.site.name, url: "/" };
   // `path` is the page's own output path (for its canonical URL). `opts` carries
-  // per-page head overrides (description, og:type) applied to this page only.
-  const finish = (path: string, html: string, extra: object[], opts?: PageMetaOpts): string =>
-    injectHeadMeta(
-      injectHeadStyle(injectJsonLd(html, [...siteLd, ...extra]), RESPONSIVE_CSS),
-      (opts ? siteHeadMeta(input.site, opts) : siteMeta) + pageHeadMeta(path, input.site),
-    );
+  // per-page head overrides (title, description, og:type) applied to this page
+  // only. Title falls back to the page name "| site name" (just the site name on
+  // the home page); description to the site default, then to text derived from
+  // the page, so every page has a unique `<title>` and a meta description even
+  // when none is set (the SEO pre-publish checks look for both).
+  const finish = (path: string, html: string, extra: object[], opts?: PageMetaOpts): string => {
+    const description =
+      opts?.description ?? input.site.ogpDefault?.description ?? deriveDescription(html);
+    const metaOpts: PageMetaOpts = { ...opts, description };
+    const title = fullTitle(opts?.title, input.site, { home: path === "index.html" });
+    let out = injectJsonLd(html, [...siteLd, ...extra]);
+    out = injectHeadStyle(out, RESPONSIVE_CSS);
+    out = injectHeadMeta(out, siteHeadMeta(input.site, metaOpts) + pageHeadMeta(path, input.site));
+    return injectHeadTitle(out, title);
+  };
   const typeLabel = (type: string): string =>
     input.contentTypes.find((t) => t.name === type)?.label ?? type;
 
@@ -119,6 +128,7 @@ export function generateSite(input: SiteInput): GeneratedSite {
     items: ContentItem[];
     baseUrl: string;
     crumbs: Crumb[];
+    title: string;
     term?: TermContext;
   }): void => {
     const pages = paginate(opts.items, pageSize);
@@ -139,7 +149,12 @@ export function generateSite(input: SiteInput): GeneratedSite {
       };
       const html = renderTemplate(opts.template, scope, { layout });
       const outPath = archivePagePath(opts.baseUrl, n);
-      files[outPath] = finish(outPath, html, [breadcrumbJsonLd(opts.crumbs, input.site)]);
+      // Paginated pages share the listing title; add the page number past the
+      // first so titles stay unique across the site.
+      const title = n > 1 ? `${opts.title}（${n}ページ目）` : opts.title;
+      files[outPath] = finish(outPath, html, [breadcrumbJsonLd(opts.crumbs, input.site)], {
+        title,
+      });
     }
   };
 
@@ -158,7 +173,13 @@ export function generateSite(input: SiteInput): GeneratedSite {
       html = renderTemplate(template, scope, { layout });
     }
     const outPath = pagePathForId(id);
-    files[outPath] = finish(outPath, html, []);
+    const isHome = outPath === "index.html";
+    files[outPath] = finish(outPath, html, [], {
+      // Non-home settings pages need a distinct title (fall back to the page id)
+      // so they don't collide with the home page's site-name title.
+      title: isHome ? page.title : page.title ?? id,
+      description: page.description,
+    });
   }
 
   // 2. A page per content item (with Article + breadcrumb structured data).
@@ -185,7 +206,12 @@ export function generateSite(input: SiteInput): GeneratedSite {
         input.site,
       ),
       ],
-      { description: itemDescription(item), ogType: "article", noindex: item.noindex },
+      {
+        title: String(item.fields.title ?? item.slug),
+        description: itemDescription(item),
+        ogType: "article",
+        noindex: item.noindex,
+      },
     );
   }
 
@@ -198,6 +224,7 @@ export function generateSite(input: SiteInput): GeneratedSite {
       template,
       items: collections[type] ?? [],
       baseUrl: base,
+      title: typeLabel(type),
       crumbs: [home, { name: typeLabel(type), url: base }],
     });
   }
@@ -216,6 +243,7 @@ export function generateSite(input: SiteInput): GeneratedSite {
         template,
         items: [...items].sort(byDateDesc),
         baseUrl: base,
+        title: `${tax.label}: ${term}`,
         term: { taxonomy: tax.name, label: tax.label, value: term, url: base },
         crumbs: [home, { name: `${tax.label}: ${term}`, url: base }],
       });
@@ -441,7 +469,7 @@ function rfc822(value: FieldValue | undefined): string | undefined {
 function build404(site: SiteConfig): string {
   return `<!doctype html>
 <html lang="ja">
-<head><meta charset="utf-8"><title>404 - ${escapeXml(site.name)}</title></head>
+<head><meta charset="utf-8"><title>404 - ${escapeXml(site.name)}</title><meta name="description" content="お探しのページは見つかりませんでした。"><meta name="robots" content="noindex"></head>
 <body><h1>ページが見つかりません</h1><p><a href="/">トップへ戻る</a></p></body>
 </html>
 `;
@@ -468,11 +496,47 @@ function pageHeadMeta(path: string, site: SiteConfig): string {
 
 /** Per-page overrides for the `<head>` meta (content pages supply these). */
 interface PageMetaOpts {
+  /** Page-specific `<title>` text (before the "| site name" suffix). */
+  title?: string;
   description?: string;
   /** Open Graph object type; defaults to "website". */
   ogType?: string;
   /** Ask search engines not to index this page. */
   noindex?: boolean;
+}
+
+/**
+ * The page's `<title>`: the home page is just the site name; other pages are
+ * "ページ名 | サイト名" (no suffix when the page title already equals the site
+ * name, to avoid "サイト名 | サイト名").
+ */
+function fullTitle(pageTitle: string | undefined, site: SiteConfig, opts?: { home?: boolean }): string {
+  const name = (pageTitle ?? "").trim();
+  if (opts?.home || name === "" || name === site.name) return site.name;
+  return `${name} | ${site.name}`;
+}
+
+/**
+ * A fallback meta description built from the page's visible text, used when no
+ * description field is set. Strips scripts/styles/markup from the body and
+ * trims to a sensible length. Returns undefined when there is no text.
+ */
+function deriveDescription(html: string): string | undefined {
+  // Prefer the main/article content (where the layout drops each page's body)
+  // over the whole <body>, so nav and footer text stay out of the description.
+  const region =
+    /<main\b[^>]*>([\s\S]*?)<\/main>/i.exec(html)?.[1] ??
+    /<article\b[^>]*>([\s\S]*?)<\/article>/i.exec(html)?.[1] ??
+    /<body\b[^>]*>([\s\S]*?)<\/body>/i.exec(html)?.[1] ??
+    html;
+  const text = region
+    .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&[a-z]+;|&#\d+;/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (text === "") return undefined;
+  return text.length > 150 ? `${text.slice(0, 147).trimEnd()}…` : text;
 }
 
 /**

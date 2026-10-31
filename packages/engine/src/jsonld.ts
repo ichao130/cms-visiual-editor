@@ -84,6 +84,24 @@ export function injectHeadMeta(html: string, meta: string): string {
   return html.includes("</head>") ? html.replace("</head>", `${meta}</head>`) : `${meta}${html}`;
 }
 
+function escapeTitle(text: string): string {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/**
+ * Set the page's `<title>`. Replaces the theme's existing title (the layout's
+ * `<title data-field="site.name">` would otherwise repeat on every page), or
+ * inserts one when the document has none.
+ */
+export function injectHeadTitle(html: string, title: string): string {
+  if (!title) return html;
+  const tag = `<title>${escapeTitle(title)}</title>`;
+  const existing = /<title\b[^>]*>[\s\S]*?<\/title>/i;
+  if (existing.test(html)) return html.replace(existing, tag);
+  if (html.includes("</head>")) return html.replace("</head>", `${tag}</head>`);
+  return `${tag}${html}`;
+}
+
 export function injectJsonLd(html: string, objects: object[]): string {
   if (objects.length === 0) return html;
   const scripts = objects

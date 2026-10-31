@@ -22,6 +22,10 @@ describe("generateSite", () => {
     expect(files["robots.txt"]).toContain("Sitemap: https://example.test/sitemap.xml");
     expect(files["feed.xml"]).toContain("開店しました");
     expect(files["404.html"]).toContain("404");
+    // The 404 page carries a meta description (so pre-publish SEO checks pass)
+    // and is marked noindex.
+    expect(files["404.html"]).toContain('<meta name="description"');
+    expect(files["404.html"]).toContain('<meta name="robots" content="noindex">');
   });
 
   it("renders HTML content bodies into item pages", () => {
@@ -84,6 +88,79 @@ describe("generateSite", () => {
 
   it("matches the home page snapshot", () => {
     expect(files["index.html"]).toMatchSnapshot();
+  });
+
+  it("gives the home page the site name and other pages a '| site name' title", () => {
+    expect(files["index.html"]).toContain("<title>テスト珈琲店</title>");
+    expect(files["post/open/index.html"]).toContain("<title>開店しました | テスト珈琲店</title>");
+    expect(files["page/about/index.html"]).toContain("<title>お店について | テスト珈琲店</title>");
+  });
+
+  it("gives every page a unique <title> (no duplicate-title SEO warnings)", () => {
+    const titles: string[] = [];
+    for (const [path, html] of Object.entries(files)) {
+      if (!path.endsWith(".html")) continue;
+      const m = /<title[^>]*>([\s\S]*?)<\/title>/i.exec(html);
+      if (m) titles.push(m[1]!);
+    }
+    expect(titles.length).toBeGreaterThan(1);
+    expect(new Set(titles).size).toBe(titles.length);
+  });
+
+  it("derives a meta description from main content when none is set anywhere", () => {
+    const out = generateSite({
+      site: { name: "説明なしサイト", baseUrl: "https://example.test" },
+      settings: { pages: {} },
+      contentTypes: [],
+      content: [
+        {
+          type: "post",
+          slug: "p",
+          fields: { title: "記事" },
+          body: "<p>これは本文から自動生成される説明文です。</p>",
+        },
+      ],
+      theme: {
+        config: {},
+        // Nav/footer text must stay out of the description; only <main> counts.
+        layout:
+          '<html><head><title data-field="site.name"></title></head><body><nav>メニュー 会社情報</nav><main data-slot="content"></main><footer>フッター表記</footer></body></html>',
+        templates: { post: '<div data-field="post.body" data-type="richtext"></div>' },
+      },
+    });
+    const head = out.files["post/p/index.html"]!.split("</head>")[0]!;
+    expect(head).toContain(
+      '<meta name="description" content="これは本文から自動生成される説明文です。">',
+    );
+    expect(head).not.toContain("メニュー");
+    expect(head).not.toContain("フッター表記");
+  });
+
+  it("numbers paginated archive titles past the first page", () => {
+    const content = Array.from({ length: 4 }, (_, i) => ({
+      type: "post",
+      slug: `n${i}`,
+      fields: { title: `記事${i}`, date: `2026-02-0${i + 1}` },
+      body: "<p>x</p>",
+    }));
+    const out = generateSite({
+      site: { name: "テスト珈琲店", baseUrl: "https://example.test", archivePageSize: 2 },
+      settings: { pages: {} },
+      contentTypes: [{ name: "post", label: "記事", fields: [] }],
+      content,
+      theme: {
+        config: {},
+        layout: '<html><head><title data-field="site.name"></title></head><body><main data-slot="content"></main></body></html>',
+        templates: {
+          post: "<article data-field=\"post.title\"></article>",
+          archive: '<ul><li data-loop="items"><span data-field="item.title"></span></li></ul>',
+        },
+      },
+    });
+    const p1 = out.files["post/index.html"]!;
+    const p2 = out.files["post/page/2/index.html"]!;
+    expect(p1).toContain("<title>記事 | テスト珈琲店</title>");
+    expect(p2).toContain("<title>記事（2ページ目） | テスト珈琲店</title>");
   });
 
   it("excludes draft items from pages, the feed and the sitemap", () => {

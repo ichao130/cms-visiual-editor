@@ -80,6 +80,10 @@ export interface SiteSettings {
 export interface PageSettings {
   /** Template name to use; defaults to the page id, then "page". */
   template?: string;
+  /** SEO `<title>` override. Falls back to the site name for the home page. */
+  title?: string;
+  /** `<meta name="description">` override; otherwise derived from page text. */
+  description?: string;
   /**
    * Composed-page layout: an ordered list of section instances. When present,
    * the page is built by composing these from the theme's `sections/`, instead
