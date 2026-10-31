@@ -90,6 +90,16 @@ export function useMediaLibrary(api: PcmsApi): {
     [api, toast],
   );
 
+  const deleteManyMedia = useCallback(
+    async (items: MediaItem[]) => {
+      const paths = new Set(items.map((m) => m.path));
+      for (const item of items) await api.deleteMedia(item.path);
+      setMedia((prev) => prev.filter((m) => !paths.has(m.path)));
+      toast(t("toast.mediaDeletedMany").replace("{count}", String(items.length)));
+    },
+    [api, toast],
+  );
+
   const setMediaAlt = useCallback(
     async (item: MediaItem, alt: string) => {
       await api.setMediaAlt(item.path, alt);
@@ -147,6 +157,7 @@ export function useMediaLibrary(api: PcmsApi): {
         onImport={runImport}
         onSelect={mode === "pick" ? (item) => settle(item.path) : undefined}
         onDelete={mode === "browse" ? deleteMedia : undefined}
+        onDeleteMany={mode === "browse" ? deleteManyMedia : undefined}
         onAltChange={mode === "browse" ? setMediaAlt : undefined}
         usage={mode === "browse" ? usage : undefined}
         onClose={() => settle(null)}

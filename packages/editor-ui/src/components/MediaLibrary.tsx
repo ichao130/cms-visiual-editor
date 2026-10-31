@@ -36,6 +36,8 @@ interface MediaLibraryProps {
   onAltChange?: (item: MediaItem, alt: string) => void;
   /** Reference count per media path, for the "used N times" badge (browse mode). */
   usage?: Record<string, number>;
+  /** Bulk-delete the unused items (browse mode); shown when any are unused. */
+  onDeleteMany?: (items: MediaItem[]) => void;
   onImport: () => void;
   onClose: () => void;
 }
@@ -45,6 +47,14 @@ export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/** The media items that are not referenced anywhere (usage count 0). */
+export function unusedMedia(
+  media: MediaItem[],
+  usage: Record<string, number>,
+): MediaItem[] {
+  return media.filter((m) => (usage[m.path] ?? 0) === 0);
 }
 
 /** One-line image metadata: "幅×高さ・サイズ", omitting parts that are unknown. */
@@ -63,6 +73,7 @@ export function MediaLibrary({
   onDelete,
   onAltChange,
   usage,
+  onDeleteMany,
   onImport,
   onClose,
 }: MediaLibraryProps) {
@@ -70,6 +81,12 @@ export function MediaLibrary({
   const [query, setQuery] = useState("");
   const q = query.trim().toLowerCase();
   const shown = q ? media.filter((m) => m.fileName.toLowerCase().includes(q)) : media;
+  const unused = usage ? unusedMedia(media, usage) : [];
+  const deleteUnused = () => {
+    if (unused.length === 0) return;
+    const msg = t("media.deleteUnusedConfirm").replace("{count}", String(unused.length));
+    if (window.confirm(msg)) onDeleteMany?.(unused);
+  };
   const confirmDelete = (item: MediaItem) => {
     const used = usage?.[item.path] ?? 0;
     const msg =
@@ -89,6 +106,11 @@ export function MediaLibrary({
         <header className="pcms-modal__head">
           <h2>{t("media.title")}</h2>
           <div className="pcms-modal__spacer" />
+          {onDeleteMany && unused.length > 0 && (
+            <button type="button" className="pcms-danger" onClick={deleteUnused}>
+              {t("media.deleteUnused").replace("{count}", String(unused.length))}
+            </button>
+          )}
           <button type="button" className="pcms-primary" onClick={onImport} disabled={importing}>
             {importing ? t("media.importing") : t("media.import")}
           </button>

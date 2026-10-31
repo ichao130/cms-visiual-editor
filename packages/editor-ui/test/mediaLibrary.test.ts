@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { MediaItem } from "@pcms/shared";
-import { formatBytes, mediaMeta } from "../src/components/MediaLibrary.js";
+import { formatBytes, mediaMeta, unusedMedia } from "../src/components/MediaLibrary.js";
 
 describe("formatBytes", () => {
   it("shows bytes under 1 KiB", () => {
@@ -29,5 +29,27 @@ describe("mediaMeta", () => {
   });
   it("is empty when nothing is known", () => {
     expect(mediaMeta(base)).toBe("");
+  });
+});
+
+describe("unusedMedia", () => {
+  const a: MediaItem = { id: "a", fileName: "a.webp", path: "media/a.webp" };
+  const b: MediaItem = { id: "b", fileName: "b.webp", path: "media/b.webp" };
+  const c: MediaItem = { id: "c", fileName: "c.webp", path: "media/c.webp" };
+
+  it("returns only items with a zero usage count", () => {
+    const usage = { "media/a.webp": 2, "media/b.webp": 0, "media/c.webp": 0 };
+    expect(unusedMedia([a, b, c], usage).map((m) => m.path)).toEqual([
+      "media/b.webp",
+      "media/c.webp",
+    ]);
+  });
+
+  it("treats a missing usage entry as unused", () => {
+    expect(unusedMedia([a], {}).map((m) => m.path)).toEqual(["media/a.webp"]);
+  });
+
+  it("returns nothing when every item is used", () => {
+    expect(unusedMedia([a, b], { "media/a.webp": 1, "media/b.webp": 3 })).toEqual([]);
   });
 });
