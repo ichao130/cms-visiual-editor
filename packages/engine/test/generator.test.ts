@@ -341,6 +341,38 @@ describe("generateSite", () => {
     expect(out.files["sitemap.xml"]).toContain(
       "<loc>https://example.test/post/</loc><lastmod>2026-02-04</lastmod>",
     );
+    // Pagination hints: first page has next only, last page has prev only,
+    // absolutized against baseUrl.
+    expect(p1).toContain('<link rel="next" href="https://example.test/post/page/2/">');
+    expect(p1).not.toContain('rel="prev"');
+    expect(p2).toContain('<link rel="prev" href="https://example.test/post/">');
+    expect(p2).not.toContain('rel="next"');
+  });
+
+  it("emits relative pagination hints when no baseUrl is set", () => {
+    const content = Array.from({ length: 3 }, (_, i) => ({
+      type: "post",
+      slug: `n${i}`,
+      fields: { title: `記事${i}`, date: `2026-02-0${i + 1}` },
+      body: "<p>x</p>",
+    }));
+    const out = generateSite({
+      site: { name: "テスト珈琲店", archivePageSize: 2 },
+      settings: { pages: {} },
+      contentTypes: [{ name: "post", label: "記事", fields: [] }],
+      content,
+      theme: {
+        config: {},
+        layout:
+          '<html><head><title data-field="site.name"></title></head><body><main data-slot="content"></main></body></html>',
+        templates: {
+          post: '<article data-field="post.title"></article>',
+          archive: '<ul><li data-loop="items"><span data-field="item.title"></span></li></ul>',
+        },
+      },
+    });
+    expect(out.files["post/index.html"]).toContain('<link rel="next" href="/post/page/2/">');
+    expect(out.files["post/page/2/index.html"]).toContain('<link rel="prev" href="/post/">');
   });
 
   it("excludes draft items from pages, the feed and the sitemap", () => {

@@ -170,6 +170,8 @@ export function generateSite(input: SiteInput): GeneratedSite {
       if (archiveDate) lastmod.set(outPath, archiveDate);
       files[outPath] = finish(outPath, html, [breadcrumbJsonLd(opts.crumbs, input.site)], {
         title,
+        prevUrl: n > 1 ? archivePageUrl(opts.baseUrl, n - 1) : undefined,
+        nextUrl: n < pages.length ? archivePageUrl(opts.baseUrl, n + 1) : undefined,
       });
     }
   };
@@ -638,6 +640,17 @@ function pageHeadMeta(path: string, site: SiteConfig): string {
   return `<link rel="canonical" href="${url}"><meta property="og:url" content="${url}">`;
 }
 
+/**
+ * Absolutize a site-relative URL (like "/post/page/2/") against site.baseUrl.
+ * Returns the relative URL unchanged when no base is set (a valid relative
+ * link is better than a wrong absolute one).
+ */
+function absFromRel(rel: string, site: SiteConfig): string {
+  const base = (site.baseUrl ?? "").replace(/\/+$/, "");
+  if (!base) return rel;
+  return rel.startsWith("/") ? base + rel : `${base}/${rel}`;
+}
+
 /** Per-page overrides for the `<head>` meta (content pages supply these). */
 interface PageMetaOpts {
   /** Page-specific `<title>` text (before the "| site name" suffix). */
@@ -651,6 +664,10 @@ interface PageMetaOpts {
   publishedTime?: string;
   /** Article last-modified date (ISO), emitted as og `article:modified_time`. */
   modifiedTime?: string;
+  /** Previous paginated-archive page (site-relative), emitted as `rel="prev"`. */
+  prevUrl?: string;
+  /** Next paginated-archive page (site-relative), emitted as `rel="next"`. */
+  nextUrl?: string;
 }
 
 /**
@@ -708,6 +725,14 @@ function siteHeadMeta(site: SiteConfig, opts?: PageMetaOpts): string {
   }
   if (opts?.modifiedTime) {
     tags.push(`<meta property="article:modified_time" content="${escapeXml(opts.modifiedTime)}">`);
+  }
+  // Pagination hints for paginated archive pages (helps search engines treat the
+  // series as one listing). Absolutized against baseUrl when it is set.
+  if (opts?.prevUrl) {
+    tags.push(`<link rel="prev" href="${escapeXml(absFromRel(opts.prevUrl, site))}">`);
+  }
+  if (opts?.nextUrl) {
+    tags.push(`<link rel="next" href="${escapeXml(absFromRel(opts.nextUrl, site))}">`);
   }
   const og = site.ogpDefault;
   const description = opts?.description ?? og?.description;
