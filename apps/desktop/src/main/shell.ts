@@ -15,6 +15,7 @@ import type { FormDef, FormSubmission, VisitStats } from "@pcms/shared";
 import type { ThemeBundle } from "@pcms/engine";
 import { renameSection } from "@pcms/engine";
 import { loadProject } from "./project.js";
+import { callFunction, NotSignedInError } from "./functions.js";
 
 /** The built-in local project/site, always present. */
 const LOCAL_PROJECT_ID = "local";
@@ -170,13 +171,20 @@ export async function loadSiteStats(): Promise<SiteStats> {
 }
 
 /**
- * Visit stats for the dashboard. The real read-back goes through the Firebase
- * `visitStats` callable (GA4 / MOKKEDA); until that cloud wiring lands, return
- * an empty, clearly-sourced result so the UI shows no fabricated numbers.
+ * Visit stats for the dashboard, read through the Firebase `visitStats` callable
+ * (GA4 / MOKKEDA server-side; the function falls back to a mock series until
+ * those secrets are set). When the operator isn't signed in — or the cloud is
+ * unreachable — return an empty, clearly-sourced result so the UI never shows
+ * fabricated numbers.
  */
-export async function fetchVisitStats(_siteId: string, days = 14): Promise<VisitStats> {
+export async function fetchVisitStats(siteId: string, days = 14): Promise<VisitStats> {
   const span = Math.min(90, Math.max(1, Math.trunc(days)));
-  return { total: 0, series: [], source: "mock", days: span };
+  try {
+    return await callFunction<VisitStats>("visitStats", { siteId, days: span });
+  } catch (err) {
+    if (!(err instanceof NotSignedInError)) console.error("fetchVisitStats failed", err);
+    return { total: 0, series: [], source: "mock", days: span };
+  }
 }
 
 export async function listThemes(): Promise<ThemeSummary[]> {
