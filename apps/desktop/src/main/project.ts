@@ -261,7 +261,7 @@ function loadSettings(): SiteSettings {
 }
 
 const defaultSite: SiteConfig = {
-  name: "テスト珈琲店",
+  name: "サンプルサイト",
   baseUrl: "https://example.test",
   permalink: "/:type/:slug/",
 };

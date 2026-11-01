@@ -183,7 +183,7 @@ const defaultSettings: SiteSettings = {
 };
 
 const defaultSite: SiteConfig = {
-  name: "テスト珈琲店",
+  name: "サンプルサイト",
   baseUrl: "https://example.test",
   permalink: "/:type/:slug/",
 };
@@ -460,20 +460,20 @@ function preflightIssues(): PublishIssue[] {
 // ---------------------------------------------------------------------------
 
 const mockAccount: AccountView = {
-  name: "珈琲店オーナー",
+  name: "サンプル オーナー",
   email: "owner@example.test",
   plan: "スタンダード",
   ai: { used: 23, limit: 100 },
 };
 
 const mockProjects: ProjectSummary[] = [
-  { id: "proj-cafe", name: "珈琲店サイト運用", siteCount: 2 },
+  { id: "proj-cafe", name: "サンプルプロジェクト", siteCount: 2 },
   { id: "proj-clinic", name: "クリニック（準備中）", siteCount: 1 },
 ];
 
 const mockSites: Record<string, SiteSummary[]> = {
   "proj-cafe": [
-    { id: "site-cafe", name: "テスト珈琲店", domain: "example.test", published: true, stats: { visits: 1240, inquiries: 8 } },
+    { id: "site-cafe", name: "サンプルサイト", domain: "example.test", published: true, stats: { visits: 1240, inquiries: 8 } },
     { id: "site-cafe-lp", name: "季節のキャンペーンLP", domain: "campaign.example.test", published: false, stats: { visits: 0, inquiries: 0 } },
   ],
   "proj-clinic": [
