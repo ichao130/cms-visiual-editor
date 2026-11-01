@@ -12,13 +12,13 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@pcms/engine": "workspace:*",
-    "@pcms/shared": "workspace:*",
     "firebase-admin": "^13.0.1",
     "firebase-functions": "^6.1.1"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^6.0.0",
+    "@pcms/engine": "workspace:*",
+    "@pcms/shared": "workspace:*",
     "@types/node": "^22.10.0",
     "esbuild": "^0.28.2",
     "firebase": "^13.1.0",
