@@ -77,8 +77,11 @@ const api: PcmsApi = {
     ipcRenderer.invoke("pcms:renameThemeFile", from, to),
   resetTheme: () => ipcRenderer.invoke("pcms:resetTheme"),
   listForms: () => ipcRenderer.invoke("pcms:listForms"),
-  saveForms: (forms: FormDef[]) => ipcRenderer.invoke("pcms:saveForms", forms),
-  listSubmissions: (formId: string) => ipcRenderer.invoke("pcms:listSubmissions", formId),
+  saveForms: (siteId: string, forms: FormDef[]) =>
+    ipcRenderer.invoke("pcms:saveForms", siteId, forms),
+  listSubmissions: (siteId: string, formId: string) =>
+    ipcRenderer.invoke("pcms:listSubmissions", siteId, formId),
+  cloudFormTarget: (siteId: string) => ipcRenderer.invoke("pcms:cloudFormTarget", siteId),
   loadRedirects: () => ipcRenderer.invoke("pcms:loadRedirects"),
   saveRedirects: (redirects: Redirect[]) => ipcRenderer.invoke("pcms:saveRedirects", redirects),
   createBackup: (passphrase: string) => ipcRenderer.invoke("pcms:createBackup", passphrase),

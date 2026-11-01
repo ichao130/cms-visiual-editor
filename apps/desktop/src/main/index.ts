@@ -74,6 +74,7 @@ import {
   listForms,
   saveForms,
   listSubmissions,
+  cloudFormTarget,
 } from "./shell.js";
 import { cloudStatus } from "./cloud.js";
 import { signIn, signOut } from "./auth.js";
@@ -232,8 +233,13 @@ function registerIpc(): void {
   );
   ipcMain.handle("pcms:resetTheme", () => resetTheme());
   ipcMain.handle("pcms:listForms", () => listForms());
-  ipcMain.handle("pcms:saveForms", (_event, forms: FormDef[]) => saveForms(forms));
-  ipcMain.handle("pcms:listSubmissions", (_event, formId: string) => listSubmissions(formId));
+  ipcMain.handle("pcms:saveForms", (_event, siteId: string, forms: FormDef[]) =>
+    saveForms(siteId, forms),
+  );
+  ipcMain.handle("pcms:listSubmissions", (_event, siteId: string, formId: string) =>
+    listSubmissions(siteId, formId),
+  );
+  ipcMain.handle("pcms:cloudFormTarget", (_event, siteId: string) => cloudFormTarget(siteId));
   ipcMain.handle("pcms:loadRedirects", () => loadRedirects());
   ipcMain.handle("pcms:saveRedirects", (_event, redirects: Redirect[]) => saveRedirects(redirects));
   ipcMain.handle("pcms:createBackup", (_event, passphrase: string) => createBackup(passphrase));

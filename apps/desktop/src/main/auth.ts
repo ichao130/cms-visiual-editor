@@ -75,6 +75,11 @@ export function currentUser(): { email?: string } | null {
   return auth ? { email: auth.email } : null;
 }
 
+/** The signed-in operator's Firebase uid, used to key their cloud data. */
+export function currentUid(): string | null {
+  return loadAuth()?.localId ?? null;
+}
+
 const SIGNIN_DONE_HTML = `<!doctype html><html lang="ja"><head><meta charset="utf-8">
 <title>サインイン完了</title><style>body{font-family:system-ui,sans-serif;background:#f4f5f7;
 color:#1f2430;display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0}

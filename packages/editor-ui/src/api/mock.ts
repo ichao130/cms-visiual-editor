@@ -896,11 +896,15 @@ export function createMockApi(): PcmsApi {
     async listForms(): Promise<FormDef[]> {
       return loadForms();
     },
-    async saveForms(forms: FormDef[]): Promise<void> {
+    async saveForms(_siteId: string, forms: FormDef[]): Promise<void> {
       saveJson(FORMS_KEY, forms);
     },
-    async listSubmissions(formId: string): Promise<FormSubmission[]> {
+    async listSubmissions(_siteId: string, formId: string): Promise<FormSubmission[]> {
       return mockSubmissions.filter((s) => s.formId === formId);
+    },
+    async cloudFormTarget(): Promise<{ endpoint: string; siteId: string } | null> {
+      // The browser eval build has no cloud; the embed shows a placeholder.
+      return null;
     },
     async createBackup(passphrase: string): Promise<EncryptedBackup> {
       return createEncryptedBackup(gatherBackupData(), passphrase);

@@ -16,6 +16,9 @@ import type { ThemeBundle } from "@pcms/engine";
 import { renameSection } from "@pcms/engine";
 import { loadProject } from "./project.js";
 import { callFunction, NotSignedInError } from "./functions.js";
+import { currentUid } from "./auth.js";
+import { loadFirebaseConfig } from "./cloud.js";
+import { patchDocument, runQuery } from "./firestore.js";
 
 /** The built-in local project/site, always present. */
 const LOCAL_PROJECT_ID = "local";
@@ -295,19 +298,107 @@ export async function resetTheme(): Promise<void> {
   themeOverlay.clear();
 }
 
-// Contact forms. Stored in-session for the local build; the cloud receiver and
-// forms.json persistence are wired later.
+// Contact forms. Kept in-session for the builder; when the operator is signed
+// in they are also synced to Firestore so the cloud receiver (submitForm) will
+// accept posts and the owner can read the submissions back.
 const formStore = new Map<string, FormDef>();
+
+/** The cloud key for a local site: scoped by uid so it's globally unique + owned. */
+function cloudSiteId(localSiteId: string): string | null {
+  const uid = currentUid();
+  return uid ? `${uid}-${localSiteId}` : null;
+}
+
+async function siteDisplayName(): Promise<string | undefined> {
+  try {
+    const name = (await loadProject()).site?.name;
+    return typeof name === "string" && name.trim() !== "" ? name : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Shape a FormDef as the FormConfig document the receiver + rules expect. */
+function toFormConfig(form: FormDef, siteName?: string): Record<string, unknown> {
+  return {
+    name: form.name,
+    siteName,
+    fields: form.fields.map((f) => ({
+      name: f.name,
+      label: f.label,
+      required: Boolean(f.required),
+      type: f.type,
+    })),
+    notifyEmails: form.notifyEmails,
+    autoReply: form.autoReply,
+    completionMessage: form.completionMessage,
+    storeSubmission: true,
+  };
+}
 
 export async function listForms(): Promise<FormDef[]> {
   return [...formStore.values()];
 }
 
-export async function saveForms(forms: FormDef[]): Promise<void> {
+export async function saveForms(siteId: string, forms: FormDef[]): Promise<void> {
   formStore.clear();
   for (const f of forms) formStore.set(f.id, f);
+
+  // Best-effort cloud sync: register the site (ownerId) and each form so that
+  // submitForm accepts posts and the owner may read submissions. A failure or
+  // being signed out must not break the local save.
+  const cloudId = cloudSiteId(siteId);
+  const uid = currentUid();
+  if (!cloudId || !uid) return;
+  try {
+    const siteName = await siteDisplayName();
+    await patchDocument(`sites/${cloudId}`, { ownerId: uid, siteName });
+    for (const form of forms) {
+      await patchDocument(`sites/${cloudId}/forms/${form.id}`, toFormConfig(form, siteName));
+    }
+  } catch (err) {
+    console.error("form cloud sync failed", err);
+  }
 }
 
-export async function listSubmissions(_formId: string): Promise<FormSubmission[]> {
-  return [];
+export async function listSubmissions(siteId: string, formId: string): Promise<FormSubmission[]> {
+  const cloudId = cloudSiteId(siteId);
+  if (!cloudId) return [];
+  try {
+    const docs = await runQuery(`sites/${cloudId}`, "submissions", "formId", formId);
+    return docs
+      .map((doc) => {
+        const data = doc.data as { formId?: string; fields?: Record<string, unknown>; createdAt?: unknown };
+        const values: Record<string, string> = {};
+        for (const [k, v] of Object.entries(data.fields ?? {})) values[k] = String(v ?? "");
+        const receivedAt = typeof data.createdAt === "string" ? data.createdAt : new Date().toISOString();
+        return {
+          id: doc.id,
+          formId: String(data.formId ?? formId),
+          values,
+          receivedAt,
+        } satisfies FormSubmission;
+      })
+      .sort((a, b) => b.receivedAt.localeCompare(a.receivedAt));
+  } catch (err) {
+    if (!(err instanceof NotSignedInError)) console.error("listSubmissions failed", err);
+    return [];
+  }
+}
+
+/**
+ * The live submitForm endpoint + the cloud siteId for the embed snippet, so the
+ * deployed form posts to the same place saveForms registered. Null when the
+ * operator isn't signed in / cloud isn't configured (the UI shows a placeholder).
+ */
+export async function cloudFormTarget(
+  siteId: string,
+): Promise<{ endpoint: string; siteId: string } | null> {
+  const config = loadFirebaseConfig();
+  const cloudId = cloudSiteId(siteId);
+  if (!config || !cloudId) return null;
+  return {
+    endpoint: `https://us-central1-${config.projectId}.cloudfunctions.net/submitForm`,
+    siteId: cloudId,
+  };
 }

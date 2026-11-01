@@ -122,8 +122,14 @@ export interface PcmsApi {
   // Contact forms. The builder's definitions persist here; submissions are
   // received by the Firebase function in production (sample data in the mock).
   listForms(): Promise<FormDef[]>;
-  saveForms(forms: FormDef[]): Promise<void>;
-  listSubmissions(formId: string): Promise<FormSubmission[]>;
+  saveForms(siteId: string, forms: FormDef[]): Promise<void>;
+  listSubmissions(siteId: string, formId: string): Promise<FormSubmission[]>;
+  /**
+   * The live submitForm endpoint + cloud siteId for the embed snippet, so the
+   * deployed form posts where saveForms registered it. Null when signed out /
+   * cloud not configured (the embed then shows a placeholder endpoint).
+   */
+  cloudFormTarget(siteId: string): Promise<{ endpoint: string; siteId: string } | null>;
 
   // Redirects (redirects.json). Auto-added when the permalink pattern changes,
   // and editable here so the operator can review, add or remove mappings.

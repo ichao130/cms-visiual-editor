@@ -66,7 +66,7 @@ export function FormsView({ api, siteId }: Props) {
   };
 
   const save = () => {
-    void api.saveForms(forms).then(() => setDirty(false));
+    void api.saveForms(siteId, forms).then(() => setDirty(false));
   };
 
   return (
@@ -128,9 +128,9 @@ export function FormsView({ api, siteId }: Props) {
             {tab === "build" ? (
               <FormBuilder form={selected} onChange={update} onDelete={() => deleteForm(selected.id)} />
             ) : tab === "inbox" ? (
-              <Inbox api={api} form={selected} />
+              <Inbox api={api} siteId={siteId} form={selected} />
             ) : (
-              <Embed form={selected} siteId={siteId} />
+              <Embed api={api} form={selected} siteId={siteId} />
             )}
           </div>
         ) : (
@@ -271,18 +271,18 @@ function FormBuilder({
   );
 }
 
-function Inbox({ api, form }: { api: PcmsApi; form: FormDef }) {
+function Inbox({ api, siteId, form }: { api: PcmsApi; siteId: string; form: FormDef }) {
   const [rows, setRows] = useState<FormSubmission[]>([]);
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
-    void api.listSubmissions(form.id).then((s) => active && setRows(s));
+    void api.listSubmissions(siteId, form.id).then((s) => active && setRows(s));
     return () => {
       active = false;
     };
-  }, [api, form.id]);
+  }, [api, siteId, form.id]);
 
   const q = query.trim().toLowerCase();
   const shown = useMemo(
@@ -389,14 +389,30 @@ function Inbox({ api, form }: { api: PcmsApi; form: FormDef }) {
   );
 }
 
-function Embed({ form, siteId }: { form: FormDef; siteId: string }) {
+function Embed({ api, form, siteId }: { api: PcmsApi; form: FormDef; siteId: string }) {
   const [endpoint, setEndpoint] = useState(
     "https://<リージョン>-<プロジェクト>.cloudfunctions.net/submitForm",
   );
+  // When signed in, use the real submitForm URL + the cloud siteId that
+  // saveForms registered, so the deployed form posts to the right place.
+  const [cloudSiteId, setCloudSiteId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    void api.cloudFormTarget(siteId).then((target) => {
+      if (!active || !target) return;
+      setEndpoint(target.endpoint);
+      setCloudSiteId(target.siteId);
+    });
+    return () => {
+      active = false;
+    };
+  }, [api, siteId]);
+
   const html = useMemo(
-    () => buildFormEmbed(form, { endpoint, siteId }),
-    [form, endpoint, siteId],
+    () => buildFormEmbed(form, { endpoint, siteId: cloudSiteId ?? siteId }),
+    [form, endpoint, cloudSiteId, siteId],
   );
 
   const copy = () => {
