@@ -25,6 +25,7 @@ import type { ThemeBundle } from "@pcms/engine";
 import type {
   AccountView,
   DeployConfigView,
+  FtpSecurity,
   MediaUpload,
   PcmsApi,
   ProjectData,
@@ -368,7 +369,16 @@ const DEPLOY_KEY = "pcms.mock.deploy";
 
 type StoredDeploy =
   | { type: "local"; dir: string }
-  | { type: "sftp"; host: string; port: number; username: string; remoteDir: string; hasPassword: boolean };
+  | { type: "sftp"; host: string; port: number; username: string; remoteDir: string; hasPassword: boolean }
+  | {
+      type: "ftp";
+      host: string;
+      port: number;
+      username: string;
+      remoteDir: string;
+      security: FtpSecurity;
+      hasPassword: boolean;
+    };
 
 function loadDeploy(): StoredDeploy {
   try {
@@ -386,9 +396,13 @@ function loadDeploy(): StoredDeploy {
  * instead of pretending it worked — this is both honest and what drives the
  * publish-error diagnosis in the UI.
  */
-function simulatedSftpError(c: Extract<StoredDeploy, { type: "sftp" }>): string {
+function simulatedRemoteError(c: Extract<StoredDeploy, { type: "sftp" | "ftp" }>): string {
   if (c.host.trim() === "") return "getaddrinfo ENOTFOUND ";
-  if (!c.hasPassword) return "Error: All configured authentication methods failed";
+  if (!c.hasPassword) {
+    return c.type === "ftp"
+      ? "530 Login authentication failed"
+      : "Error: All configured authentication methods failed";
+  }
   return `connect ETIMEDOUT ${c.host}:${c.port}`;
 }
 
@@ -658,16 +672,34 @@ export function createMockApi(): PcmsApi {
     async setDeployConfig(config): Promise<void> {
       if (config.type === "local") {
         saveJson(DEPLOY_KEY, { type: "local", dir: config.dir } satisfies StoredDeploy);
+        return;
+      }
+      const prev = loadDeploy();
+      const prevHasPw =
+        (prev.type === "sftp" || prev.type === "ftp") &&
+        prev.host === config.host &&
+        prev.username === config.username &&
+        prev.hasPassword;
+      const hasPassword = config.password != null ? config.password !== "" : prevHasPw;
+      if (config.type === "ftp") {
+        const security = config.security ?? "ftps";
+        saveJson(DEPLOY_KEY, {
+          type: "ftp",
+          host: config.host,
+          port: config.port ?? (security === "ftps-implicit" ? 990 : 21),
+          username: config.username,
+          remoteDir: config.remoteDir,
+          security,
+          hasPassword,
+        } satisfies StoredDeploy);
       } else {
-        const prev = loadDeploy();
-        const prevHasPw = prev.type === "sftp" && prev.hasPassword;
         saveJson(DEPLOY_KEY, {
           type: "sftp",
           host: config.host,
           port: config.port ?? 22,
           username: config.username,
           remoteDir: config.remoteDir,
-          hasPassword: config.password != null ? config.password !== "" : prevHasPw,
+          hasPassword,
         } satisfies StoredDeploy);
       }
     },
@@ -701,15 +733,17 @@ export function createMockApi(): PcmsApi {
       // No real SFTP server in the eval build: report a representative transport
       // failure so the diagnosis UI can be exercised (local keeps succeeding).
       const deploy = loadDeploy();
-      if (deploy.type === "sftp") {
+      if (deploy.type === "sftp" || deploy.type === "ftp") {
+        const label =
+          deploy.type === "sftp" ? "SFTP" : deploy.security === "ftp" ? "FTP" : "FTPS";
         return {
           ok: false,
           issues,
           uploaded: 0,
           deleted: 0,
           unchanged: 0,
-          target: `SFTP: ${deploy.username}@${deploy.host}:${deploy.remoteDir}`,
-          error: simulatedSftpError(deploy),
+          target: `${label}: ${deploy.username}@${deploy.host}:${deploy.remoteDir}`,
+          error: simulatedRemoteError(deploy),
           rolledBack: true,
           publishedAt: new Date().toISOString(),
         };

@@ -183,6 +183,14 @@ button.pcms-aibtn:hover:not(:disabled) { filter: brightness(1.08); background: v
 .pcms-publish__target input { width: 100%; font: inherit; padding: 0.4rem 0.5rem; border: 1px solid var(--pcms-border); border-radius: 6px; }
 .pcms-publish__actions { display: flex; align-items: center; gap: 0.5rem; }
 .pcms-publish__targetlabel { font-size: 0.8rem; color: var(--pcms-muted); }
+.pcms-publish__hint {
+  font-size: 0.8rem;
+  color: var(--pcms-warn, #a15c00);
+  background: var(--pcms-warn-bg, rgba(255, 196, 0, 0.1));
+  border-radius: 6px;
+  padding: 0.4rem 0.6rem;
+  margin: 0.25rem 0 0;
+}
 .pcms-publish__counts { font-size: 0.9rem; }
 .pcms-publish__status { padding: 0.5rem 0.7rem; border-radius: 6px; font-size: 0.9rem; }
 .pcms-publish__status.is-ok { background: var(--pcms-success-weak); color: var(--pcms-success); }

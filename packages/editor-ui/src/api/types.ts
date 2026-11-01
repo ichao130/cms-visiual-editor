@@ -281,6 +281,9 @@ export interface PublishHistoryEntry {
   fileCount: number;
 }
 
+/** FTP control-connection security (mirrors @pcms/deploy's FtpSecurity). */
+export type FtpSecurity = "ftp" | "ftps" | "ftps-implicit";
+
 export type DeployConfigView =
   | { type: "local"; dir: string }
   | {
@@ -289,6 +292,15 @@ export type DeployConfigView =
       port: number;
       username: string;
       remoteDir: string;
+      hasPassword: boolean;
+    }
+  | {
+      type: "ftp";
+      host: string;
+      port: number;
+      username: string;
+      remoteDir: string;
+      security: FtpSecurity;
       hasPassword: boolean;
     };
 
@@ -300,6 +312,15 @@ export type DeployConfigInput =
       port?: number;
       username: string;
       remoteDir: string;
+      password?: string;
+    }
+  | {
+      type: "ftp";
+      host: string;
+      port?: number;
+      username: string;
+      remoteDir: string;
+      security?: FtpSecurity;
       password?: string;
     };
 

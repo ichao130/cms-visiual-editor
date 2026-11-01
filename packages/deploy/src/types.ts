@@ -85,3 +85,22 @@ export interface SftpConfig {
   /** Remote base directory the site is published under. */
   remoteDir: string;
 }
+
+/**
+ * How the FTP control connection is secured. Plain "ftp" is unencrypted;
+ * "ftps" is explicit FTPS (AUTH TLS over the normal port, the common choice on
+ * Japanese shared hosting); "ftps-implicit" negotiates TLS from the start
+ * (usually port 990).
+ */
+export type FtpSecurity = "ftp" | "ftps" | "ftps-implicit";
+
+export interface FtpConfig {
+  host: string;
+  port?: number;
+  username: string;
+  password?: string;
+  /** Remote base directory the site is published under. */
+  remoteDir: string;
+  /** Control-connection security (default "ftps"). */
+  security?: FtpSecurity;
+}

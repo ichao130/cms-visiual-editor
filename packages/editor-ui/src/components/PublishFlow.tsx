@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { diagnoseDeployError } from "@pcms/engine";
 import type {
   DeployConfigView,
+  FtpSecurity,
   PcmsApi,
   PublishHistoryEntry,
   PublishIssue,
@@ -24,7 +25,7 @@ export function PublishFlow({ api }: { api: PcmsApi }) {
   const [report, setReport] = useState<PublishReport | null>(null);
   const [busy, setBusy] = useState<"" | "check" | "publish">("");
 
-  const [type, setType] = useState<"local" | "sftp">("local");
+  const [type, setType] = useState<"local" | "sftp" | "ftp">("local");
   const [dir, setDir] = useState("");
   const [host, setHost] = useState("");
   const [port, setPort] = useState("22");
@@ -32,6 +33,7 @@ export function PublishFlow({ api }: { api: PcmsApi }) {
   const [remoteDir, setRemoteDir] = useState("");
   const [password, setPassword] = useState("");
   const [hasPassword, setHasPassword] = useState(false);
+  const [security, setSecurity] = useState<FtpSecurity>("ftps");
 
   useEffect(() => {
     void api.getDeployConfig().then((c) => {
@@ -44,13 +46,34 @@ export function PublishFlow({ api }: { api: PcmsApi }) {
         setUsername(c.username);
         setRemoteDir(c.remoteDir);
         setHasPassword(c.hasPassword);
+        if (c.type === "ftp") setSecurity(c.security);
       }
     });
     void api.listPublishHistory().then(setHistory);
   }, [api]);
 
+  // Switch the default port with the target type, unless the operator has typed
+  // a non-default value for the other type.
+  const pickType = (next: "local" | "sftp" | "ftp") => {
+    if (next === "sftp" && (port === "" || port === "21" || port === "990")) setPort("22");
+    if (next === "ftp" && (port === "" || port === "22")) {
+      setPort(security === "ftps-implicit" ? "990" : "21");
+    }
+    setType(next);
+  };
+
   const saveTarget = async () => {
     if (type === "local") await api.setDeployConfig({ type: "local", dir });
+    else if (type === "ftp")
+      await api.setDeployConfig({
+        type: "ftp",
+        host,
+        port: Number(port) || undefined,
+        username,
+        remoteDir,
+        security,
+        password: password || undefined,
+      });
     else
       await api.setDeployConfig({
         type: "sftp",
@@ -113,11 +136,15 @@ export function PublishFlow({ api }: { api: PcmsApi }) {
         <h3 className="pcms-types__fieldshead">{t("publish.target")}</h3>
         <div className="pcms-publish__typerow">
           <label>
-            <input type="radio" checked={type === "local"} onChange={() => setType("local")} />
+            <input type="radio" checked={type === "local"} onChange={() => pickType("local")} />
             {t("publish.type.local")}
           </label>
           <label>
-            <input type="radio" checked={type === "sftp"} onChange={() => setType("sftp")} />
+            <input type="radio" checked={type === "ftp"} onChange={() => pickType("ftp")} />
+            {t("publish.type.ftp")}
+          </label>
+          <label>
+            <input type="radio" checked={type === "sftp"} onChange={() => pickType("sftp")} />
             {t("publish.type.sftp")}
           </label>
         </div>
@@ -128,6 +155,24 @@ export function PublishFlow({ api }: { api: PcmsApi }) {
           </Field>
         ) : (
           <>
+            {type === "ftp" && (
+              <Field label={t("publish.security")}>
+                <select
+                  value={security}
+                  onChange={(e) => {
+                    const next = e.target.value as FtpSecurity;
+                    setSecurity(next);
+                    if (port === "" || port === "21" || port === "990") {
+                      setPort(next === "ftps-implicit" ? "990" : "21");
+                    }
+                  }}
+                >
+                  <option value="ftps">{t("publish.security.ftps")}</option>
+                  <option value="ftps-implicit">{t("publish.security.ftpsImplicit")}</option>
+                  <option value="ftp">{t("publish.security.ftp")}</option>
+                </select>
+              </Field>
+            )}
             <Field label={t("publish.host")}>
               <input value={host} onChange={(e) => setHost(e.target.value)} />
             </Field>
@@ -148,6 +193,9 @@ export function PublishFlow({ api }: { api: PcmsApi }) {
                 placeholder={hasPassword ? t("publish.passwordKept") : ""}
               />
             </Field>
+            {type === "ftp" && security === "ftp" && (
+              <p className="pcms-publish__hint">{t("publish.ftpPlainWarn")}</p>
+            )}
           </>
         )}
         <button type="button" onClick={saveTarget}>
@@ -296,7 +344,8 @@ function IssueList({ issues }: { issues: PublishIssue[] }) {
 }
 
 function targetLabel(config: DeployConfigView): string {
-  return config.type === "local"
-    ? `${t("publish.type.local")}: ${config.dir}`
-    : `SFTP: ${config.username}@${config.host}:${config.remoteDir}`;
+  if (config.type === "local") return `${t("publish.type.local")}: ${config.dir}`;
+  const proto =
+    config.type === "sftp" ? "SFTP" : config.security === "ftp" ? "FTP" : "FTPS";
+  return `${proto}: ${config.username}@${config.host}:${config.remoteDir}`;
 }

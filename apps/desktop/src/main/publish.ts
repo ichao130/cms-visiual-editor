@@ -9,11 +9,13 @@ import {
 import { join, relative } from "node:path";
 import { app, safeStorage } from "electron";
 import {
+  FtpTransport,
   LocalTransport,
   SftpTransport,
   preflight,
   publish,
   type FileSet,
+  type FtpSecurity,
   type Issue,
   type PublishManifest,
   type Transport,
@@ -35,7 +37,17 @@ interface SftpConfigStored {
   /** Encrypted password (safeStorage), base64. Never leaves this machine. */
   passwordEnc?: string;
 }
-type DeployConfig = LocalConfig | SftpConfigStored;
+interface FtpConfigStored {
+  type: "ftp";
+  host: string;
+  port?: number;
+  username: string;
+  remoteDir: string;
+  security?: FtpSecurity;
+  /** Encrypted password (safeStorage), base64. Never leaves this machine. */
+  passwordEnc?: string;
+}
+type DeployConfig = LocalConfig | SftpConfigStored | FtpConfigStored;
 
 export type DeployConfigInput =
   | LocalConfig
@@ -45,6 +57,15 @@ export type DeployConfigInput =
       port?: number;
       username: string;
       remoteDir: string;
+      password?: string;
+    }
+  | {
+      type: "ftp";
+      host: string;
+      port?: number;
+      username: string;
+      remoteDir: string;
+      security?: FtpSecurity;
       password?: string;
     };
 
@@ -56,6 +77,15 @@ export type DeployConfigView =
       port: number;
       username: string;
       remoteDir: string;
+      hasPassword: boolean;
+    }
+  | {
+      type: "ftp";
+      host: string;
+      port: number;
+      username: string;
+      remoteDir: string;
+      security: FtpSecurity;
       hasPassword: boolean;
     };
 
@@ -112,6 +142,18 @@ function loadRawConfig(): DeployConfig {
 export function getDeployConfig(): DeployConfigView {
   const cfg = loadRawConfig();
   if (cfg.type === "local") return { type: "local", dir: cfg.dir };
+  if (cfg.type === "ftp") {
+    const security = cfg.security ?? "ftps";
+    return {
+      type: "ftp",
+      host: cfg.host,
+      port: cfg.port ?? (security === "ftps-implicit" ? 990 : 21),
+      username: cfg.username,
+      remoteDir: cfg.remoteDir,
+      security,
+      hasPassword: Boolean(cfg.passwordEnc),
+    };
+  }
   return {
     type: "sftp",
     host: cfg.host,
@@ -127,22 +169,49 @@ export function setDeployConfig(input: DeployConfigInput): void {
   if (input.type === "local") {
     stored = { type: "local", dir: input.dir };
   } else {
+    // Keep the previously stored password when the form leaves it blank, as long
+    // as the server (host+user) is unchanged — so editing other fields doesn't
+    // wipe the saved credential.
     const existing = loadRawConfig();
-    const prevEnc = existing.type === "sftp" ? existing.passwordEnc : undefined;
+    const prevEnc =
+      (existing.type === "sftp" || existing.type === "ftp") &&
+      existing.host === input.host &&
+      existing.username === input.username
+        ? existing.passwordEnc
+        : undefined;
     let passwordEnc = prevEnc;
     if (input.password && safeStorage.isEncryptionAvailable()) {
       passwordEnc = safeStorage.encryptString(input.password).toString("base64");
     }
-    stored = {
-      type: "sftp",
-      host: input.host,
-      port: input.port,
-      username: input.username,
-      remoteDir: input.remoteDir,
-      passwordEnc,
-    };
+    if (input.type === "ftp") {
+      stored = {
+        type: "ftp",
+        host: input.host,
+        port: input.port,
+        username: input.username,
+        remoteDir: input.remoteDir,
+        security: input.security ?? "ftps",
+        passwordEnc,
+      };
+    } else {
+      stored = {
+        type: "sftp",
+        host: input.host,
+        port: input.port,
+        username: input.username,
+        remoteDir: input.remoteDir,
+        passwordEnc,
+      };
+    }
   }
   writeFileSync(deployConfigPath(), JSON.stringify(stored, null, 2), "utf8");
+}
+
+function decryptPassword(passwordEnc?: string): string | undefined {
+  if (passwordEnc && safeStorage.isEncryptionAvailable()) {
+    return safeStorage.decryptString(Buffer.from(passwordEnc, "base64"));
+  }
+  return undefined;
 }
 
 function makeTransport(cfg: DeployConfig): { transport: Transport; target: string } {
@@ -150,15 +219,24 @@ function makeTransport(cfg: DeployConfig): { transport: Transport; target: strin
     if (!existsSync(cfg.dir)) mkdirSync(cfg.dir, { recursive: true });
     return { transport: new LocalTransport(cfg.dir), target: `フォルダ: ${cfg.dir}` };
   }
-  let password: string | undefined;
-  if (cfg.passwordEnc && safeStorage.isEncryptionAvailable()) {
-    password = safeStorage.decryptString(Buffer.from(cfg.passwordEnc, "base64"));
+  if (cfg.type === "ftp") {
+    const security = cfg.security ?? "ftps";
+    const transport = new FtpTransport({
+      host: cfg.host,
+      port: cfg.port,
+      username: cfg.username,
+      password: decryptPassword(cfg.passwordEnc),
+      remoteDir: cfg.remoteDir,
+      security,
+    });
+    const label = security === "ftp" ? "FTP" : "FTPS";
+    return { transport, target: `${label}: ${cfg.username}@${cfg.host}:${cfg.remoteDir}` };
   }
   const transport = new SftpTransport({
     host: cfg.host,
     port: cfg.port,
     username: cfg.username,
-    password,
+    password: decryptPassword(cfg.passwordEnc),
     remoteDir: cfg.remoteDir,
   });
   return { transport, target: `SFTP: ${cfg.username}@${cfg.host}:${cfg.remoteDir}` };

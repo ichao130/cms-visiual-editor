@@ -35,6 +35,9 @@ importers:
 
   apps/desktop:
     dependencies:
+      basic-ftp:
+        specifier: ^5.0.5
+        version: 5.3.1
       electron-updater:
         specifier: ^6.3.9
         version: 6.8.11
@@ -1760,6 +1763,10 @@ packages:
     resolution: {integrity: sha512-UvuxFU9P3hM29LrQdwu0cD6w6/+SFr+UlB9s/knI7+O2rK9xFxKUwSDWxGdbbqQ9/V7BJ5s0NI5nQAE4uJp3gQ==}
     engines: {node: '>=6.0.0'}
     hasBin: true
+
+  basic-ftp@5.3.1:
+    resolution: {integrity: sha512-bopVNp6ugyA150DDuZfPFdt1KZ5a94ZDiwX4hMgZDzF+GttD80lEy8kj98kbyhLXnPvhtIo93mdnLIjpCAeeOw==}
+    engines: {node: '>=10.0.0'}
 
   bcrypt-pbkdf@1.0.2:
     resolution: {integrity: sha512-qeFIXtP4MSoi6NLqO12WfqARWWuCKi2Rn/9hJLEmtB5yTNr9DqFWkJRCf2qShWzPeAMRnOgCrq0sg/KLv5ES9w==}
@@ -5723,6 +5730,8 @@ snapshots:
   base64-js@1.5.1: {}
 
   baseline-browser-mapping@2.11.32: {}
+
+  basic-ftp@5.3.1: {}
 
   bcrypt-pbkdf@1.0.2:
     dependencies:

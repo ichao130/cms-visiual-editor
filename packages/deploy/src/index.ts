@@ -15,6 +15,8 @@ export type {
   PublishOptions,
   PublishResult,
   SftpConfig,
+  FtpConfig,
+  FtpSecurity,
 } from "./types.js";
 
 export { manifestOf, hashContent, toBytes } from "./hash.js";
@@ -23,3 +25,4 @@ export { preflight } from "./preflight.js";
 export { publish } from "./publish.js";
 export { LocalTransport } from "./transport/local.js";
 export { SftpTransport } from "./transport/sftp.js";
+export { FtpTransport, type FtpClientLike } from "./transport/ftp.js";
