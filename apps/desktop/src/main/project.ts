@@ -34,6 +34,8 @@ import {
 } from "@pcms/engine";
 import type { FileSet } from "@pcms/deploy";
 import type { MediaUpload, ProjectData } from "@pcms/editor-ui";
+import { currentUid } from "./auth.js";
+import { storageBackupKv } from "./storageBackup.js";
 
 /**
  * Filesystem-backed project data for the desktop app. This is the ONLY place
@@ -563,17 +565,26 @@ const backupFsKv: KvAdapter = {
       .map((f) => f.slice(0, -5));
   },
 };
-const backupStore = new KvBackupStore(backupFsKv, "");
+const localBackupStore = new KvBackupStore(backupFsKv, "");
+
+/**
+ * Signed in → the cloud copy on Firebase Storage; otherwise the local app-data
+ * history. Both are the same KvBackupStore over different adapters, so the UI is
+ * unchanged either way and only ciphertext ever leaves the machine.
+ */
+function backupStore(): KvBackupStore {
+  return currentUid() ? new KvBackupStore(storageBackupKv(), "") : localBackupStore;
+}
 
 export async function uploadBackup(passphrase: string): Promise<BackupRef> {
-  return backupStore.save(await createBackup(passphrase));
+  return backupStore().save(await createBackup(passphrase));
 }
 export async function listBackups(): Promise<BackupRef[]> {
-  return backupStore.list();
+  return backupStore().list();
 }
 export async function restoreFromBackup(id: string, passphrase: string): Promise<void> {
-  await restoreBackup(await backupStore.load(id), passphrase);
+  await restoreBackup(await backupStore().load(id), passphrase);
 }
 export async function deleteBackup(id: string): Promise<void> {
-  await backupStore.remove(id);
+  await backupStore().remove(id);
 }
