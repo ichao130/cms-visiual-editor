@@ -10,7 +10,7 @@ await build({
   bundle: true,
   platform: "node",
   format: "esm",
-  target: "node20",
+  target: "node22",
   outfile: "lib/index.js",
   external: ["firebase-admin", "firebase-admin/*", "firebase-functions", "firebase-functions/*"],
   // Shim require() for any bundled CommonJS dependency under ESM output.
