@@ -4,10 +4,14 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "outDir": "lib",
-    "rootDir": "src",
     "lib": ["ES2022"],
     "types": ["node"],
-    "verbatimModuleSyntax": false
+    "verbatimModuleSyntax": false,
+    "baseUrl": ".",
+    "paths": {
+      "@pcms/engine": ["../../packages/engine/src/index.ts"],
+      "@pcms/shared": ["../../packages/shared/src/index.ts"]
+    }
   },
   "include": ["src"]
 }

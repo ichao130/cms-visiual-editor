@@ -17,8 +17,6 @@
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^6.0.0",
-    "@pcms/engine": "workspace:*",
-    "@pcms/shared": "workspace:*",
     "@types/node": "^22.10.0",
     "esbuild": "^0.28.2",
     "firebase": "^13.1.0",
