@@ -72,8 +72,11 @@ export {
   cleanImportedHtml,
   importThemeHtml,
   suggestThemePart,
+  classifyZipEntry,
+  inlineThemeAssets,
   type ImportSource,
   type ImportResult,
+  type ZipEntryKind,
 } from "./import.js";
 export { mediaUsageCounts } from "./media.js";
 export { preflight, type PreflightIssue, type SiteFileSet } from "./preflight.js";

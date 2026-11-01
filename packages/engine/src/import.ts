@@ -559,6 +559,118 @@ export function suggestThemePart(filename: string): {
   return { slug, target };
 }
 
+// ---------------------------------------------------------------------------
+// ZIP import — classify a theme archive's files and inline its images.
+// ---------------------------------------------------------------------------
+
+/** What kind of theme-archive entry a path is, by its extension. */
+export type ZipEntryKind = "markup" | "image" | "ignore";
+
+const MARKUP_EXT = new Set(["html", "htm", "php", "liquid", "twig", "txt", "svg"]);
+const IMAGE_EXT = new Set(["png", "jpg", "jpeg", "gif", "webp", "avif", "ico", "svg"]);
+
+/**
+ * Classify one entry of an imported theme archive (zip) by its path. Markup
+ * files become sections/templates; images are inlined into that markup; the
+ * rest (scripts, fonts, directories, macOS/dot metadata) are ignored.
+ * Note: `.svg` is reported as "markup" — a standalone SVG is importable as a
+ * design section (see `importSvg`); when an `.svg` is referenced from markup,
+ * the UI still offers it to `inlineThemeAssets` by basename, so vector assets
+ * resolve either way. Pure: path in, kind out.
+ */
+export function classifyZipEntry(path: string): ZipEntryKind {
+  const norm = path.replace(/\\/g, "/");
+  const base = norm.split("/").filter(Boolean).pop() ?? "";
+  if (norm.endsWith("/") || base === "") return "ignore"; // directory entry
+  if (base.startsWith(".")) return "ignore"; // .DS_Store, dotfiles
+  if (/(^|\/)__MACOSX\//.test(norm)) return "ignore"; // macOS archive metadata
+  const ext = /\.([a-z0-9]+)$/i.exec(base)?.[1]?.toLowerCase() ?? "";
+  if (MARKUP_EXT.has(ext)) return "markup";
+  if (IMAGE_EXT.has(ext)) return "image";
+  return "ignore";
+}
+
+/**
+ * Replace local asset references in imported theme HTML with inlined `data:`
+ * URLs, so the images that shipped in the archive actually show in the preview
+ * and the saved section — the theme working copy holds only strings, with no
+ * place for binary files. `assets` maps a file's base name (e.g. "hero.jpg") to
+ * its data URL; references whose base name is not in the map are left as-is and
+ * reported in `missing`. Covers <img>/<source> src and srcset, inline `style`
+ * url() and <style> blocks — the same surfaces as `normalizeAssets`.
+ */
+export function inlineThemeAssets(
+  html: string,
+  assets: Record<string, string>,
+): { html: string; inlined: number; missing: string[] } {
+  let inlined = 0;
+  const missing: string[] = [];
+
+  const lookup = (url: string): string | null => {
+    const u = url.trim();
+    if (u === "" || u.startsWith("#") || isExternalOrInline(u)) return null;
+    const base = assetBasename(u);
+    if (base === "") return null;
+    const hit = assets[base];
+    if (hit != null) return hit;
+    missing.push(base);
+    return null;
+  };
+
+  const inlineSrcset = (value: string): string =>
+    value
+      .split(",")
+      .map((part) => {
+        const seg = part.trim();
+        if (seg === "") return part;
+        const bits = seg.split(/\s+/);
+        const data = lookup(bits[0] ?? "");
+        if (data) {
+          bits[0] = data;
+          inlined += 1;
+        }
+        return bits.join(" ");
+      })
+      .join(", ");
+
+  const inlineCss = (css: string): string =>
+    css.replace(CSS_URL, (whole, quote: string, ref: string) => {
+      const data = lookup(ref);
+      if (!data) return whole;
+      inlined += 1;
+      return `url(${quote}${data}${quote})`;
+    });
+
+  const root = parse(html, { comment: false });
+
+  for (const el of root.querySelectorAll("img,source")) {
+    const src = el.getAttribute("src");
+    if (src != null && src.trim() !== "") {
+      const data = lookup(src);
+      if (data) {
+        el.setAttribute("src", data);
+        inlined += 1;
+      }
+    }
+    const srcset = el.getAttribute("srcset");
+    if (srcset != null && srcset.trim() !== "") {
+      el.setAttribute("srcset", inlineSrcset(srcset));
+    }
+  }
+
+  for (const el of root.querySelectorAll("[style]")) {
+    const style = el.getAttribute("style") ?? "";
+    if (style.includes("url(")) el.setAttribute("style", inlineCss(style));
+  }
+
+  for (const st of root.querySelectorAll("style")) {
+    const css = st.innerHTML;
+    if (css.includes("url(")) st.set_content(inlineCss(css));
+  }
+
+  return { html: root.toString(), inlined, missing };
+}
+
 /**
  * Import an external theme/template: clean it, detect menus and repeating
  * lists, annotate with the themeify heuristics, and validate. A Figma/SVG

@@ -1,8 +1,11 @@
 import { useMemo, useRef, useState } from "react";
+import { unzipSync } from "fflate";
 import {
   importThemeHtml,
   suggestThemePart,
   diagnoseThemeHtml,
+  classifyZipEntry,
+  inlineThemeAssets,
   type ImportResult,
   type ImportSource,
 } from "@pcms/engine";
@@ -35,6 +38,42 @@ function slugify(name: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
+/** Images larger than this are not inlined (keeps the saved HTML reasonable). */
+const ASSET_SIZE_CAP = 512 * 1024;
+
+const MIME_BY_EXT: Record<string, string> = {
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  gif: "image/gif",
+  webp: "image/webp",
+  avif: "image/avif",
+  ico: "image/x-icon",
+  svg: "image/svg+xml",
+};
+
+function baseName(path: string): string {
+  return path.replace(/\\/g, "/").split("/").filter(Boolean).pop() ?? "";
+}
+
+/** Base64-encode bytes in chunks (avoids the arg-count limit of btoa+spread). */
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
+/** A `data:` URL for an image file, by its extension. */
+function imageDataUrl(path: string, bytes: Uint8Array): string | null {
+  const ext = /\.([a-z0-9]+)$/i.exec(baseName(path))?.[1]?.toLowerCase() ?? "";
+  const mime = MIME_BY_EXT[ext];
+  if (!mime) return null;
+  return `data:${mime};base64,${bytesToBase64(bytes)}`;
+}
+
 /**
  * Import an external theme/template (WordPress, Shopify, any HTML) and optimize
  * it into a pcms theme fragment: strip server/template code and scripts, add
@@ -51,6 +90,7 @@ export function ThemeImport({ api, onClose }: Props) {
   const [target, setTarget] = useState<"section" | "template">("section");
   const [saveLayout, setSaveLayout] = useState(true);
   const [batch, setBatch] = useState<BatchItem[] | null>(null);
+  const [zipNote, setZipNote] = useState<string | null>(null);
   const [aiBusy, setAiBusy] = useState(false);
   const [saving, setSaving] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -70,12 +110,82 @@ export function ThemeImport({ api, onClose }: Props) {
   };
 
   const onPickFile = () => fileRef.current?.click();
+
+  const isZip = (f: File) =>
+    /\.zip$/i.test(f.name) || f.type === "application/zip" || f.type === "application/x-zip-compressed";
+
+  /**
+   * Import a theme archive: unzip in the browser, inline its images into each
+   * HTML/template as data URLs (the theme working copy holds only strings), and
+   * queue the markup as batch items. CLAUDE.md: テーマ元ファイルは不変 / 人が適用を選ぶ.
+   */
+  const importZip = async (file: File) => {
+    const entries = unzipSync(new Uint8Array(await file.arrayBuffer()));
+    const assets: Record<string, string> = {};
+    let embedded = 0;
+    let tooLarge = 0;
+    for (const [path, bytes] of Object.entries(entries)) {
+      if (classifyZipEntry(path) !== "image") continue;
+      if (bytes.length > ASSET_SIZE_CAP) {
+        tooLarge += 1;
+        continue;
+      }
+      const url = imageDataUrl(path, bytes);
+      if (url) {
+        assets[baseName(path)] = url;
+        embedded += 1;
+      }
+    }
+
+    const decoder = new TextDecoder();
+    const items: BatchItem[] = [];
+    for (const [path, bytes] of Object.entries(entries)) {
+      if (classifyZipEntry(path) !== "markup") continue;
+      const r = importThemeHtml(decoder.decode(bytes));
+      r.html = inlineThemeAssets(r.html, assets).html;
+      if (r.layout) r.layout = inlineThemeAssets(r.layout, assets).html;
+      const s = suggestThemePart(path);
+      items.push({
+        name: baseName(path),
+        result: r,
+        slug: s.slug || slugify(baseName(path)),
+        target: s.target,
+        include: r.issues.every((i) => i.level !== "error"),
+      });
+    }
+
+    if (items.length === 0) {
+      toast(t("themeImport.zipNoMarkup"));
+      return;
+    }
+    const notes: string[] = [];
+    if (embedded > 0) notes.push(t("themeImport.zipImages").replace("{count}", String(embedded)));
+    if (tooLarge > 0) {
+      notes.push(
+        t("themeImport.zipTooLarge")
+          .replace("{count}", String(tooLarge))
+          .replace("{limit}", `${ASSET_SIZE_CAP / 1024}KB`),
+      );
+    }
+    setResult(null);
+    setRaw("");
+    setZipNote(notes.join(" "));
+    setBatch(items);
+  };
+
   const onFiles = async (files: FileList | null) => {
     const list = files ? Array.from(files) : [];
     if (list.length === 0) return;
+    // A ZIP archive: unzip, inline images, and queue its templates/sections.
+    if (list.length === 1 && list[0] && isZip(list[0])) {
+      setResult(null);
+      await importZip(list[0]);
+      return;
+    }
     // A single file falls back to the paste flow (preview + manual save).
     if (list.length === 1 && list[0]) {
       setBatch(null);
+      setZipNote(null);
       setResult(null);
       const only = list[0];
       setRaw(await only.text());
@@ -98,6 +208,7 @@ export function ThemeImport({ api, onClose }: Props) {
       });
     }
     setResult(null);
+    setZipNote(null);
     setBatch(items);
   };
 
@@ -206,11 +317,12 @@ export function ThemeImport({ api, onClose }: Props) {
           <input
             ref={fileRef}
             type="file"
-            accept=".html,.htm,.php,.liquid,.twig,.svg,.txt,text/html,image/svg+xml"
+            accept=".html,.htm,.php,.liquid,.twig,.svg,.txt,.zip,text/html,image/svg+xml,application/zip"
             multiple
             hidden
             onChange={(e) => void onFiles(e.target.files)}
           />
+          <span className="pcms-themeimport__filehint">{t("themeImport.pickFileHint")}</span>
         </div>
 
         {!batch && (
@@ -239,6 +351,7 @@ export function ThemeImport({ api, onClose }: Props) {
         {batch && (
           <div className="pcms-themeimport__batch">
             <h3>{t("themeImport.batchTitle").replace("{count}", String(batch.length))}</h3>
+            {zipNote && <p className="pcms-themeimport__hint">{zipNote}</p>}
             <ul className="pcms-themeimport__batchlist">
               {batch.map((it, i) => {
                 const itErr = it.result.issues.some((iss) => iss.level === "error");
