@@ -39,7 +39,7 @@ import type {
   ThemeFileNode,
   ThemeSummary,
 } from "./types.js";
-import type { VisitStats } from "@pcms/shared";
+import type { VisitStats, CloudStatus } from "@pcms/shared";
 import {
   createEncryptedBackup,
   openEncryptedBackup,
@@ -922,6 +922,10 @@ export function createMockApi(): PcmsApi {
     },
     async deleteBackup(id: string): Promise<void> {
       await backupStore.remove(id);
+    },
+    async cloudStatus(): Promise<CloudStatus> {
+      // The browser eval build has no Firebase config; show as not connected.
+      return { configured: false, signedIn: false };
     },
     async loadRedirects(): Promise<Redirect[]> {
       return loadRedirects();

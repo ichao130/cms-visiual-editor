@@ -89,6 +89,7 @@ const api: PcmsApi = {
   restoreFromBackup: (id: string, passphrase: string) =>
     ipcRenderer.invoke("pcms:restoreFromBackup", id, passphrase),
   deleteBackup: (id: string) => ipcRenderer.invoke("pcms:deleteBackup", id),
+  cloudStatus: () => ipcRenderer.invoke("pcms:cloudStatus"),
 };
 
 contextBridge.exposeInMainWorld("pcms", api);

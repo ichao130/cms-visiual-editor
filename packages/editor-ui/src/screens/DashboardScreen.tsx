@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { CloudStatus } from "@pcms/shared";
 import type { AccountView, PcmsApi, ProjectSummary } from "../api/types.js";
 import type { Route } from "../state/route.js";
 import { CreateCard } from "../components/CreateCard.js";
@@ -18,11 +19,13 @@ interface Props {
 export function DashboardScreen({ api, account, onNavigate, onShellChange }: Props) {
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [renaming, setRenaming] = useState<string | null>(null);
+  const [cloud, setCloud] = useState<CloudStatus | null>(null);
   const toast = useToast();
 
   useEffect(() => {
     let active = true;
     void api.listProjects().then((p) => active && setProjects(p));
+    void api.cloudStatus().then((c) => active && setCloud(c));
     return () => {
       active = false;
     };
@@ -112,6 +115,7 @@ export function DashboardScreen({ api, account, onNavigate, onShellChange }: Pro
 
       <aside className="pcms-page__side">
         <h2 className="pcms-col__title">{t("account.title")}</h2>
+        <CloudStatusRow cloud={cloud} />
         {account ? (
           <div className="pcms-account">
             <div className="pcms-account__row">
@@ -143,6 +147,38 @@ export function DashboardScreen({ api, account, onNavigate, onShellChange }: Pro
           <p className="pcms-empty">{t("common.loading")}</p>
         )}
       </aside>
+    </div>
+  );
+}
+
+/**
+ * Cloud connection status (Firebase). Shows 未接続 until firebase.config.json is
+ * present on the PC, then 未サインイン / 接続済み. Sign-in is wired next.
+ */
+function CloudStatusRow({ cloud }: { cloud: CloudStatus | null }) {
+  const state = !cloud
+    ? "loading"
+    : !cloud.configured
+      ? "off"
+      : cloud.signedIn
+        ? "on"
+        : "config";
+  const label =
+    state === "loading"
+      ? t("common.loading")
+      : state === "off"
+        ? t("cloud.notConfigured")
+        : state === "config"
+          ? t("cloud.signedOut")
+          : t("cloud.connected");
+  return (
+    <div className="pcms-cloudstatus">
+      <span className="pcms-account__label">{t("cloud.title")}</span>
+      <span className={`pcms-cloudstatus__badge is-${state}`}>
+        <span className="pcms-cloudstatus__dot" />
+        {label}
+      </span>
+      {cloud?.email && <span className="pcms-cloudstatus__email">{cloud.email}</span>}
     </div>
   );
 }

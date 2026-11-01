@@ -14,6 +14,8 @@ playwright-report/
 
 # Firebase build output + local emulator state
 firebase/functions/lib/
+# Local Firebase web config (public values, but machine-specific — not committed)
+apps/desktop/firebase.config.json
 firebase/.runtimeconfig.json
 .firebase/
 firebase-debug.log

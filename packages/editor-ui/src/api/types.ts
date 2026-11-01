@@ -10,6 +10,7 @@ import type {
   SiteSettings,
   TaxonomyDef,
   VisitStats,
+  CloudStatus,
 } from "@pcms/shared";
 import type { AiIssue, BackupRef, EncryptedBackup, ThemeBundle } from "@pcms/engine";
 
@@ -144,6 +145,9 @@ export interface PcmsApi {
   listBackups(): Promise<BackupRef[]>;
   restoreFromBackup(id: string, passphrase: string): Promise<void>;
   deleteBackup(id: string): Promise<void>;
+
+  /** Cloud (Firebase) connection status: configured on this PC, and signed in. */
+  cloudStatus(): Promise<CloudStatus>;
 }
 
 // ---------------------------------------------------------------------------

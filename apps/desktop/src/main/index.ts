@@ -75,6 +75,7 @@ import {
   saveForms,
   listSubmissions,
 } from "./shell.js";
+import { cloudStatus } from "./cloud.js";
 
 function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
@@ -244,6 +245,9 @@ function registerIpc(): void {
     restoreFromBackup(id, passphrase),
   );
   ipcMain.handle("pcms:deleteBackup", (_event, id: string) => deleteBackup(id));
+
+  // Cloud (Firebase) connection status; sign-in + callables wired on top later.
+  ipcMain.handle("pcms:cloudStatus", () => cloudStatus());
 }
 
 /**

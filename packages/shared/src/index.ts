@@ -428,3 +428,68 @@ export interface FormSubmission {
   /** ISO timestamp of receipt. */
   receivedAt: string;
 }
+
+// ---------------------------------------------------------------------------
+// Cloud (Firebase) connection
+// ---------------------------------------------------------------------------
+
+/**
+ * The Firebase *web* app config. These values are public by design (they ship
+ * in any Firebase web client) — they are NOT secrets and NOT server connection
+ * info, so they may live on the PC in firebase.config.json. Secrets (API keys
+ * for GA4 / SendGrid / the AI provider) stay in the Functions environment, never
+ * in the app (CLAUDE.md: APIキーをアプリに埋め込まない / 接続情報はクラウドに送らない).
+ */
+export interface FirebaseClientConfig {
+  apiKey: string;
+  authDomain: string;
+  projectId: string;
+  appId: string;
+  storageBucket?: string;
+  messagingSenderId?: string;
+  measurementId?: string;
+  /** OAuth 2.0 Web client ID, used for the desktop Google sign-in flow. */
+  googleClientId?: string;
+}
+
+/** Whether cloud is configured on this PC, and the current sign-in state. */
+export interface CloudStatus {
+  /** firebase.config.json is present and valid. */
+  configured: boolean;
+  projectId?: string;
+  /** The operator is signed in (Firebase Auth). */
+  signedIn: boolean;
+  email?: string;
+}
+
+const REQUIRED_FIREBASE_KEYS = ["apiKey", "authDomain", "projectId", "appId"] as const;
+
+/**
+ * Validate an untrusted object as a FirebaseClientConfig. Returns the config on
+ * success, or null if a required field is missing / not a string — so a broken
+ * config file degrades to "not configured" rather than crashing the app.
+ */
+export function parseFirebaseConfig(raw: unknown): FirebaseClientConfig | null {
+  if (raw == null || typeof raw !== "object") return null;
+  const o = raw as Record<string, unknown>;
+  for (const key of REQUIRED_FIREBASE_KEYS) {
+    if (typeof o[key] !== "string" || (o[key] as string).trim() === "") return null;
+  }
+  const str = (k: string): string | undefined =>
+    typeof o[k] === "string" && (o[k] as string).trim() !== "" ? (o[k] as string) : undefined;
+  const config: FirebaseClientConfig = {
+    apiKey: o.apiKey as string,
+    authDomain: o.authDomain as string,
+    projectId: o.projectId as string,
+    appId: o.appId as string,
+  };
+  const bucket = str("storageBucket");
+  const sender = str("messagingSenderId");
+  const measurement = str("measurementId");
+  const clientId = str("googleClientId");
+  if (bucket) config.storageBucket = bucket;
+  if (sender) config.messagingSenderId = sender;
+  if (measurement) config.measurementId = measurement;
+  if (clientId) config.googleClientId = clientId;
+  return config;
+}
