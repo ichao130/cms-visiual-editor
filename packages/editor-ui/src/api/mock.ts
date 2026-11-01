@@ -927,6 +927,13 @@ export function createMockApi(): PcmsApi {
       // The browser eval build has no Firebase config; show as not connected.
       return { configured: false, signedIn: false };
     },
+    async signIn(): Promise<CloudStatus> {
+      // No real OAuth in the browser eval build; cloud stays unconfigured.
+      return { configured: false, signedIn: false };
+    },
+    async signOut(): Promise<CloudStatus> {
+      return { configured: false, signedIn: false };
+    },
     async loadRedirects(): Promise<Redirect[]> {
       return loadRedirects();
     },

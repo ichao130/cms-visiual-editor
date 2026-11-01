@@ -148,6 +148,10 @@ export interface PcmsApi {
 
   /** Cloud (Firebase) connection status: configured on this PC, and signed in. */
   cloudStatus(): Promise<CloudStatus>;
+  /** Start Google sign-in (opens the system browser); resolves with the new status. */
+  signIn(): Promise<CloudStatus>;
+  /** Forget the local Firebase session; resolves with the new status. */
+  signOut(): Promise<CloudStatus>;
 }
 
 // ---------------------------------------------------------------------------

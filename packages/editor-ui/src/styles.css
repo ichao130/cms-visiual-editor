@@ -671,6 +671,7 @@ button.pcms-danger { color: var(--pcms-danger); border-color: var(--pcms-danger-
 .pcms-cloudstatus__badge.is-config .pcms-cloudstatus__dot { background: var(--pcms-warning); }
 .pcms-cloudstatus__badge.is-on .pcms-cloudstatus__dot { background: var(--pcms-success); }
 .pcms-cloudstatus__email { flex-basis: 100%; text-align: right; font-size: 0.78rem; color: var(--pcms-muted); }
+.pcms-cloudstatus__btn { flex-basis: 100%; margin-top: 0.1rem; padding: 0.4rem 0.6rem; font-size: 0.85rem; }
 
 /* Site layout */
 .pcms-sitelayout { flex: 1; min-height: 0; display: flex; }

@@ -14,7 +14,12 @@ describe("parseFirebaseConfig", () => {
   });
 
   it("keeps optional fields when present", () => {
-    const full = { ...valid, storageBucket: "demo.appspot.com", googleClientId: "123.apps.googleusercontent.com" };
+    const full = {
+      ...valid,
+      storageBucket: "demo.appspot.com",
+      googleClientId: "123.apps.googleusercontent.com",
+      googleClientSecret: "GOCSPX-demo",
+    };
     expect(parseFirebaseConfig(full)).toEqual(full);
   });
 

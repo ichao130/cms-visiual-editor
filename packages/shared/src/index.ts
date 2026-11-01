@@ -448,8 +448,15 @@ export interface FirebaseClientConfig {
   storageBucket?: string;
   messagingSenderId?: string;
   measurementId?: string;
-  /** OAuth 2.0 Web client ID, used for the desktop Google sign-in flow. */
+  /** OAuth 2.0 "Desktop app" client ID, used for the desktop Google sign-in flow. */
   googleClientId?: string;
+  /**
+   * OAuth 2.0 "Desktop app" client secret. For installed/desktop clients this is
+   * not confidential (Google: it can be embedded in the app), but we still keep
+   * it PC-only (gitignored config, never uploaded). Google's token endpoint
+   * requires it for the authorization-code exchange even with PKCE.
+   */
+  googleClientSecret?: string;
 }
 
 /** Whether cloud is configured on this PC, and the current sign-in state. */
@@ -487,9 +494,11 @@ export function parseFirebaseConfig(raw: unknown): FirebaseClientConfig | null {
   const sender = str("messagingSenderId");
   const measurement = str("measurementId");
   const clientId = str("googleClientId");
+  const clientSecret = str("googleClientSecret");
   if (bucket) config.storageBucket = bucket;
   if (sender) config.messagingSenderId = sender;
   if (measurement) config.measurementId = measurement;
   if (clientId) config.googleClientId = clientId;
+  if (clientSecret) config.googleClientSecret = clientSecret;
   return config;
 }

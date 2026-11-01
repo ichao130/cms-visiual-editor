@@ -76,6 +76,7 @@ import {
   listSubmissions,
 } from "./shell.js";
 import { cloudStatus } from "./cloud.js";
+import { signIn, signOut } from "./auth.js";
 
 function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
@@ -246,8 +247,10 @@ function registerIpc(): void {
   );
   ipcMain.handle("pcms:deleteBackup", (_event, id: string) => deleteBackup(id));
 
-  // Cloud (Firebase) connection status; sign-in + callables wired on top later.
+  // Cloud (Firebase) connection status + Google sign-in (system-browser OAuth).
   ipcMain.handle("pcms:cloudStatus", () => cloudStatus());
+  ipcMain.handle("pcms:signIn", () => signIn());
+  ipcMain.handle("pcms:signOut", () => signOut());
 }
 
 /**

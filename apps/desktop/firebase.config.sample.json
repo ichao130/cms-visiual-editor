@@ -1,5 +1,5 @@
 {
-  "_README": "Copy to the app's userData folder as firebase.config.json, or point PCMS_FIREBASE_CONFIG at this file in dev. These are the PUBLIC Firebase web-app values (Project settings → General → Your apps → Web app, the firebaseConfig object) — they are NOT secrets. googleClientId is the OAuth 2.0 Web client ID used for desktop Google sign-in. Do NOT put GA4 / SendGrid / AI API keys here; those live in the Functions environment.",
+  "_README": "Copy to the app's userData folder as firebase.config.json, or point PCMS_FIREBASE_CONFIG at this file in dev. These are the PUBLIC Firebase web-app values (Project settings → General → Your apps → Web app, the firebaseConfig object) — they are NOT secrets. googleClientId / googleClientSecret are the OAuth 2.0 'Desktop app' credentials used for the system-browser Google sign-in; for a desktop client the secret is non-confidential but is kept PC-only (this file is gitignored, never uploaded). Do NOT put GA4 / SendGrid / AI API keys here; those live in the Functions environment.",
   "apiKey": "AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
   "authDomain": "your-project.firebaseapp.com",
   "projectId": "your-project",
@@ -7,5 +7,6 @@
   "storageBucket": "your-project.appspot.com",
   "messagingSenderId": "000000000000",
   "measurementId": "G-XXXXXXXXXX",
-  "googleClientId": "000000000000-xxxxxxxxxxxxxxxxxxxx.apps.googleusercontent.com"
+  "googleClientId": "000000000000-xxxxxxxxxxxxxxxxxxxx.apps.googleusercontent.com",
+  "googleClientSecret": "GOCSPX-xxxxxxxxxxxxxxxxxxxxxxxx"
 }

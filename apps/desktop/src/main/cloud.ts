@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { app } from "electron";
 import { parseFirebaseConfig, type CloudStatus, type FirebaseClientConfig } from "@pcms/shared";
+import { currentUser } from "./auth.js";
 
 /**
  * Cloud (Firebase) connection — step 1: load the public web config from the PC
@@ -45,6 +46,11 @@ export function loadFirebaseConfig(): FirebaseClientConfig | null {
 export function cloudStatus(): CloudStatus {
   const config = loadFirebaseConfig();
   if (!config) return { configured: false, signedIn: false };
-  // Sign-in is wired in the next step; report configured-but-signed-out for now.
-  return { configured: true, projectId: config.projectId, signedIn: false };
+  const user = currentUser();
+  return {
+    configured: true,
+    projectId: config.projectId,
+    signedIn: Boolean(user),
+    email: user?.email,
+  };
 }

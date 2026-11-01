@@ -115,7 +115,7 @@ export function DashboardScreen({ api, account, onNavigate, onShellChange }: Pro
 
       <aside className="pcms-page__side">
         <h2 className="pcms-col__title">{t("account.title")}</h2>
-        <CloudStatusRow cloud={cloud} />
+        <CloudStatusRow api={api} cloud={cloud} onChange={setCloud} />
         {account ? (
           <div className="pcms-account">
             <div className="pcms-account__row">
@@ -153,9 +153,20 @@ export function DashboardScreen({ api, account, onNavigate, onShellChange }: Pro
 
 /**
  * Cloud connection status (Firebase). Shows 未接続 until firebase.config.json is
- * present on the PC, then 未サインイン / 接続済み. Sign-in is wired next.
+ * present on the PC, then offers Google sign-in (opens the system browser) and
+ * shows the signed-in account with a sign-out action.
  */
-function CloudStatusRow({ cloud }: { cloud: CloudStatus | null }) {
+function CloudStatusRow({
+  api,
+  cloud,
+  onChange,
+}: {
+  api: PcmsApi;
+  cloud: CloudStatus | null;
+  onChange: (status: CloudStatus) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const toast = useToast();
   const state = !cloud
     ? "loading"
     : !cloud.configured
@@ -171,6 +182,28 @@ function CloudStatusRow({ cloud }: { cloud: CloudStatus | null }) {
         : state === "config"
           ? t("cloud.signedOut")
           : t("cloud.connected");
+
+  const onSignIn = () => {
+    setBusy(true);
+    api
+      .signIn()
+      .then((status) => {
+        onChange(status);
+        if (status.signedIn) toast(t("cloud.signedInToast"));
+      })
+      .catch((err: unknown) => toast(err instanceof Error ? err.message : t("cloud.signInFailed")))
+      .finally(() => setBusy(false));
+  };
+
+  const onSignOut = () => {
+    setBusy(true);
+    api
+      .signOut()
+      .then(onChange)
+      .catch(() => undefined)
+      .finally(() => setBusy(false));
+  };
+
   return (
     <div className="pcms-cloudstatus">
       <span className="pcms-account__label">{t("cloud.title")}</span>
@@ -179,6 +212,16 @@ function CloudStatusRow({ cloud }: { cloud: CloudStatus | null }) {
         {label}
       </span>
       {cloud?.email && <span className="pcms-cloudstatus__email">{cloud.email}</span>}
+      {state === "config" && (
+        <button type="button" className="pcms-primary pcms-cloudstatus__btn" disabled={busy} onClick={onSignIn}>
+          {busy ? t("cloud.signingIn") : t("cloud.signIn")}
+        </button>
+      )}
+      {state === "on" && (
+        <button type="button" className="pcms-cloudstatus__btn" disabled={busy} onClick={onSignOut}>
+          {t("cloud.signOut")}
+        </button>
+      )}
     </div>
   );
 }
