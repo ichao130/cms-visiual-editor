@@ -11,6 +11,7 @@ import { app, safeStorage } from "electron";
 import {
   FtpTransport,
   LocalTransport,
+  S3Transport,
   SftpTransport,
   preflight,
   publish,
@@ -47,7 +48,17 @@ interface FtpConfigStored {
   /** Encrypted password (safeStorage), base64. Never leaves this machine. */
   passwordEnc?: string;
 }
-type DeployConfig = LocalConfig | SftpConfigStored | FtpConfigStored;
+interface S3ConfigStored {
+  type: "s3";
+  bucket: string;
+  region: string;
+  accessKeyId: string;
+  prefix?: string;
+  endpoint?: string;
+  /** Encrypted secret access key (safeStorage), base64. Never leaves this machine. */
+  secretEnc?: string;
+}
+type DeployConfig = LocalConfig | SftpConfigStored | FtpConfigStored | S3ConfigStored;
 
 export type DeployConfigInput =
   | LocalConfig
@@ -67,6 +78,16 @@ export type DeployConfigInput =
       remoteDir: string;
       security?: FtpSecurity;
       password?: string;
+    }
+  | {
+      type: "s3";
+      bucket: string;
+      region: string;
+      accessKeyId: string;
+      prefix?: string;
+      endpoint?: string;
+      /** Plaintext secret from the form; encrypted before storage, never kept as-is. */
+      secretAccessKey?: string;
     };
 
 export type DeployConfigView =
@@ -87,6 +108,16 @@ export type DeployConfigView =
       remoteDir: string;
       security: FtpSecurity;
       hasPassword: boolean;
+    }
+  | {
+      type: "s3";
+      bucket: string;
+      region: string;
+      accessKeyId: string;
+      prefix: string;
+      endpoint: string;
+      /** Whether a secret access key is already stored for this bucket/key. */
+      hasSecret: boolean;
     };
 
 export interface PublishReport {
@@ -154,6 +185,17 @@ export function getDeployConfig(): DeployConfigView {
       hasPassword: Boolean(cfg.passwordEnc),
     };
   }
+  if (cfg.type === "s3") {
+    return {
+      type: "s3",
+      bucket: cfg.bucket,
+      region: cfg.region,
+      accessKeyId: cfg.accessKeyId,
+      prefix: cfg.prefix ?? "",
+      endpoint: cfg.endpoint ?? "",
+      hasSecret: Boolean(cfg.secretEnc),
+    };
+  }
   return {
     type: "sftp",
     host: cfg.host,
@@ -164,25 +206,50 @@ export function getDeployConfig(): DeployConfigView {
   };
 }
 
+/** Encrypt a secret for at-rest storage, or keep the prior value when blank. */
+function encryptOrKeep(secret: string | undefined, prev: string | undefined): string | undefined {
+  if (secret && safeStorage.isEncryptionAvailable()) {
+    return safeStorage.encryptString(secret).toString("base64");
+  }
+  return prev;
+}
+
 export function setDeployConfig(input: DeployConfigInput): void {
+  const existing = loadRawConfig();
   let stored: DeployConfig;
   if (input.type === "local") {
     stored = { type: "local", dir: input.dir };
+  } else if (input.type === "s3") {
+    // Keep the stored secret when the form leaves it blank, as long as the
+    // bucket + access key are unchanged — so editing other fields doesn't wipe
+    // the saved credential. The secret is stored encrypted and never sent to
+    // the cloud (CLAUDE.md).
+    const prevEnc =
+      existing.type === "s3" &&
+      existing.bucket === input.bucket &&
+      existing.accessKeyId === input.accessKeyId
+        ? existing.secretEnc
+        : undefined;
+    stored = {
+      type: "s3",
+      bucket: input.bucket,
+      region: input.region,
+      accessKeyId: input.accessKeyId,
+      prefix: input.prefix || undefined,
+      endpoint: input.endpoint || undefined,
+      secretEnc: encryptOrKeep(input.secretAccessKey, prevEnc),
+    };
   } else {
     // Keep the previously stored password when the form leaves it blank, as long
     // as the server (host+user) is unchanged — so editing other fields doesn't
     // wipe the saved credential.
-    const existing = loadRawConfig();
     const prevEnc =
       (existing.type === "sftp" || existing.type === "ftp") &&
       existing.host === input.host &&
       existing.username === input.username
         ? existing.passwordEnc
         : undefined;
-    let passwordEnc = prevEnc;
-    if (input.password && safeStorage.isEncryptionAvailable()) {
-      passwordEnc = safeStorage.encryptString(input.password).toString("base64");
-    }
+    const passwordEnc = encryptOrKeep(input.password, prevEnc);
     if (input.type === "ftp") {
       stored = {
         type: "ftp",
@@ -231,6 +298,18 @@ function makeTransport(cfg: DeployConfig): { transport: Transport; target: strin
     });
     const label = security === "ftp" ? "FTP" : "FTPS";
     return { transport, target: `${label}: ${cfg.username}@${cfg.host}:${cfg.remoteDir}` };
+  }
+  if (cfg.type === "s3") {
+    const transport = new S3Transport({
+      bucket: cfg.bucket,
+      region: cfg.region,
+      accessKeyId: cfg.accessKeyId,
+      secretAccessKey: decryptPassword(cfg.secretEnc) ?? "",
+      prefix: cfg.prefix,
+      endpoint: cfg.endpoint,
+    });
+    const where = cfg.prefix ? `${cfg.bucket}/${cfg.prefix}` : cfg.bucket;
+    return { transport, target: `S3: ${where}（${cfg.region}）` };
   }
   const transport = new SftpTransport({
     host: cfg.host,

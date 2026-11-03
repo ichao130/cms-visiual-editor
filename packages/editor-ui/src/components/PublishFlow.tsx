@@ -25,7 +25,7 @@ export function PublishFlow({ api }: { api: PcmsApi }) {
   const [report, setReport] = useState<PublishReport | null>(null);
   const [busy, setBusy] = useState<"" | "check" | "publish">("");
 
-  const [type, setType] = useState<"local" | "sftp" | "ftp">("local");
+  const [type, setType] = useState<"local" | "sftp" | "ftp" | "s3">("local");
   const [dir, setDir] = useState("");
   const [host, setHost] = useState("");
   const [port, setPort] = useState("22");
@@ -34,13 +34,28 @@ export function PublishFlow({ api }: { api: PcmsApi }) {
   const [password, setPassword] = useState("");
   const [hasPassword, setHasPassword] = useState(false);
   const [security, setSecurity] = useState<FtpSecurity>("ftps");
+  // S3 fields.
+  const [bucket, setBucket] = useState("");
+  const [region, setRegion] = useState("ap-northeast-1");
+  const [accessKeyId, setAccessKeyId] = useState("");
+  const [secret, setSecret] = useState("");
+  const [prefix, setPrefix] = useState("");
+  const [endpoint, setEndpoint] = useState("");
+  const [hasSecret, setHasSecret] = useState(false);
 
   useEffect(() => {
     void api.getDeployConfig().then((c) => {
       setConfig(c);
       setType(c.type);
       if (c.type === "local") setDir(c.dir);
-      else {
+      else if (c.type === "s3") {
+        setBucket(c.bucket);
+        setRegion(c.region);
+        setAccessKeyId(c.accessKeyId);
+        setPrefix(c.prefix);
+        setEndpoint(c.endpoint);
+        setHasSecret(c.hasSecret);
+      } else {
         setHost(c.host);
         setPort(String(c.port));
         setUsername(c.username);
@@ -54,7 +69,7 @@ export function PublishFlow({ api }: { api: PcmsApi }) {
 
   // Switch the default port with the target type, unless the operator has typed
   // a non-default value for the other type.
-  const pickType = (next: "local" | "sftp" | "ftp") => {
+  const pickType = (next: "local" | "sftp" | "ftp" | "s3") => {
     if (next === "sftp" && (port === "" || port === "21" || port === "990")) setPort("22");
     if (next === "ftp" && (port === "" || port === "22")) {
       setPort(security === "ftps-implicit" ? "990" : "21");
@@ -64,7 +79,20 @@ export function PublishFlow({ api }: { api: PcmsApi }) {
 
   const saveTarget = async () => {
     if (type === "local") await api.setDeployConfig({ type: "local", dir });
-    else if (type === "ftp")
+    else if (type === "s3") {
+      await api.setDeployConfig({
+        type: "s3",
+        bucket,
+        region,
+        accessKeyId,
+        prefix: prefix || undefined,
+        endpoint: endpoint || undefined,
+        secretAccessKey: secret || undefined,
+      });
+      setSecret("");
+      setConfig(await api.getDeployConfig());
+      return;
+    } else if (type === "ftp")
       await api.setDeployConfig({
         type: "ftp",
         host,
@@ -147,12 +175,43 @@ export function PublishFlow({ api }: { api: PcmsApi }) {
             <input type="radio" checked={type === "sftp"} onChange={() => pickType("sftp")} />
             {t("publish.type.sftp")}
           </label>
+          <label>
+            <input type="radio" checked={type === "s3"} onChange={() => pickType("s3")} />
+            {t("publish.type.s3")}
+          </label>
         </div>
 
         {type === "local" ? (
           <Field label={t("publish.dir")}>
             <input value={dir} onChange={(e) => setDir(e.target.value)} />
           </Field>
+        ) : type === "s3" ? (
+          <>
+            <Field label={t("publish.s3.bucket")}>
+              <input value={bucket} onChange={(e) => setBucket(e.target.value)} />
+            </Field>
+            <Field label={t("publish.s3.region")}>
+              <input value={region} onChange={(e) => setRegion(e.target.value)} placeholder="ap-northeast-1" />
+            </Field>
+            <Field label={t("publish.s3.accessKeyId")}>
+              <input value={accessKeyId} onChange={(e) => setAccessKeyId(e.target.value)} />
+            </Field>
+            <Field label={t("publish.s3.secretKey")}>
+              <input
+                type="password"
+                value={secret}
+                onChange={(e) => setSecret(e.target.value)}
+                placeholder={hasSecret ? t("publish.s3.secretKept") : ""}
+              />
+            </Field>
+            <Field label={t("publish.s3.prefix")}>
+              <input value={prefix} onChange={(e) => setPrefix(e.target.value)} placeholder="（任意）" />
+            </Field>
+            <Field label={t("publish.s3.endpoint")}>
+              <input value={endpoint} onChange={(e) => setEndpoint(e.target.value)} placeholder="（任意：R2/MinIO など）" />
+            </Field>
+            <p className="pcms-publish__hint">{t("publish.s3.hint")}</p>
+          </>
         ) : (
           <>
             {type === "ftp" && (
@@ -345,6 +404,10 @@ function IssueList({ issues }: { issues: PublishIssue[] }) {
 
 function targetLabel(config: DeployConfigView): string {
   if (config.type === "local") return `${t("publish.type.local")}: ${config.dir}`;
+  if (config.type === "s3") {
+    const where = config.prefix ? `${config.bucket}/${config.prefix}` : config.bucket;
+    return `S3: ${where}（${config.region}）`;
+  }
   const proto =
     config.type === "sftp" ? "SFTP" : config.security === "ftp" ? "FTP" : "FTPS";
   return `${proto}: ${config.username}@${config.host}:${config.remoteDir}`;

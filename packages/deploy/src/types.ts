@@ -104,3 +104,26 @@ export interface FtpConfig {
   /** Control-connection security (default "ftps"). */
   security?: FtpSecurity;
 }
+
+/**
+ * Amazon S3 (or an S3-compatible store) as a publish destination. The site's
+ * files become objects in `bucket`, optionally under `prefix`. Credentials come
+ * from the caller and stay on the machine (CLAUDE.md: never sent to the cloud).
+ */
+export interface S3Config {
+  /** Target bucket name. */
+  bucket: string;
+  /** AWS region, e.g. "ap-northeast-1". */
+  region: string;
+  /** Access key id. */
+  accessKeyId: string;
+  /** Secret access key. Stored encrypted on the machine, never in the cloud. */
+  secretAccessKey: string;
+  /** Optional key prefix the site is published under (like a remote dir). */
+  prefix?: string;
+  /**
+   * Optional custom endpoint for S3-compatible stores (Cloudflare R2, MinIO, …).
+   * When set, path-style addressing is used.
+   */
+  endpoint?: string;
+}

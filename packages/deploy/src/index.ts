@@ -17,6 +17,7 @@ export type {
   SftpConfig,
   FtpConfig,
   FtpSecurity,
+  S3Config,
 } from "./types.js";
 
 export { manifestOf, hashContent, toBytes } from "./hash.js";
@@ -26,3 +27,4 @@ export { publish } from "./publish.js";
 export { LocalTransport } from "./transport/local.js";
 export { SftpTransport } from "./transport/sftp.js";
 export { FtpTransport, type FtpClientLike } from "./transport/ftp.js";
+export { S3Transport, type S3ObjectStore, contentTypeFor } from "./transport/s3.js";

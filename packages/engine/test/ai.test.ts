@@ -174,6 +174,16 @@ describe("diagnoseDeployError", () => {
     expect(d.message).toContain("公開フォルダ");
   });
 
+  it("maps a missing S3 bucket to a bucket diagnosis", () => {
+    const d = diagnoseDeployError("NoSuchBucket: The specified bucket does not exist");
+    expect(d.message).toContain("バケット");
+  });
+
+  it("maps a bad S3 access key to a credential diagnosis", () => {
+    const d = diagnoseDeployError("InvalidAccessKeyId: The AWS Access Key Id you provided does not exist in our records.");
+    expect(d.message).toContain("アクセスキー");
+  });
+
   it("echoes an unrecognized message in the fallback", () => {
     const d = diagnoseDeployError("something weird happened");
     expect(d.message).toContain("something weird happened");

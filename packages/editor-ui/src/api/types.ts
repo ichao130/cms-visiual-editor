@@ -302,6 +302,15 @@ export type DeployConfigView =
       remoteDir: string;
       security: FtpSecurity;
       hasPassword: boolean;
+    }
+  | {
+      type: "s3";
+      bucket: string;
+      region: string;
+      accessKeyId: string;
+      prefix: string;
+      endpoint: string;
+      hasSecret: boolean;
     };
 
 export type DeployConfigInput =
@@ -322,6 +331,15 @@ export type DeployConfigInput =
       remoteDir: string;
       security?: FtpSecurity;
       password?: string;
+    }
+  | {
+      type: "s3";
+      bucket: string;
+      region: string;
+      accessKeyId: string;
+      prefix?: string;
+      endpoint?: string;
+      secretAccessKey?: string;
     };
 
 declare global {

@@ -289,6 +289,17 @@ const DEPLOY_ERROR_RULES: DeployErrorRule[] = [
     message: "送信先が公開フォルダの外を指しています。",
     fix: "送信先のパスを、このサイトの公開フォルダの中に設定し直してください。",
   },
+  // --- Amazon S3 specific ---
+  {
+    test: /nosuchbucket|specified bucket does not exist/,
+    message: "指定したS3バケットが見つかりません。",
+    fix: "バケット名とリージョンが正しいか確認してください。バケットは事前にAWS側で作成しておく必要があります。",
+  },
+  {
+    test: /invalidaccesskeyid|access key id you provided|signaturedoesnotmatch/,
+    message: "S3のアクセスキーが正しくありません。",
+    fix: "アクセスキーIDとシークレットアクセスキーを確認してください。コピー時の余分な空白にもご注意ください。",
+  },
   {
     test: /enospc|quota|disk ?full|no space|552/,
     message: "サーバーの空き容量が足りません。",

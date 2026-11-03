@@ -386,6 +386,15 @@ type StoredDeploy =
       remoteDir: string;
       security: FtpSecurity;
       hasPassword: boolean;
+    }
+  | {
+      type: "s3";
+      bucket: string;
+      region: string;
+      accessKeyId: string;
+      prefix: string;
+      endpoint: string;
+      hasSecret: boolean;
     };
 
 function loadDeploy(): StoredDeploy {
@@ -412,6 +421,15 @@ function simulatedRemoteError(c: Extract<StoredDeploy, { type: "sftp" | "ftp" }>
       : "Error: All configured authentication methods failed";
   }
   return `connect ETIMEDOUT ${c.host}:${c.port}`;
+}
+
+/** Representative S3 error for the eval build (no real AWS calls are made). */
+function simulatedS3Error(c: Extract<StoredDeploy, { type: "s3" }>): string {
+  if (c.bucket.trim() === "") return "The specified bucket does not exist";
+  if (!c.hasSecret || c.accessKeyId.trim() === "") {
+    return "The AWS Access Key Id you provided does not exist in our records.";
+  }
+  return `connect ETIMEDOUT ${c.bucket}.s3.${c.region}.amazonaws.com:443`;
 }
 
 /** Content hash per output path for the current generated site. */
@@ -684,6 +702,26 @@ export function createMockApi(): PcmsApi {
         saveJson(DEPLOY_KEY, { type: "local", dir: config.dir } satisfies StoredDeploy);
         return;
       }
+      if (config.type === "s3") {
+        const prevS3 = loadDeploy();
+        const prevHasSecret =
+          prevS3.type === "s3" &&
+          prevS3.bucket === config.bucket &&
+          prevS3.accessKeyId === config.accessKeyId &&
+          prevS3.hasSecret;
+        const hasSecret =
+          config.secretAccessKey != null ? config.secretAccessKey !== "" : prevHasSecret;
+        saveJson(DEPLOY_KEY, {
+          type: "s3",
+          bucket: config.bucket,
+          region: config.region,
+          accessKeyId: config.accessKeyId,
+          prefix: config.prefix ?? "",
+          endpoint: config.endpoint ?? "",
+          hasSecret,
+        } satisfies StoredDeploy);
+        return;
+      }
       const prev = loadDeploy();
       const prevHasPw =
         (prev.type === "sftp" || prev.type === "ftp") &&
@@ -754,6 +792,20 @@ export function createMockApi(): PcmsApi {
           unchanged: 0,
           target: `${label}: ${deploy.username}@${deploy.host}:${deploy.remoteDir}`,
           error: simulatedRemoteError(deploy),
+          rolledBack: true,
+          publishedAt: new Date().toISOString(),
+        };
+      }
+      if (deploy.type === "s3") {
+        const where = deploy.prefix ? `${deploy.bucket}/${deploy.prefix}` : deploy.bucket;
+        return {
+          ok: false,
+          issues,
+          uploaded: 0,
+          deleted: 0,
+          unchanged: 0,
+          target: `S3: ${where}（${deploy.region}）`,
+          error: simulatedS3Error(deploy),
           rolledBack: true,
           publishedAt: new Date().toISOString(),
         };
