@@ -241,6 +241,40 @@ button.pcms-aibtn:hover:not(:disabled) { filter: brightness(1.08); background: v
 .pcms-settings { border-left: 1px solid var(--pcms-border); }
 .pcms-col__title { font-size: 0.9rem; margin: 0 0 0.75rem; color: var(--pcms-muted); }
 
+/* Left column wrapper: the ヘッダー/本文/フッター switch pinned above the
+   scrollable section list. */
+.pcms-sections-col {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--pcms-panel);
+  border-right: 1px solid var(--pcms-border);
+}
+.pcms-sections-col .pcms-sections { border-right: none; flex: 1; }
+.pcms-scope-switch {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.6rem 0.6rem 0;
+}
+.pcms-scope-switch__btn {
+  flex: 1;
+  font: inherit;
+  font-size: 0.8rem;
+  padding: 0.4rem 0.25rem;
+  border: 1px solid var(--pcms-border);
+  background: var(--pcms-bg);
+  color: var(--pcms-muted);
+  border-radius: 7px;
+  cursor: pointer;
+}
+.pcms-scope-switch__btn:hover { border-color: var(--pcms-border-strong); }
+.pcms-scope-switch__btn.is-active {
+  background: var(--pcms-accent-weak);
+  color: var(--pcms-accent);
+  border-color: var(--pcms-accent-border);
+  font-weight: 600;
+}
+
 /* Section list */
 .pcms-sections ul { list-style: none; margin: 0; padding: 0; }
 .pcms-section-row {

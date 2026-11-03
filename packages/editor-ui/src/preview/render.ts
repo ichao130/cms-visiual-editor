@@ -84,23 +84,24 @@ export function renderPreview(
   const collections = buildCollections(state.content, site);
   const base = { site, theme, menus: state.menus, collections };
 
+  // Site-wide header/footer regions are composed into the layout on every
+  // target (same look as the published site, and editable in preview).
+  const layoutOpts = {
+    layout: project.theme.layout,
+    markEditable: true,
+    regions: state.settings.regions,
+    sections: project.theme.sections,
+  };
+
   let html: string;
   if (target.kind === "page") {
     const page = state.settings.pages[target.id] ?? {};
     if (page.instances && page.instances.length > 0) {
-      html = renderComposedPage(
-        page.instances,
-        project.theme.sections ?? {},
-        base,
-        { layout: project.theme.layout, markEditable: true },
-      );
+      html = renderComposedPage(page.instances, project.theme.sections ?? {}, base, layoutOpts);
     } else {
       const scope: RenderScope = { ...base, page };
       const name = pageTemplateName(project, target.id);
-      html = renderTemplate(templateHtml(project, name), scope, {
-        layout: project.theme.layout,
-        markEditable: true,
-      });
+      html = renderTemplate(templateHtml(project, name), scope, layoutOpts);
     }
   } else {
     const item = findItem(state, target.type, target.slug);
@@ -115,10 +116,7 @@ export function renderPreview(
       item: prepared,
     };
     const name = contentTemplateName(project, target.type);
-    html = renderTemplate(templateHtml(project, name), scope, {
-      layout: project.theme.layout,
-      markEditable: true,
-    });
+    html = renderTemplate(templateHtml(project, name), scope, layoutOpts);
   }
 
   // Remove any theme scripts (untrusted) before adding our trusted runtime.

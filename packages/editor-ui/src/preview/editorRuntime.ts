@@ -37,6 +37,9 @@ export const EDITOR_RUNTIME = `
   var SEL='[data-pcms-section],[data-pcms-field]';
   var hovered=null, selected=null, dragId=null, editing=null, clickTimer=null;
   function closestEditable(t){ return (t && t.closest) ? t.closest(SEL) : null; }
+  // Which group (header / footer / body) an element belongs to, so the editor
+  // routes add / reorder / edit to the right instance list.
+  function regionOf(el){ var r=(el&&el.closest)?el.closest('[data-pcms-region]'):null; return r?r.getAttribute('data-pcms-region'):'body'; }
   function post(o){ o.source='pcms-preview'; parent.postMessage(o,'*'); }
   function setHover(el){
     if(hovered===el) return;
@@ -91,7 +94,7 @@ export const EDITOR_RUNTIME = `
     var sectionEl=el.closest('[data-pcms-section]');
     post({type:'edit',
       section: sectionEl?sectionEl.getAttribute('data-pcms-section'):null,
-      field: el.getAttribute('data-pcms-field'), value:value});
+      field: el.getAttribute('data-pcms-field'), value:value, region:regionOf(el)});
   }
 
   document.addEventListener('mousemove', function(e){
@@ -119,10 +122,10 @@ export const EDITOR_RUNTIME = `
   document.addEventListener('click', function(e){
     var op=e.target.closest ? e.target.closest('[data-pcms-op]') : null;
     if(op){ e.preventDefault(); e.stopPropagation();
-      post({type:'op', op:op.getAttribute('data-pcms-op'), id:op.getAttribute('data-pcms-id')}); return; }
+      post({type:'op', op:op.getAttribute('data-pcms-op'), id:op.getAttribute('data-pcms-id'), region:regionOf(op)}); return; }
     var ins=e.target.closest ? e.target.closest('[data-pcms-insert]') : null;
     if(ins){ e.preventDefault(); e.stopPropagation();
-      post({type:'insert', index:Number(ins.getAttribute('data-pcms-insert'))}); return; }
+      post({type:'insert', index:Number(ins.getAttribute('data-pcms-insert')), region:regionOf(ins)}); return; }
     // Clicks inside the field being edited place the caret — leave them alone.
     if(editing && (e.target===editing || editing.contains(e.target))) return;
     var a=e.target.closest ? e.target.closest('a') : null;
@@ -136,16 +139,17 @@ export const EDITOR_RUNTIME = `
     var section = sectionEl?sectionEl.getAttribute('data-pcms-section'):null;
     var field = fieldEl?fieldEl.getAttribute('data-pcms-field'):null;
     var ftype = fieldEl?fieldEl.getAttribute('data-pcms-fieldtype'):null;
+    var region=regionOf(sectionEl || el);
     setSelected(sectionEl || el);
-    post({type:'select', section:section, field:null});
+    post({type:'select', section:section, field:null, region:region});
     if(field && ftype==='image'){
       // Clicking an image opens the media picker to replace it.
-      post({type:'pickimage', section:section, field:field});
+      post({type:'pickimage', section:section, field:field, region:region});
     } else if(field){
       // Focus the panel field after a delay, so a double-click (inline edit)
       // can cancel it instead of stealing focus from the contenteditable.
       if(clickTimer) clearTimeout(clickTimer);
-      clickTimer=setTimeout(function(){ clickTimer=null; post({type:'focusfield', section:section, field:field}); }, 220);
+      clickTimer=setTimeout(function(){ clickTimer=null; post({type:'focusfield', section:section, field:field, region:region}); }, 220);
     }
   }, true);
 
@@ -165,7 +169,7 @@ export const EDITOR_RUNTIME = `
   document.addEventListener('drop', function(e){
     if(dragId){
       var ins=e.target.closest ? e.target.closest('[data-pcms-insert]') : null;
-      if(ins){ e.preventDefault(); post({type:'move', id:dragId, toIndex:Number(ins.getAttribute('data-pcms-insert'))}); }
+      if(ins){ e.preventDefault(); post({type:'move', id:dragId, toIndex:Number(ins.getAttribute('data-pcms-insert')), region:regionOf(ins)}); }
     }
     dragId=null; document.body.classList.remove('pcms-dragging'); clearDrop();
   }, true);

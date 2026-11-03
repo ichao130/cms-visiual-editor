@@ -3,7 +3,9 @@ import type {
   ContentItem,
   FieldValue,
   MenuItem,
+  RegionName,
   SectionInstance,
+  SiteRegions,
 } from "@pcms/shared";
 import { ATTR, EDITOR_ATTRS } from "./attributes.js";
 import { detectFieldType } from "./field-type.js";
@@ -22,6 +24,15 @@ export interface RenderOptions {
    * live editor can map clicks to sections/fields. For preview only.
    */
   markEditable?: boolean;
+  /**
+   * Site-wide header / footer section instances. When the layout has a
+   * `data-slot="header"` / `data-slot="footer"` and the matching region has
+   * instances, they are composed from `sections` and placed in that slot;
+   * otherwise the layout's own header/footer markup is left untouched.
+   */
+  regions?: SiteRegions;
+  /** Theme sections (`sections/<type>`), needed to compose the regions. */
+  sections?: Record<string, string>;
 }
 
 /**
@@ -42,13 +53,54 @@ export function renderTemplate(
   const body = renderFragment(html, fragScope);
 
   if (options.layout == null) return body;
+  return fillLayout(options.layout, body, scope, options);
+}
 
-  // The layout (header/footer) is not section-editable, so render it normally.
-  const layoutRoot = parse(options.layout, { comment: false });
-  const slot = layoutRoot.querySelector(`[${ATTR.slot}]`);
-  if (slot) slot.set_content(body);
-  processTree(layoutRoot, scope);
+/**
+ * Fill a layout: drop `body` into the content slot, and compose any site-wide
+ * header / footer regions into their `data-slot="header"` / `data-slot="footer"`
+ * slots. A slot with no region instances (or absent from `options`) keeps the
+ * layout's own markup, so themes without regions render exactly as before.
+ * The whole layout is then processed so its own `data-field` / `data-loop`
+ * bindings (logo, menu) resolve.
+ */
+function fillLayout(
+  layout: string,
+  body: string,
+  scope: ComposedScope,
+  options: RenderOptions,
+): string {
+  const editable = options.markEditable === true;
+  const layoutRoot = parse(layout, { comment: false });
+  const slots = layoutRoot.querySelectorAll(`[${ATTR.slot}]`);
+  for (const slot of slots) {
+    const kind = slot.getAttribute(ATTR.slot) ?? "";
+    if (kind === "header" || kind === "footer") {
+      const region = kind as RegionName;
+      const instances = options.regions?.[region];
+      // Region not managed for this site (older data / imported theme): keep the
+      // layout's own header/footer markup untouched.
+      if (instances === undefined) continue;
+      const inner = renderInstances(instances, options.sections ?? {}, scope, {
+        editable,
+        region,
+        emptyLabel: editable
+          ? `この${region === "header" ? "ヘッダー" : "フッター"}にはセクションがありません。<br>「＋」から追加できます。`
+          : undefined,
+      });
+      slot.set_content(editable ? wrapRegion(region, inner) : inner);
+    } else {
+      // "content" (or an unnamed slot): the page body.
+      slot.set_content(body);
+    }
+  }
+  processTree(layoutRoot, { ...scope, page: {} } as RenderScope);
   return layoutRoot.toString();
+}
+
+/** Editor-only wrapper tagging a region so preview clicks resolve their group. */
+function wrapRegion(region: RegionName | "body", inner: string): string {
+  return `<div data-pcms-region="${region}">${inner}</div>`;
 }
 
 function renderFragment(html: string, scope: RenderScope): string {
@@ -74,6 +126,40 @@ export function renderComposedPage(
   options: RenderOptions = {},
 ): string {
   const editable = options.markEditable === true;
+  const emptyLabel =
+    "このページにはまだセクションがありません。<br>下の「＋」からセクションを追加できます。";
+  const body = renderInstances(instances, sections, scope, { editable, emptyLabel });
+
+  if (options.layout == null) {
+    return editable ? wrapRegion("body", body) : body;
+  }
+  return fillLayout(options.layout, editable ? wrapRegion("body", body) : body, scope, options);
+}
+
+/** Options for composing a list of section instances. */
+interface InstancesOptions {
+  editable?: boolean;
+  /** Which group these instances belong to — only used to label insert slots. */
+  region?: RegionName | "body";
+  /** Editor-only message shown when the list is empty. */
+  emptyLabel?: string;
+}
+
+/**
+ * Compose an ordered list of section instances into HTML. Each instance is
+ * rendered from `sections[type]` with its own field / repeat values, wrapped in
+ * a `.pcms-section` container with its style overrides. In editable mode every
+ * wrapper carries `data-pcms-section="<id>"` plus per-section tools, with "+"
+ * insert markers between them, so the live editor can select / reorder / add.
+ * Shared by the page body and the header / footer regions.
+ */
+function renderInstances(
+  instances: SectionInstance[],
+  sections: Record<string, string>,
+  scope: ComposedScope,
+  options: InstancesOptions = {},
+): string {
+  const editable = options.editable === true;
   const parts: string[] = [];
   for (let i = 0; i < instances.length; i++) {
     const inst = instances[i] as SectionInstance;
@@ -105,21 +191,11 @@ export function renderComposedPage(
       );
     }
   }
-  if (editable && instances.length === 0) {
-    parts.push(
-      `<div class="pcms-empty-canvas">このページにはまだセクションがありません。<br>下の「＋」からセクションを追加できます。</div>`,
-    );
+  if (editable && instances.length === 0 && options.emptyLabel) {
+    parts.push(`<div class="pcms-empty-canvas">${options.emptyLabel}</div>`);
   }
   if (editable) parts.push(insertMarker(instances.length));
-  const body = parts.join("\n");
-
-  if (options.layout == null) return body;
-
-  const layoutRoot = parse(options.layout, { comment: false });
-  const slot = layoutRoot.querySelector(`[${ATTR.slot}]`);
-  if (slot) slot.set_content(body);
-  processTree(layoutRoot, { ...scope, page: {} } as RenderScope);
-  return layoutRoot.toString();
+  return parts.join("\n");
 }
 
 /**

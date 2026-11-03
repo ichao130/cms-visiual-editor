@@ -20,19 +20,29 @@ import {
 } from "../state/editorState.js";
 import {
   addInstance,
+  addRegionInstance,
   duplicateInstance,
+  duplicateRegionInstance,
   moveInstance,
+  moveRegionInstance,
   pasteInstance,
+  pasteRegionInstance,
   removeInstance,
+  removeRegionInstance,
   setField,
   setInstanceField,
   setInstanceRepeat,
   setInstanceStyle,
+  setRegionInstanceField,
+  setRegionInstanceRepeat,
+  setRegionInstanceStyle,
   setRepeatRows,
   setSectionOrder,
   toggleInstanceHidden,
+  toggleRegionInstanceHidden,
   toggleSectionHidden,
 } from "../state/mutations.js";
+import type { RegionName } from "@pcms/shared";
 import { parseSectionSchema } from "@pcms/engine";
 import { renderPreview, schemaForPage } from "../preview/render.js";
 import { MediaContext, useMediaLibrary } from "../media/MediaContext.js";
@@ -49,6 +59,8 @@ import { AiPanel } from "./AiPanel.js";
 import { t } from "../i18n.js";
 
 type Row = Record<string, FieldValue>;
+/** Which composed list the editor acts on: the page body, or a site-wide region. */
+type Scope = "body" | RegionName;
 
 /**
  * The theme editor (visual mode). It reads the open site from the shared
@@ -69,6 +81,8 @@ export function ThemeEditor() {
   const [inlineOpen, setInlineOpen] = useState(true);
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
   const [clipboard, setClipboard] = useState<SectionInstance | null>(null);
+  // Which region the canvas / inline editor act on: page body, header or footer.
+  const [editScope, setEditScope] = useState<Scope>("body");
   const mediaLib = useMediaLibrary(api);
 
   // Select the first target once the project is loaded.
@@ -160,7 +174,11 @@ export function ThemeEditor() {
     [commit, doc, pageId],
   );
 
-  // --- Composed-page (section instances) editing ---------------------------
+  // --- Composed sections: page body + site-wide header/footer regions -------
+  // Body and the two regions share one composed-instance model; `editScope`
+  // chooses which list the canvas / inline editor act on, and a preview click
+  // switches scope to wherever the clicked section lives (CLAUDE.md: header /
+  // footer are edited once and apply to every page).
 
   const catalog: SectionSchema[] = useMemo(() => {
     const sections = project?.theme.sections ?? {};
@@ -175,8 +193,21 @@ export function ThemeEditor() {
     return m;
   }, [catalog]);
 
-  const composed = target?.kind === "page" && page.instances != null;
-  const instances = page.instances ?? [];
+  // The page body is "composed" when it has an instances list (vs a fixed
+  // template). Header/footer always use the composed region model.
+  const pageComposed = target?.kind === "page" && page.instances != null;
+  const regions = doc.settings.regions;
+  const hasRegions = regions != null;
+
+  const listFor = useCallback(
+    (scope: Scope): SectionInstance[] =>
+      scope === "body" ? page.instances ?? [] : regions?.[scope] ?? [],
+    [page.instances, regions],
+  );
+
+  // The active composed list (for the current scope). Fixed body has none.
+  const activeComposed = editScope !== "body" || pageComposed;
+  const instances = activeComposed ? listFor(editScope) : [];
   const instanceRows: InstanceRow[] = instances.map((inst) => ({
     id: inst.id,
     type: inst.type,
@@ -190,7 +221,7 @@ export function ThemeEditor() {
 
   // The inline (on-preview) editor is showing — collapse the right panel.
   const inlineActive = Boolean(
-    composed && selectedInstance && selectedInstanceSchema && anchor && inlineOpen,
+    activeComposed && selectedInstance && selectedInstanceSchema && anchor && inlineOpen,
   );
 
   // Selecting a section (from a list or the preview) opens its inline card.
@@ -199,115 +230,151 @@ export function ThemeEditor() {
     if (id) setInlineOpen(true);
   }, []);
 
+  // Scope-aware builders: route a mutation to the page body or a region.
+  const buildToggle = (s: Scope, id: string) =>
+    s === "body"
+      ? toggleInstanceHidden(doc.settings, pageId, id)
+      : toggleRegionInstanceHidden(doc.settings, s, id);
+  const buildMove = (s: Scope, from: number, to: number) =>
+    s === "body"
+      ? moveInstance(doc.settings, pageId, from, to)
+      : moveRegionInstance(doc.settings, s, from, to);
+  const buildRemove = (s: Scope, id: string) =>
+    s === "body"
+      ? removeInstance(doc.settings, pageId, id)
+      : removeRegionInstance(doc.settings, s, id);
+  const buildAdd = (s: Scope, type: string, at?: number) =>
+    s === "body"
+      ? addInstance(doc.settings, pageId, type, at)
+      : addRegionInstance(doc.settings, s, type, at);
+  const buildDuplicate = (s: Scope, id: string) =>
+    s === "body"
+      ? duplicateInstance(doc.settings, pageId, id)
+      : duplicateRegionInstance(doc.settings, s, id);
+  const buildPaste = (s: Scope, snap: SectionInstance) =>
+    s === "body"
+      ? pasteInstance(doc.settings, pageId, snap)
+      : pasteRegionInstance(doc.settings, s, snap);
+
   const onToggleInstanceHidden = useCallback(
-    (id: string) => {
-      commit({ ...doc, settings: toggleInstanceHidden(doc.settings, pageId, id) });
+    (id: string, scope: Scope = editScope) => {
+      commit({ ...doc, settings: buildToggle(scope, id) });
       setDirty(true);
     },
-    [commit, doc, pageId],
+    [commit, doc, pageId, editScope],
   );
 
   const onMoveInstance = useCallback(
-    (from: number, to: number) => {
-      commit({ ...doc, settings: moveInstance(doc.settings, pageId, from, to) });
+    (from: number, to: number, scope: Scope = editScope) => {
+      commit({ ...doc, settings: buildMove(scope, from, to) });
       setDirty(true);
     },
-    [commit, doc, pageId],
+    [commit, doc, pageId, editScope],
   );
 
   const onDeleteInstance = useCallback(
-    (id: string) => {
-      commit({ ...doc, settings: removeInstance(doc.settings, pageId, id) });
+    (id: string, scope: Scope = editScope) => {
+      commit({ ...doc, settings: buildRemove(scope, id) });
       setSelectedId((cur) => (cur === id ? null : cur));
       setDirty(true);
     },
-    [commit, doc, pageId],
+    [commit, doc, pageId, editScope],
   );
 
   const onAddInstance = useCallback(
-    (type: string, at?: number) => {
-      const settings = addInstance(doc.settings, pageId, type, at);
+    (type: string, at?: number, scope: Scope = editScope) => {
+      const settings = buildAdd(scope, type, at);
       commit({ ...doc, settings });
-      const list = settings.pages[pageId]?.instances ?? [];
+      const list = scope === "body" ? settings.pages[pageId]?.instances ?? [] : settings.regions?.[scope] ?? [];
       const added = list[at ?? list.length - 1];
+      setEditScope(scope);
       if (added) setSelectedId(added.id);
       setDirty(true);
     },
-    [commit, doc, pageId],
+    [commit, doc, pageId, editScope],
   );
 
   const onInstanceField = useCallback(
     (path: string, value: string) => {
       if (!selectedId) return;
-      commit(
-        { ...doc, settings: setInstanceField(doc.settings, pageId, selectedId, path, value) },
-        `inst:${selectedId}:${path}`,
-      );
+      const next =
+        editScope === "body"
+          ? setInstanceField(doc.settings, pageId, selectedId, path, value)
+          : setRegionInstanceField(doc.settings, editScope, selectedId, path, value);
+      commit({ ...doc, settings: next }, `inst:${editScope}:${selectedId}:${path}`);
       setDirty(true);
     },
-    [commit, doc, pageId, selectedId],
+    [commit, doc, pageId, selectedId, editScope],
   );
 
   const onInstanceRepeat = useCallback(
     (name: string, rows: Row[]) => {
       if (!selectedId) return;
-      commit(
-        { ...doc, settings: setInstanceRepeat(doc.settings, pageId, selectedId, name, rows) },
-        `instrep:${selectedId}:${name}`,
-      );
+      const next =
+        editScope === "body"
+          ? setInstanceRepeat(doc.settings, pageId, selectedId, name, rows)
+          : setRegionInstanceRepeat(doc.settings, editScope, selectedId, name, rows);
+      commit({ ...doc, settings: next }, `instrep:${editScope}:${selectedId}:${name}`);
       setDirty(true);
     },
-    [commit, doc, pageId, selectedId],
+    [commit, doc, pageId, selectedId, editScope],
   );
 
   const onCopyInstance = useCallback(() => {
     if (selectedInstance) setClipboard(selectedInstance);
   }, [selectedInstance]);
 
-  const onPasteInstance = useCallback(() => {
-    if (!clipboard) return;
-    const settings = pasteInstance(doc.settings, pageId, clipboard);
-    commit({ ...doc, settings });
-    const list = settings.pages[pageId]?.instances ?? [];
-    const added = list[list.length - 1];
-    if (added) setSelectedId(added.id);
-    setDirty(true);
-  }, [clipboard, doc, pageId, commit, setDirty]);
+  const onPasteInstance = useCallback(
+    (scope: Scope = editScope) => {
+      if (!clipboard) return;
+      const settings = buildPaste(scope, clipboard);
+      commit({ ...doc, settings });
+      const list = scope === "body" ? settings.pages[pageId]?.instances ?? [] : settings.regions?.[scope] ?? [];
+      const added = list[list.length - 1];
+      setEditScope(scope);
+      if (added) setSelectedId(added.id);
+      setDirty(true);
+    },
+    [clipboard, doc, pageId, commit, setDirty, editScope],
+  );
 
   const onInstanceStyle = useCallback(
     (patch: Partial<SectionStyle>) => {
       if (!selectedId) return;
-      commit(
-        { ...doc, settings: setInstanceStyle(doc.settings, pageId, selectedId, patch) },
-        `inststyle:${selectedId}`,
-      );
+      const next =
+        editScope === "body"
+          ? setInstanceStyle(doc.settings, pageId, selectedId, patch)
+          : setRegionInstanceStyle(doc.settings, editScope, selectedId, patch);
+      commit({ ...doc, settings: next }, `inststyle:${editScope}:${selectedId}`);
       setDirty(true);
     },
-    [commit, doc, pageId, selectedId, setDirty],
+    [commit, doc, pageId, selectedId, editScope, setDirty],
   );
 
   const onDuplicateInstance = useCallback(
-    (id: string) => {
-      commit({ ...doc, settings: duplicateInstance(doc.settings, pageId, id) });
+    (id: string, scope: Scope = editScope) => {
+      commit({ ...doc, settings: buildDuplicate(scope, id) });
       setDirty(true);
     },
-    [commit, doc, pageId],
+    [commit, doc, pageId, editScope],
   );
 
-  /** Apply a value to a field (composed instance or fixed page). */
+  /** Apply a field value: region instance, composed body instance, or fixed page. */
   const applyFieldEdit = useCallback(
-    (section: string | null | undefined, field: string, value: string, key?: string) => {
-      if (composed && section) {
-        commit(
-          { ...doc, settings: setInstanceField(doc.settings, pageId, section, field, value) },
-          key,
-        );
-      } else if (!composed) {
-        commit({ ...doc, settings: setField(doc.settings, pageId, field, value) }, key);
+    (scope: Scope, section: string | null | undefined, field: string, value: string, key?: string) => {
+      let next;
+      if (scope !== "body") {
+        if (!section) return;
+        next = setRegionInstanceField(doc.settings, scope, section, field, value);
+      } else if (pageComposed && section) {
+        next = setInstanceField(doc.settings, pageId, section, field, value);
+      } else {
+        next = setField(doc.settings, pageId, field, value);
       }
+      commit({ ...doc, settings: next }, key);
       setDirty(true);
     },
-    [commit, doc, pageId, composed],
+    [commit, doc, pageId, pageComposed],
   );
 
   // --- Content-target editing ----------------------------------------------
@@ -364,9 +431,18 @@ export function ThemeEditor() {
   const onSelectTarget = useCallback((key: string) => {
     setCurrentKey(key);
     setSelectedId(null);
+    setEditScope("body");
   }, []);
 
-  // Messages from the preview runtime: select, reorder (op/move), insert.
+  // Clear the selection when switching the edit scope — ids don't cross lists.
+  const onSelectScope = useCallback((scope: Scope) => {
+    setEditScope(scope);
+    setSelectedId(null);
+  }, []);
+
+  // Messages from the preview runtime: select, reorder (op/move), insert. Each
+  // carries the `region` it happened in (body / header / footer); we switch the
+  // edit scope to that region and route the mutation to its instance list.
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
       const d = e.data as
@@ -380,14 +456,21 @@ export function ThemeEditor() {
             id?: string;
             toIndex?: number;
             index?: number;
+            region?: string;
             rect?: Anchor["rect"] | null;
             view?: Anchor["view"];
           }
         | null;
       if (!d || d.source !== "pcms-preview") return;
 
+      const region: Scope =
+        d.region === "header" || d.region === "footer" ? d.region : "body";
+      // Is this region editable as composed instances? (body may be a fixed page.)
+      const regionComposed = region !== "body" || pageComposed;
+
       if (d.type === "select") {
         if (d.section) {
+          setEditScope(region);
           setSelectedId(d.section);
           setInlineOpen(true);
         }
@@ -399,41 +482,46 @@ export function ThemeEditor() {
       }
       if (d.type === "focusfield" && d.field) {
         // Deferred so a double-click (inline edit) can cancel it first.
-        if (d.section) setSelectedId(d.section);
-        setFocusTarget(composed ? `inst-${d.section}-${d.field}` : `field-${d.field}`);
+        if (d.section) {
+          setEditScope(region);
+          setSelectedId(d.section);
+        }
+        setFocusTarget(regionComposed ? `inst-${d.section}-${d.field}` : `field-${d.field}`);
         return;
       }
       if (d.type === "edit" && d.field) {
-        applyFieldEdit(d.section, d.field, d.value ?? "", `edit:${d.section}:${d.field}`);
+        applyFieldEdit(region, d.section, d.field, d.value ?? "", `edit:${region}:${d.section}:${d.field}`);
         return;
       }
       if (d.type === "pickimage" && d.field) {
         const section = d.section;
         const field = d.field;
         void mediaLib.value.pickImage().then((path) => {
-          if (path) applyFieldEdit(section, field, path);
+          if (path) applyFieldEdit(region, section, field, path);
         });
         return;
       }
-      if (!composed) return;
-      const from = d.id ? instances.findIndex((i) => i.id === d.id) : -1;
+      if (!regionComposed) return;
+      const list = listFor(region);
+      const from = d.id ? list.findIndex((i) => i.id === d.id) : -1;
       if (d.type === "op" && from >= 0) {
-        if (d.op === "up") onMoveInstance(from, from - 1);
-        else if (d.op === "down") onMoveInstance(from, from + 1);
-        else if (d.op === "dup" && d.id) onDuplicateInstance(d.id);
-        else if (d.op === "del" && d.id) onDeleteInstance(d.id);
+        if (d.op === "up") onMoveInstance(from, from - 1, region);
+        else if (d.op === "down") onMoveInstance(from, from + 1, region);
+        else if (d.op === "dup" && d.id) onDuplicateInstance(d.id, region);
+        else if (d.op === "del" && d.id) onDeleteInstance(d.id, region);
       } else if (d.type === "move" && from >= 0 && d.toIndex != null) {
         const to = d.toIndex > from ? d.toIndex - 1 : d.toIndex;
-        if (to !== from) onMoveInstance(from, to);
+        if (to !== from) onMoveInstance(from, to, region);
       } else if (d.type === "insert" && d.index != null) {
+        setEditScope(region);
         setInsertAt(d.index);
       }
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
   }, [
-    composed,
-    instances,
+    pageComposed,
+    listFor,
     onMoveInstance,
     onDeleteInstance,
     onDuplicateInstance,
@@ -514,27 +602,47 @@ export function ThemeEditor() {
             <h2 className="pcms-col__title">{t("content.outline")}</h2>
             <p className="pcms-empty">{t("content.outline.hint")}</p>
           </nav>
-        ) : composed ? (
-          <SectionCanvas
-            instances={instanceRows}
-            catalog={catalog.map((c) => ({ type: c.id, label: c.label ?? c.id }))}
-            selectedId={selectedId}
-            onSelect={onSelectSection}
-            onToggleHidden={onToggleInstanceHidden}
-            onMove={onMoveInstance}
-            onDelete={onDeleteInstance}
-            onAdd={onAddInstance}
-            onPaste={onPasteInstance}
-            canPaste={clipboard != null}
-          />
         ) : (
-          <SectionList
-            sections={sectionRows}
-            selectedId={selectedId}
-            onSelect={setSelectedId}
-            onToggleHidden={onToggleHidden}
-            onMove={onMove}
-          />
+          <div className="pcms-sections-col">
+            {hasRegions && (
+              <div className="pcms-scope-switch" role="tablist" aria-label={t("region.switch")}>
+                {(["header", "body", "footer"] as Scope[]).map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    role="tab"
+                    aria-selected={editScope === s}
+                    className={`pcms-scope-switch__btn${editScope === s ? " is-active" : ""}`}
+                    onClick={() => onSelectScope(s)}
+                  >
+                    {t(`region.${s}`)}
+                  </button>
+                ))}
+              </div>
+            )}
+            {activeComposed ? (
+              <SectionCanvas
+                instances={instanceRows}
+                catalog={catalog.map((c) => ({ type: c.id, label: c.label ?? c.id }))}
+                selectedId={selectedId}
+                onSelect={onSelectSection}
+                onToggleHidden={onToggleInstanceHidden}
+                onMove={onMoveInstance}
+                onDelete={onDeleteInstance}
+                onAdd={onAddInstance}
+                onPaste={onPasteInstance}
+                canPaste={clipboard != null}
+              />
+            ) : (
+              <SectionList
+                sections={sectionRows}
+                selectedId={selectedId}
+                onSelect={setSelectedId}
+                onToggleHidden={onToggleHidden}
+                onMove={onMove}
+              />
+            )}
+          </div>
         )}
 
         <Preview
@@ -557,7 +665,7 @@ export function ThemeEditor() {
           }
         />
 
-        {inlineActive ? null : target.kind === "page" && composed ? (
+        {inlineActive ? null : target.kind === "page" && activeComposed ? (
           selectedInstance ? (
             <InstanceSettings
               schema={selectedInstanceSchema}

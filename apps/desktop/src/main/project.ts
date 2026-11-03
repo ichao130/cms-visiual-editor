@@ -150,6 +150,12 @@ function mediaItemFromBytes(fileName: string, bytes: Uint8Array): MediaItem {
 }
 
 const defaultSettings: SiteSettings = {
+  // Site-wide header / footer, composed from the theme's header/footer sections.
+  // Edited once in the visual editor and shared across every page.
+  regions: {
+    header: [{ id: "header-1", type: "header" }],
+    footer: [{ id: "footer-1", type: "footer" }],
+  },
   pages: {
     index: {
       instances: [

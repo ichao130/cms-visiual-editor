@@ -96,6 +96,14 @@ export function generateSite(input: SiteInput): GeneratedSite {
   const collections = buildCollections(content);
   const menus = input.menus ?? {};
   const layout = input.theme.layout;
+  // Layout options shared by every page: the site-wide header/footer regions are
+  // composed into the layout's header/footer slots (CLAUDE.md: edit once, applies
+  // to all pages). Themes without regions keep their own header/footer markup.
+  const layoutOpts = {
+    layout,
+    regions: input.settings.regions,
+    sections: input.theme.sections,
+  };
   const pageSize = input.site.archivePageSize ?? 10;
 
   const mediaByPath: Record<string, MediaItem> = {};
@@ -170,7 +178,7 @@ export function generateSite(input: SiteInput): GeneratedSite {
         },
         ...(opts.term ? { term: opts.term } : {}),
       };
-      const html = renderTemplate(opts.template, scope, { layout });
+      const html = renderTemplate(opts.template, scope, layoutOpts);
       const outPath = archivePagePath(opts.baseUrl, n);
       // Paginated pages share the listing title; add the page number past the
       // first so titles stay unique across the site.
@@ -189,15 +197,13 @@ export function generateSite(input: SiteInput): GeneratedSite {
   for (const [id, page] of Object.entries(input.settings.pages)) {
     let html: string;
     if (page.instances && page.instances.length > 0) {
-      html = renderComposedPage(page.instances, input.theme.sections ?? {}, baseScope, {
-        layout,
-      });
+      html = renderComposedPage(page.instances, input.theme.sections ?? {}, baseScope, layoutOpts);
     } else {
       const templateName = page.template ?? id;
       const template = pickTemplate(input.theme, [templateName, "page"]);
       if (template == null) continue;
       const scope: RenderScope = { ...baseScope, page };
-      html = renderTemplate(template, scope, { layout });
+      html = renderTemplate(template, scope, layoutOpts);
     }
     const outPath = pagePathForId(id);
     const isHome = outPath === "index.html";
@@ -215,7 +221,7 @@ export function generateSite(input: SiteInput): GeneratedSite {
     if (template == null) continue;
     const page: PageSettings = input.settings.pages[item.type] ?? {};
     const scope: RenderScope = { ...baseScope, page, item };
-    const html = renderTemplate(template, scope, { layout });
+    const html = renderTemplate(template, scope, layoutOpts);
     const url = itemUrl(item, input.site);
     const outPath = itemPath(item, input.site);
     if (item.noindex) noindexPaths.add(outPath);

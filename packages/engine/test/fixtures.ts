@@ -1,5 +1,5 @@
-import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { readdirSync, readFileSync } from "node:fs";
+import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type {
   ContentItem,
@@ -16,6 +16,16 @@ function read(rel: string): string {
   return readFileSync(join(themeDir, rel), "utf8");
 }
 
+/** Load every `sections/*.html` of the sample theme, keyed by basename. */
+function sampleSections(): Record<string, string> {
+  const dir = join(themeDir, "sections");
+  const out: Record<string, string> = {};
+  for (const file of readdirSync(dir)) {
+    if (file.endsWith(".html")) out[basename(file, ".html")] = read(`sections/${file}`);
+  }
+  return out;
+}
+
 /** Load the sample-cafe theme from disk into an in-memory bundle. */
 export function sampleTheme(): ThemeBundle {
   return {
@@ -26,6 +36,7 @@ export function sampleTheme(): ThemeBundle {
       page: read("templates/page.html"),
       post: read("templates/post.html"),
     },
+    sections: sampleSections(),
     assets: ["assets/style.css"],
   };
 }
@@ -77,6 +88,10 @@ export function samplePosts(): ContentItem[] {
 
 export function sampleSettings(): SiteSettings {
   return {
+    regions: {
+      header: [{ id: "header-1", type: "header" }],
+      footer: [{ id: "footer-1", type: "footer" }],
+    },
     pages: {
       index: {
         fields: {

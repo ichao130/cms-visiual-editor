@@ -64,6 +64,8 @@ import secNews from "../../../../themes/sample-cafe/sections/news.html?raw";
 import secMenu from "../../../../themes/sample-cafe/sections/menu.html?raw";
 import secGallery from "../../../../themes/sample-cafe/sections/gallery.html?raw";
 import secText from "../../../../themes/sample-cafe/sections/text.html?raw";
+import secHeader from "../../../../themes/sample-cafe/sections/header.html?raw";
+import secFooter from "../../../../themes/sample-cafe/sections/footer.html?raw";
 
 import themeJson from "../../../../themes/sample-cafe/theme.json";
 import previewCss from "../../../../themes/sample-cafe/assets/style.css?raw";
@@ -139,6 +141,12 @@ const defaultContent: ContentItem[] = [
 ];
 
 const defaultSettings: SiteSettings = {
+  // Site-wide header / footer, composed from the theme's header/footer sections.
+  // Edited once in the visual editor and shared across every page.
+  regions: {
+    header: [{ id: "header-1", type: "header" }],
+    footer: [{ id: "footer-1", type: "footer" }],
+  },
   pages: {
     index: {
       instances: [
@@ -560,6 +568,8 @@ const THEME_FILES: Record<string, string> = {
   "sections/menu.html": secMenu,
   "sections/gallery.html": secGallery,
   "sections/text.html": secText,
+  "sections/header.html": secHeader,
+  "sections/footer.html": secFooter,
   "assets/style.css": previewCss,
 };
 

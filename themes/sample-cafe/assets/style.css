@@ -15,12 +15,12 @@ body {
   line-height: 1.7;
 }
 
-.site-header {
+.site-header { border-bottom: 1px solid rgba(0, 0, 0, 0.08); }
+.site-header__bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 1rem 1.5rem;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
 }
 
 .logo { font-weight: 700; color: var(--primary); text-decoration: none; }

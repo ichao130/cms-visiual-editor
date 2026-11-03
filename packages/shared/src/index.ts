@@ -130,7 +130,25 @@ export interface SiteSettings {
   theme?: ThemeConfig;
   /** Page settings keyed by page id (e.g. "index", "about"). */
   pages: Record<string, PageSettings>;
+  /**
+   * Site-wide header / footer, each an ordered list of section instances —
+   * the same composed model as a page body, shared across every page
+   * (Shopify-style header/footer groups). Rendered into the layout's
+   * `data-slot="header"` / `data-slot="footer"`. When absent (older data) or a
+   * region is empty, the layout's own header/footer markup is used as-is, so
+   * this is backward compatible.
+   */
+  regions?: SiteRegions;
 }
+
+/** The site-wide section regions (header / footer). */
+export interface SiteRegions {
+  header?: SectionInstance[];
+  footer?: SectionInstance[];
+}
+
+/** A site-wide region name. */
+export type RegionName = "header" | "footer";
 
 export interface PageSettings {
   /** Template name to use; defaults to the page id, then "page". */
