@@ -201,6 +201,30 @@ export function moveContent(
   return { ...state, content };
 }
 
+/**
+ * Reorder a content type's items by moving the item at `from` to index `to`
+ * (both indices into that type's order-then-date sequence). Used by drag-and-
+ * drop, where the arrow buttons use {@link moveContent}.
+ */
+export function moveContentTo(
+  state: EditorState,
+  type: string,
+  from: number,
+  to: number,
+): EditorState {
+  const ordered = state.content.filter((i) => i.type === type).sort(byOrderThenDate);
+  if (from === to || from < 0 || to < 0 || from >= ordered.length || to >= ordered.length) {
+    return state;
+  }
+  const [moved] = ordered.splice(from, 1);
+  ordered.splice(to, 0, moved!);
+  const orderBySlug = new Map(ordered.map((i, idx) => [i.slug, idx]));
+  const content = state.content.map((item) =>
+    item.type === type ? { ...item, order: orderBySlug.get(item.slug) } : item,
+  );
+  return { ...state, content };
+}
+
 /** Set whether a content item asks search engines not to index it. */
 export function setContentNoindex(
   state: EditorState,

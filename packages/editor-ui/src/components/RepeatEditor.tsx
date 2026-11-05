@@ -1,5 +1,6 @@
 import type { FieldValue, RepeatSchema } from "@pcms/shared";
 import { FieldInput } from "./FieldInput.js";
+import { useDragReorder, moveItem } from "../state/useDragReorder.js";
 import { t } from "../i18n.js";
 
 type Row = Record<string, FieldValue>;
@@ -18,13 +19,27 @@ export function RepeatEditor({ repeat, rows, onChange }: RepeatEditorProps) {
   };
   const add = () => onChange([...rows, {}]);
   const remove = (index: number) => onChange(rows.filter((_, i) => i !== index));
+  const move = (index: number, dir: -1 | 1) => {
+    const to = index + dir;
+    if (to < 0 || to >= rows.length) return;
+    onChange(moveItem(rows, index, to));
+  };
+  const dnd = useDragReorder((from, to) => onChange(moveItem(rows, from, to)));
 
   return (
     <div className="pcms-repeat">
       <h3 className="pcms-repeat__title">{repeat.name}</h3>
       {rows.map((row, i) => (
-        <fieldset className="pcms-repeat__row" key={i}>
+        <fieldset className="pcms-repeat__row" key={i} {...dnd.zoneProps(i)}>
           <legend>
+            <span
+              className="pcms-draghandle"
+              aria-label={t("common.drag")}
+              title={t("common.drag")}
+              {...dnd.handleProps(i)}
+            >
+              ⠿
+            </span>
             {t("repeat.item")} {i + 1}
           </legend>
           {repeat.fields.map((f) => (
@@ -37,13 +52,22 @@ export function RepeatEditor({ repeat, rows, onChange }: RepeatEditorProps) {
               onChange={(v) => update(i, f.path, v)}
             />
           ))}
-          <button
-            type="button"
-            className="pcms-repeat__remove"
-            onClick={() => remove(i)}
-          >
-            {t("repeat.remove")}
-          </button>
+          <div className="pcms-repeat__actions">
+            <button type="button" onClick={() => move(i, -1)} disabled={i === 0} title={t("sections.up")}>
+              ↑
+            </button>
+            <button
+              type="button"
+              onClick={() => move(i, 1)}
+              disabled={i === rows.length - 1}
+              title={t("sections.down")}
+            >
+              ↓
+            </button>
+            <button type="button" className="pcms-repeat__remove" onClick={() => remove(i)}>
+              {t("repeat.remove")}
+            </button>
+          </div>
         </fieldset>
       ))}
       <button type="button" className="pcms-repeat__add" onClick={add}>

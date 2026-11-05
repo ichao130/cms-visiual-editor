@@ -3,6 +3,7 @@ import {
   byOrderThenDate,
   duplicateContent,
   moveContent,
+  moveContentTo,
   removeContentMany,
   setContentStatusMany,
   uniqueSlug,
@@ -126,5 +127,25 @@ describe("moveContent", () => {
   it("is a no-op at the boundary", () => {
     const s = state();
     expect(moveContent(s, "post", "open", "up")).toBe(s);
+  });
+});
+
+describe("moveContentTo", () => {
+  const ordered = (s: EditorState) =>
+    s.content
+      .filter((i) => i.type === "post")
+      .sort(byOrderThenDate)
+      .map((i) => i.slug);
+
+  it("moves an item to an arbitrary index and stamps order", () => {
+    const next = moveContentTo(state(), "post", 0, 1);
+    expect(ordered(next)).toEqual(["hours", "open"]);
+    for (const i of next.content) expect(typeof i.order).toBe("number");
+  });
+
+  it("is a no-op when from === to or out of range", () => {
+    const s = state();
+    expect(moveContentTo(s, "post", 1, 1)).toBe(s);
+    expect(moveContentTo(s, "post", 0, 9)).toBe(s);
   });
 });

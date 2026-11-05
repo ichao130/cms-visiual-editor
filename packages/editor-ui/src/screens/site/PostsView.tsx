@@ -6,11 +6,14 @@ import {
   setContentStatusMany,
   removeContentMany,
   moveContent,
+  moveContentTo,
   byOrderThenDate,
   type ItemRef,
 } from "../../state/editorState.js";
+import type { ContentItem } from "@pcms/shared";
 import { NewContentModal } from "../../components/NewContentModal.js";
 import { ContentEditorPanel } from "./ContentEditorPanel.js";
+import { useDragReorder } from "../../state/useDragReorder.js";
 import { useToast } from "../../state/ToastContext.js";
 import { t } from "../../i18n.js";
 import { isScheduled } from "@pcms/engine";
@@ -88,6 +91,10 @@ export function PostsView() {
 
   const move = (type: string, slug: string, dir: "up" | "down") => {
     commit(moveContent(doc, type, slug, dir));
+    setDirty(true);
+  };
+  const reorder = (type: string, from: number, to: number) => {
+    commit(moveContentTo(doc, type, from, to));
     setDirty(true);
   };
 
@@ -170,68 +177,19 @@ export function PostsView() {
           // Manual reordering only in the full, unfiltered list.
           const canReorder = !filtering && items.length > 1;
           return (
-            <div key={tp.name} className="pcms-typegroup">
-              <h2 className="pcms-typegroup__title">{tp.label ?? tp.name}</h2>
-              {items.length === 0 ? (
-                <p className="pcms-empty">{t("content.none")}</p>
-              ) : (
-                <ul className="pcms-itemlist">
-                  {items.map((i, idx) => (
-                    <li key={`${i.type}/${i.slug}`} className="pcms-itemlist__item">
-                      <input
-                        type="checkbox"
-                        className="pcms-itemlist__check"
-                        checked={checked.has(keyOf(i.type, i.slug))}
-                        onChange={() => toggle(i.type, i.slug)}
-                        aria-label={String(i.fields.title ?? i.slug)}
-                      />
-                      <button
-                        className={`pcms-itemlist__row${
-                          selected?.type === i.type && selected?.slug === i.slug ? " is-selected" : ""
-                        }`}
-                        onClick={() => setSelected({ type: i.type, slug: i.slug })}
-                      >
-                        <span className="pcms-itemlist__title">
-                          {String(i.fields.title ?? i.slug)}
-                          {i.status === "draft" && (
-                            <span className="pcms-draftbadge">{t("content.status.draft")}</span>
-                          )}
-                          {i.status !== "draft" && isScheduled(i, now) && (
-                            <span className="pcms-schedbadge">
-                              {t("content.scheduled")}
-                              {typeof i.fields.date === "string" ? `（${i.fields.date}）` : ""}
-                            </span>
-                          )}
-                        </span>
-                        <span className="pcms-itemlist__slug">/{i.slug}</span>
-                      </button>
-                      {canReorder && (
-                        <span className="pcms-itemlist__move">
-                          <button
-                            type="button"
-                            disabled={idx === 0}
-                            onClick={() => move(i.type, i.slug, "up")}
-                            aria-label={t("content.moveUp")}
-                            title={t("content.moveUp")}
-                          >
-                            ▲
-                          </button>
-                          <button
-                            type="button"
-                            disabled={idx === items.length - 1}
-                            onClick={() => move(i.type, i.slug, "down")}
-                            aria-label={t("content.moveDown")}
-                            title={t("content.moveDown")}
-                          >
-                            ▼
-                          </button>
-                        </span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
+            <PostTypeGroup
+              key={tp.name}
+              title={tp.label ?? tp.name}
+              items={items}
+              canReorder={canReorder}
+              now={now}
+              isChecked={(i) => checked.has(keyOf(i.type, i.slug))}
+              isSelected={(i) => selected?.type === i.type && selected?.slug === i.slug}
+              onToggle={toggle}
+              onSelect={(i) => setSelected({ type: i.type, slug: i.slug })}
+              onMove={move}
+              onReorder={(from, to) => reorder(tp.name, from, to)}
+            />
           );
         })}
       </div>
@@ -258,6 +216,111 @@ export function PostsView() {
           onClose={() => setNewOpen(false)}
           resolveSlug={(type, slug) => uniqueSlug(doc, type, slug)}
         />
+      )}
+    </div>
+  );
+}
+
+interface PostTypeGroupProps {
+  title: string;
+  items: ContentItem[];
+  canReorder: boolean;
+  now: number;
+  isChecked: (i: ContentItem) => boolean;
+  isSelected: (i: ContentItem) => boolean;
+  onToggle: (type: string, slug: string) => void;
+  onSelect: (i: ContentItem) => void;
+  onMove: (type: string, slug: string, dir: "up" | "down") => void;
+  onReorder: (from: number, to: number) => void;
+}
+
+/** One post type's item list, with arrow + drag-and-drop reordering. */
+function PostTypeGroup({
+  title,
+  items,
+  canReorder,
+  now,
+  isChecked,
+  isSelected,
+  onToggle,
+  onSelect,
+  onMove,
+  onReorder,
+}: PostTypeGroupProps) {
+  const dnd = useDragReorder(onReorder);
+  return (
+    <div className="pcms-typegroup">
+      <h2 className="pcms-typegroup__title">{title}</h2>
+      {items.length === 0 ? (
+        <p className="pcms-empty">{t("content.none")}</p>
+      ) : (
+        <ul className="pcms-itemlist">
+          {items.map((i, idx) => (
+            <li
+              key={`${i.type}/${i.slug}`}
+              className="pcms-itemlist__item"
+              {...(canReorder ? dnd.zoneProps(idx) : {})}
+            >
+              {canReorder && (
+                <span
+                  className="pcms-draghandle"
+                  aria-label={t("common.drag")}
+                  title={t("common.drag")}
+                  {...dnd.handleProps(idx)}
+                >
+                  ⠿
+                </span>
+              )}
+              <input
+                type="checkbox"
+                className="pcms-itemlist__check"
+                checked={isChecked(i)}
+                onChange={() => onToggle(i.type, i.slug)}
+                aria-label={String(i.fields.title ?? i.slug)}
+              />
+              <button
+                className={`pcms-itemlist__row${isSelected(i) ? " is-selected" : ""}`}
+                onClick={() => onSelect(i)}
+              >
+                <span className="pcms-itemlist__title">
+                  {String(i.fields.title ?? i.slug)}
+                  {i.status === "draft" && (
+                    <span className="pcms-draftbadge">{t("content.status.draft")}</span>
+                  )}
+                  {i.status !== "draft" && isScheduled(i, now) && (
+                    <span className="pcms-schedbadge">
+                      {t("content.scheduled")}
+                      {typeof i.fields.date === "string" ? `（${i.fields.date}）` : ""}
+                    </span>
+                  )}
+                </span>
+                <span className="pcms-itemlist__slug">/{i.slug}</span>
+              </button>
+              {canReorder && (
+                <span className="pcms-itemlist__move">
+                  <button
+                    type="button"
+                    disabled={idx === 0}
+                    onClick={() => onMove(i.type, i.slug, "up")}
+                    aria-label={t("content.moveUp")}
+                    title={t("content.moveUp")}
+                  >
+                    ▲
+                  </button>
+                  <button
+                    type="button"
+                    disabled={idx === items.length - 1}
+                    onClick={() => onMove(i.type, i.slug, "down")}
+                    aria-label={t("content.moveDown")}
+                    title={t("content.moveDown")}
+                  >
+                    ▼
+                  </button>
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );

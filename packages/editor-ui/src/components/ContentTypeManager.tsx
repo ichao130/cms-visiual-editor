@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { ContentTypeDef, FieldDef, FieldType } from "@pcms/shared";
 import { slugify } from "../state/editorState.js";
+import { useDragReorder, moveItem } from "../state/useDragReorder.js";
 import { t } from "../i18n.js";
 
 interface ContentTypeManagerProps {
@@ -86,6 +87,9 @@ export function ContentTypeManager({ types, onCommit }: ContentTypeManagerProps)
     [fields[idx], fields[to]] = [fields[to] as FieldDef, fields[idx] as FieldDef];
     setFields(current.name, fields);
   };
+  const dnd = useDragReorder((from, to) => {
+    if (current) setFields(current.name, moveItem(current.fields, from, to));
+  });
 
   return (
     <div className="pcms-structpage">
@@ -129,8 +133,16 @@ export function ContentTypeManager({ types, onCommit }: ContentTypeManagerProps)
 
               <h3 className="pcms-types__fieldshead">{t("types.fields")}</h3>
               {current.fields.map((f, i) => (
-                <fieldset className="pcms-fielddef" key={i}>
+                <fieldset className="pcms-fielddef" key={i} {...dnd.zoneProps(i)}>
                   <div className="pcms-fielddef__row">
+                    <span
+                      className="pcms-draghandle"
+                      aria-label={t("common.drag")}
+                      title={t("common.drag")}
+                      {...dnd.handleProps(i)}
+                    >
+                      ⠿
+                    </span>
                     <input
                       className="pcms-fielddef__name"
                       value={f.name}

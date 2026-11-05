@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { FormDef, FormField, FormFieldType, FormSubmission } from "@pcms/shared";
 import { buildFormEmbed } from "@pcms/engine";
 import type { PcmsApi } from "../../api/types.js";
+import { useDragReorder, moveItem } from "../../state/useDragReorder.js";
 import { t, type MessageKey } from "../../i18n.js";
 
 interface Props {
@@ -178,6 +179,7 @@ function FormBuilder({
     [fields[i], fields[to]] = [fields[to] as FormField, fields[i] as FormField];
     onChange({ ...form, fields });
   };
+  const dnd = useDragReorder((from, to) => onChange({ ...form, fields: moveItem(form.fields, from, to) }));
 
   return (
     <div className="pcms-formbuild">
@@ -189,8 +191,16 @@ function FormBuilder({
       <h2 className="pcms-col__title">{t("forms.fields")}</h2>
       <div className="pcms-formfields">
         {form.fields.map((f, i) => (
-          <div key={i} className="pcms-formfield">
+          <div key={i} className="pcms-formfield" {...dnd.zoneProps(i)}>
             <div className="pcms-formfield__row">
+              <span
+                className="pcms-draghandle"
+                aria-label={t("common.drag")}
+                title={t("common.drag")}
+                {...dnd.handleProps(i)}
+              >
+                ⠿
+              </span>
               <input
                 className="pcms-formfield__label"
                 value={f.label}
