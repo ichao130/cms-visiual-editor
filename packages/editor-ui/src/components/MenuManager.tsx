@@ -112,7 +112,7 @@ export function MenuManager({ menus, onCommit, targets = [] }: MenuManagerProps)
           </div>
         ))}
         <button type="button" className="pcms-types__addfield" onClick={add}>
-          {t("menu.add")}
+          <Icon name="plus" size={14} /> {t("menu.add")}
         </button>
     </div>
   );

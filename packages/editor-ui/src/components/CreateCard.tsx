@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Icon } from "./Icon.js";
 import { t } from "../i18n.js";
 
 interface CreateCardProps {
@@ -34,7 +35,7 @@ export function CreateCard({ label, placeholder, onCreate }: CreateCardProps) {
   if (!open) {
     return (
       <button className="pcms-card pcms-card--add" onClick={() => setOpen(true)}>
-        ＋ {label}
+        <Icon name="plus" size={15} /> {label}
       </button>
     );
   }

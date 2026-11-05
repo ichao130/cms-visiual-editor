@@ -191,7 +191,7 @@ export function CodeEditorView({ api }: Props) {
             onClick={() => setNewName((v) => (v == null ? "" : null))}
             title={t("code.newPart")}
           >
-            ＋
+            <Icon name="plus" size={16} />
           </button>
         </div>
         {newName != null && (

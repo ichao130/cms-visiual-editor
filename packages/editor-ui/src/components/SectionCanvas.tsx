@@ -101,7 +101,7 @@ export function SectionCanvas({
           ))}
         </select>
         <button type="button" onClick={() => addType && onAdd(addType)}>
-          {t("sections.add")}
+          <Icon name="plus" size={14} /> {t("sections.add")}
         </button>
       </div>
       {canPaste && onPaste && (

@@ -396,7 +396,7 @@ function GalleryBlock({
         ))}
       </div>
       <button type="button" onClick={add}>
-        {t("blocks.addImage")}
+        <Icon name="plus" size={14} /> {t("blocks.addImage")}
       </button>
     </div>
   );
@@ -453,7 +453,7 @@ function AddMenu({
         className={primary ? "pcms-addblock__btn pcms-primary" : "pcms-addblock__btn"}
         onClick={() => setOpen((v) => !v)}
       >
-        ＋ {label}
+        <Icon name="plus" size={14} /> {label}
       </button>
       {open && (
         <div className="pcms-addblock__menu">

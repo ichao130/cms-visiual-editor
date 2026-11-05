@@ -245,7 +245,9 @@ function FormBuilder({
             )}
           </div>
         ))}
-        <button className="pcms-addsection__btn" onClick={addField}>＋ {t("forms.addField")}</button>
+        <button className="pcms-addsection__btn" onClick={addField}>
+          <Icon name="plus" size={14} /> {t("forms.addField")}
+        </button>
       </div>
 
       <h2 className="pcms-col__title">{t("forms.settings")}</h2>

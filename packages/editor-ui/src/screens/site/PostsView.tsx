@@ -114,7 +114,7 @@ export function PostsView() {
           <h1 className="pcms-page__title">{t("site.tab.posts")}</h1>
           <div className="pcms-listhead__actions">
             <button className="pcms-primary" onClick={() => setNewOpen(true)}>
-              ＋ {t("content.new")}
+              <Icon name="plus" size={14} /> {t("content.new")}
             </button>
           </div>
         </div>

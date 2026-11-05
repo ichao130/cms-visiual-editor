@@ -215,7 +215,7 @@ export function ContentTypeManager({ types, onCommit }: ContentTypeManagerProps)
                 </fieldset>
               ))}
               <button type="button" className="pcms-types__addfield" onClick={addField}>
-                {t("types.addField")}
+                <Icon name="plus" size={14} /> {t("types.addField")}
               </button>
 
               {!BUILTIN.has(current.name) && (

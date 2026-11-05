@@ -149,7 +149,7 @@ export function MediaView() {
             </div>
           ))}
           <button type="button" className="pcms-folders__add" onClick={onNewFolder}>
-            ＋ {t("media.newFolder")}
+            <Icon name="plus" size={14} /> {t("media.newFolder")}
           </button>
         </nav>
 

@@ -3,6 +3,7 @@ import { useSiteWorkspace } from "../../state/SiteWorkspace.js";
 import { createContent, uniqueSlug } from "../../state/editorState.js";
 import { NewContentModal } from "../../components/NewContentModal.js";
 import { ContentEditorPanel } from "./ContentEditorPanel.js";
+import { Icon } from "../../components/Icon.js";
 import { t } from "../../i18n.js";
 
 const PAGE_TYPE = "page";
@@ -65,7 +66,7 @@ export function PagesView() {
               title={t("pages.addChild")}
               onClick={() => createPage(t("pages.newTitle"), "page", p.slug)}
             >
-              ＋子
+              <Icon name="plus" size={12} />子
             </button>
           </div>
           <Tree parent={p.slug} depth={depth + 1} />
@@ -81,7 +82,7 @@ export function PagesView() {
           <h1 className="pcms-page__title">{t("site.tab.pages")}</h1>
           <div className="pcms-listhead__actions">
             <button className="pcms-primary" onClick={() => setNewOpen(true)}>
-              ＋ {t("pages.new")}
+              <Icon name="plus" size={14} /> {t("pages.new")}
             </button>
           </div>
         </div>
