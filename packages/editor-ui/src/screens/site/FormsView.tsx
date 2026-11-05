@@ -78,7 +78,7 @@ export function FormsView({ api, siteId }: Props) {
           <h1 className="pcms-page__title">{t("site.tab.forms")}</h1>
           <div className="pcms-listhead__actions">
             <button className="pcms-primary" onClick={addForm}>
-              ＋ {t("forms.new")}
+              <Icon name="plus" size={14} /> {t("forms.new")}
             </button>
             <button onClick={save} disabled={!dirty}>
               {dirty ? t("common.save") : t("common.saved")}
