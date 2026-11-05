@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import type { PcmsApi, ThemeSummary } from "../../api/types.js";
 import type { Route } from "../../state/route.js";
 import { ThemeImport } from "../../components/ThemeImport.js";
+import { PreviewThumb } from "../../components/PreviewThumb.js";
+import { renderHomeThumbnail } from "../../preview/render.js";
 import { t } from "../../i18n.js";
 
 interface Props {
@@ -14,10 +16,20 @@ interface Props {
 export function ThemeView({ api, siteId, onNavigate }: Props) {
   const [themes, setThemes] = useState<ThemeSummary[]>([]);
   const [importing, setImporting] = useState(false);
+  // A live mini-render of the site's home, shown on the in-use theme's card.
+  const [currentThumb, setCurrentThumb] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
     void api.listThemes().then((ts) => active && setThemes(ts));
+    void Promise.all([api.loadProject(), api.listMedia()]).then(([project, media]) => {
+      if (!active) return;
+      try {
+        setCurrentThumb(renderHomeThumbnail(project, media));
+      } catch {
+        setCurrentThumb(null);
+      }
+    });
     return () => {
       active = false;
     };
@@ -43,6 +55,7 @@ export function ThemeView({ api, siteId, onNavigate }: Props) {
       <div className="pcms-cards">
         {themes.map((th) => (
           <div key={th.id} className={`pcms-themecard${th.current ? " is-current" : ""}`}>
+            <PreviewThumb html={th.current ? currentThumb : null} />
             <div className="pcms-themecard__name">
               {th.name}
               {th.current && <span className="pcms-badge is-live">{t("theme.current")}</span>}

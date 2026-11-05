@@ -1,53 +1,13 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import type { PcmsApi, SiteSummary } from "../api/types.js";
 import type { Route } from "../state/route.js";
 import { CreateCard } from "../components/CreateCard.js";
 import { CardRenameForm } from "../components/CardRenameForm.js";
+import { PreviewThumb } from "../components/PreviewThumb.js";
 import { renderHomeThumbnail } from "../preview/render.js";
 import { useToast } from "../state/ToastContext.js";
 import { useDialog } from "../state/useDialog.js";
 import { t } from "../i18n.js";
-
-/** Logical width the thumbnail iframe renders at before being scaled to fit. */
-const THUMB_BASE_WIDTH = 1200;
-
-/**
- * A scaled, inert mini-render of a site's home page. The iframe renders the
- * page at a fixed logical width and is scaled down to the card's width, so the
- * card shows a faithful preview rather than a placeholder.
- */
-function SitePreviewThumb({ html }: { html: string | null }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(THUMB_BASE_WIDTH ? 0.18 : 1);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const update = () => setScale(el.clientWidth / THUMB_BASE_WIDTH);
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
-  return (
-    <div className="pcms-card__preview" ref={ref} aria-hidden="true">
-      {html ? (
-        <iframe
-          className="pcms-card__previewframe"
-          srcDoc={html}
-          sandbox=""
-          scrolling="no"
-          tabIndex={-1}
-          title=""
-          style={{ transform: `scale(${scale})` }}
-        />
-      ) : (
-        <div className="pcms-card__previewempty" />
-      )}
-    </div>
-  );
-}
 
 interface Props {
   api: PcmsApi;
@@ -173,7 +133,7 @@ export function ProjectScreen({ api, projectId, onNavigate, onShellChange }: Pro
                   className="pcms-card pcms-card--site"
                   onClick={() => onNavigate({ screen: "site", siteId: s.id, tab: "info" })}
                 >
-                  <SitePreviewThumb html={thumbHtml} />
+                  <PreviewThumb html={thumbHtml} />
                   <span className="pcms-card__title">{s.name}</span>
                   <span className="pcms-card__meta">{s.domain}</span>
                   <span className={`pcms-badge ${s.published ? "is-live" : "is-draft"}`}>
