@@ -4,6 +4,7 @@ import type { Route } from "../state/route.js";
 import { CreateCard } from "../components/CreateCard.js";
 import { CardRenameForm } from "../components/CardRenameForm.js";
 import { PreviewThumb } from "../components/PreviewThumb.js";
+import { Icon } from "../components/Icon.js";
 import { renderHomeThumbnail } from "../preview/render.js";
 import { useToast } from "../state/ToastContext.js";
 import { useDialog } from "../state/useDialog.js";
@@ -92,7 +93,7 @@ export function ProjectScreen({ api, projectId, onNavigate, onShellChange }: Pro
               aria-label={t("common.menu")}
               onClick={() => setMenuOpen((o) => !o)}
             >
-              ⋯
+              <Icon name="more" size={18} />
             </button>
             {menuOpen && (
               <>
@@ -160,7 +161,7 @@ export function ProjectScreen({ api, projectId, onNavigate, onShellChange }: Pro
                     aria-label={t("common.delete")}
                     onClick={() => onDelete(s)}
                   >
-                    ✕
+                    <Icon name="x" size={14} />
                   </button>
                 </div>
               </div>
@@ -190,7 +191,7 @@ function ProjectSettingsModal({ onClose }: { onClose: () => void }) {
           <h2>{t("project.basicSettings")}</h2>
           <div className="pcms-modal__spacer" />
           <button type="button" onClick={onClose} aria-label={t("common.close")}>
-            ✕
+            <Icon name="x" size={16} />
           </button>
         </header>
         <p className="pcms-empty">{t("project.basicSettings.hint")}</p>

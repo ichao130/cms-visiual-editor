@@ -2,6 +2,7 @@ import type { PcmsApi } from "../api/types.js";
 import { PublishFlow } from "./PublishFlow.js";
 import { useDialog } from "../state/useDialog.js";
 import { t } from "../i18n.js";
+import { Icon } from "./Icon.js";
 
 interface PublishPanelProps {
   api: PcmsApi;
@@ -19,7 +20,7 @@ export function PublishPanel({ api, onClose }: PublishPanelProps) {
           <h2>{t("publish.title")}</h2>
           <div className="pcms-modal__spacer" />
           <button type="button" onClick={onClose} aria-label={t("media.close")}>
-            ✕
+            <Icon name="x" size={16} />
           </button>
         </header>
         <PublishFlow api={api} />

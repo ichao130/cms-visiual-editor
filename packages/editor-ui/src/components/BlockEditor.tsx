@@ -167,7 +167,7 @@ export function BlockEditor({ value, onChange }: BlockEditorProps) {
               aria-label={t("blocks.remove")}
               title={t("blocks.remove")}
             >
-              ✕
+              <Icon name="x" size={15} />
             </button>
           </div>
           <div className="pcms-block__body">

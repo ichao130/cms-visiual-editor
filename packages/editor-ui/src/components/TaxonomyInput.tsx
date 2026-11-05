@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { TaxonomyDef } from "@pcms/shared";
 import { t } from "../i18n.js";
+import { Icon } from "./Icon.js";
 
 interface TaxonomyInputProps {
   tax: TaxonomyDef;
@@ -62,7 +63,7 @@ export function TaxonomyInput({ tax, value, onChange }: TaxonomyInputProps) {
               <span key={term} className="pcms-tags__chip">
                 {term}
                 <button type="button" onClick={() => onChange(value.filter((v) => v !== term))}>
-                  ✕
+                  <Icon name="x" size={12} />
                 </button>
               </span>
             ))}

@@ -4,6 +4,7 @@ import type { AiIssue } from "@pcms/engine";
 import { useDialog } from "../state/useDialog.js";
 import { useToast } from "../state/ToastContext.js";
 import { t } from "../i18n.js";
+import { Icon } from "./Icon.js";
 
 interface ContentContext {
   title: string;
@@ -103,7 +104,7 @@ export function AiPanel({ api, content, onClose }: AiPanelProps) {
           <h2>{t("ai.title")}</h2>
           <div className="pcms-modal__spacer" />
           <button type="button" onClick={onClose} aria-label={t("media.close")}>
-            ✕
+            <Icon name="x" size={16} />
           </button>
         </header>
 

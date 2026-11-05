@@ -5,6 +5,7 @@ import { useSiteWorkspace } from "../../state/SiteWorkspace.js";
 import { CodeEditor } from "../../components/CodeEditor.js";
 import { PartPreview } from "../../components/PartPreview.js";
 import { t, type MessageKey } from "../../i18n.js";
+import { Icon } from "../../components/Icon.js";
 
 interface Props {
   api: PcmsApi;
@@ -338,7 +339,7 @@ export function CodeEditorView({ api }: Props) {
             {active && (
               <div className={`pcms-codeissues${issues.length ? " has-issues" : ""}`}>
                 {issues.length === 0 ? (
-                  <span className="pcms-codeissues__ok">✓ {t("code.validOk")}</span>
+                  <span className="pcms-codeissues__ok"><Icon name="check" size={14} /> {t("code.validOk")}</span>
                 ) : (
                   issues.map((iss, i) => (
                     <span key={i} className={`pcms-codeissues__item is-${iss.level}`}>

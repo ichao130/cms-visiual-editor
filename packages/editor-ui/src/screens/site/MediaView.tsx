@@ -3,6 +3,7 @@ import type { MediaItem } from "@pcms/shared";
 import { useMedia } from "../../media/MediaContext.js";
 import { AltField, mediaMeta, unusedMedia } from "../../components/MediaLibrary.js";
 import { t } from "../../i18n.js";
+import { Icon } from "../../components/Icon.js";
 
 /** The selected folder view: everything, the unfiled root, or one folder. */
 type FolderView = "all" | "root" | { name: string };
@@ -133,7 +134,7 @@ export function MediaView() {
                 className="pcms-folders__name"
                 onClick={() => setView({ name: f })}
               >
-                📁 {f}
+                <Icon name="folder" size={15} /> {f}
               </button>
               <span className="pcms-folders__count">{countIn(f)}</span>
               <button
@@ -143,7 +144,7 @@ export function MediaView() {
                 title={t("media.deleteFolder").replace("{name}", f)}
                 onClick={() => onDeleteFolder(f)}
               >
-                ✕
+                <Icon name="x" size={14} />
               </button>
             </div>
           ))}
@@ -180,7 +181,7 @@ export function MediaView() {
                     aria-label={t("media.delete")}
                     title={t("media.delete")}
                   >
-                    ✕
+                    <Icon name="x" size={14} />
                   </button>
                   <span className="pcms-media__name">{item.fileName}</span>
                   {mediaMeta(item) && <span className="pcms-media__meta">{mediaMeta(item)}</span>}

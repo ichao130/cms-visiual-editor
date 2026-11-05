@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { t } from "../i18n.js";
+import { Icon } from "./Icon.js";
 
 interface Props {
   /** A full HTML document (theme CSS + media already inlined). */
@@ -47,7 +48,7 @@ export function ContentPreviewModal({ html, title, onClose }: Props) {
           </h2>
           <div className="pcms-modal__spacer" />
           <button type="button" onClick={onClose} aria-label={t("media.close")}>
-            ✕
+            <Icon name="x" size={16} />
           </button>
         </header>
         <iframe ref={frame} className="pcms-previewmodal__frame" sandbox="" title={title} />

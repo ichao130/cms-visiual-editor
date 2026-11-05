@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
 import { t } from "../i18n.js";
+import { Icon } from "../components/Icon.js";
 
 type ToastKind = "info" | "error";
 
@@ -50,7 +51,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               onClick={() => remove(item.id)}
               aria-label={t("media.close")}
             >
-              ✕
+              <Icon name="x" size={14} />
             </button>
           </div>
         ))}

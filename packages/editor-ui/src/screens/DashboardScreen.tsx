@@ -6,6 +6,7 @@ import { CreateCard } from "../components/CreateCard.js";
 import { CardRenameForm } from "../components/CardRenameForm.js";
 import { useToast } from "../state/ToastContext.js";
 import { t, useLocale, setLocale } from "../i18n.js";
+import { Icon } from "../components/Icon.js";
 
 interface Props {
   api: PcmsApi;
@@ -100,7 +101,7 @@ export function DashboardScreen({ api, account, onNavigate, onShellChange }: Pro
                     aria-label={t("common.delete")}
                     onClick={() => onDelete(p)}
                   >
-                    ✕
+                    <Icon name="x" size={14} />
                   </button>
                 </div>
               </div>

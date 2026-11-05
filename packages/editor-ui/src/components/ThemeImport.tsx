@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { unzipSync } from "fflate";
+import { Icon } from "./Icon.js";
 import {
   importThemeHtml,
   suggestThemePart,
@@ -291,7 +292,7 @@ export function ThemeImport({ api, onClose }: Props) {
           <h2>{t("themeImport.title")}</h2>
           <div className="pcms-modal__spacer" />
           <button type="button" onClick={onClose} aria-label={t("media.close")}>
-            ✕
+            <Icon name="x" size={16} />
           </button>
         </header>
 

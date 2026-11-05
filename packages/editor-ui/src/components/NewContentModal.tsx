@@ -3,6 +3,7 @@ import type { ContentTypeDef } from "@pcms/shared";
 import { slugify } from "../state/editorState.js";
 import { useDialog } from "../state/useDialog.js";
 import { t } from "../i18n.js";
+import { Icon } from "./Icon.js";
 
 interface NewContentModalProps {
   types: ContentTypeDef[];
@@ -39,7 +40,7 @@ export function NewContentModal({ types, onCreate, onClose, resolveSlug }: NewCo
           <h2>{t("new.title")}</h2>
           <div className="pcms-modal__spacer" />
           <button type="button" onClick={onClose} aria-label={t("media.close")}>
-            ✕
+            <Icon name="x" size={16} />
           </button>
         </header>
 

@@ -381,7 +381,7 @@ function Inbox({ api, siteId, form }: { api: PcmsApi; siteId: string; form: Form
               <div className="pcms-inbox__detailhead">
                 <h3>{t("forms.detail")}</h3>
                 <button onClick={() => setSelectedId(null)} aria-label={t("media.close")}>
-                  ✕
+                  <Icon name="x" size={16} />
                 </button>
               </div>
               <dl className="pcms-inbox__fields">

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { MediaItem } from "@pcms/shared";
 import { useDialog } from "../state/useDialog.js";
 import { t } from "../i18n.js";
+import { Icon } from "./Icon.js";
 
 /** Editable default alt text for one media item; commits on blur. */
 export function AltField({ item, onCommit }: { item: MediaItem; onCommit: (alt: string) => void }) {
@@ -115,7 +116,7 @@ export function MediaLibrary({
             {importing ? t("media.importing") : t("media.import")}
           </button>
           <button type="button" onClick={onClose} aria-label={t("media.close")}>
-            ✕
+            <Icon name="x" size={14} />
           </button>
         </header>
 
@@ -153,7 +154,7 @@ export function MediaLibrary({
                         aria-label={t("media.delete")}
                         title={t("media.delete")}
                       >
-                        ✕
+                        <Icon name="x" size={14} />
                       </button>
                     )}
                     <span className="pcms-media__name">{item.fileName}</span>

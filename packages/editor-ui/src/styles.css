@@ -771,6 +771,8 @@ button.pcms-danger { color: var(--pcms-danger); border-color: var(--pcms-danger-
 .pcms-subnav__item:hover:not(.is-active) { background: var(--pcms-hover); }
 .pcms-subnav__item.is-active { background: var(--pcms-accent-weak); color: var(--pcms-accent); font-weight: 600; }
 .pcms-icon { flex: none; vertical-align: middle; }
+/* Centre the glyph in icon-only buttons (close ✕, menu ⋯, delete, etc.). */
+button:has(> .pcms-icon:only-child) { display: inline-flex; align-items: center; justify-content: center; }
 .pcms-subnav__icon { display: inline-flex; flex: none; color: var(--pcms-muted); }
 .pcms-subnav__item.is-active .pcms-subnav__icon, .pcms-subnav__item:hover .pcms-subnav__icon { color: inherit; }
 
