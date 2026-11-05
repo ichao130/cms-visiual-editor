@@ -160,6 +160,20 @@ export function ThemeEditor() {
     [commit, doc, pageId, sectionRows],
   );
 
+  const onReorderSection = useCallback(
+    (from: number, to: number) => {
+      if (from === to || from < 0 || to < 0 || from >= sectionRows.length || to >= sectionRows.length) {
+        return;
+      }
+      const ids = sectionRows.map((r) => r.id);
+      const [moved] = ids.splice(from, 1);
+      ids.splice(to, 0, moved as string);
+      commit({ ...doc, settings: setSectionOrder(doc.settings, pageId, ids) });
+      setDirty(true);
+    },
+    [commit, doc, pageId, sectionRows],
+  );
+
   const onRepeatChange = useCallback(
     (sectionId: string, name: string, rows: Row[]) => {
       commit(
@@ -640,6 +654,7 @@ export function ThemeEditor() {
                 onSelect={setSelectedId}
                 onToggleHidden={onToggleHidden}
                 onMove={onMove}
+                onReorder={onReorderSection}
               />
             )}
           </div>

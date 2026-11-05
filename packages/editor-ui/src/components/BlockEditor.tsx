@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { blocksToHtml, htmlToBlocks, type Block } from "@pcms/engine";
 import { useMedia } from "../media/MediaContext.js";
+import { useDragReorder, moveItem } from "../state/useDragReorder.js";
 import { t } from "../i18n.js";
 
 interface BlockEditorProps {
@@ -121,6 +122,7 @@ export function BlockEditor({ value, onChange }: BlockEditorProps) {
     next.splice(index, 0, { id: nextId(), block: newBlock(kind) });
     emit(next);
   };
+  const dnd = useDragReorder((from, to) => emit(moveItem(rows, from, to)));
 
   return (
     <div className="pcms-blocks">
@@ -129,8 +131,16 @@ export function BlockEditor({ value, onChange }: BlockEditorProps) {
         <p className="pcms-blocks__empty">{t("blocks.empty")}</p>
       )}
       {rows.map((row, i) => (
-        <div className="pcms-block" key={row.id}>
+        <div className="pcms-block" key={row.id} {...dnd.zoneProps(i)}>
           <div className="pcms-block__controls">
+            <span
+              className="pcms-draghandle"
+              aria-label={t("common.drag")}
+              title={t("common.drag")}
+              {...dnd.handleProps(i)}
+            >
+              ⠿
+            </span>
             <button
               type="button"
               onClick={() => move(row.id, -1)}

@@ -1,3 +1,4 @@
+import { useDragReorder } from "../state/useDragReorder.js";
 import { t } from "../i18n.js";
 
 export interface SectionRow {
@@ -12,6 +13,8 @@ interface SectionListProps {
   onSelect: (id: string) => void;
   onToggleHidden: (id: string) => void;
   onMove: (id: string, dir: -1 | 1) => void;
+  /** Reorder to an arbitrary position (drag-and-drop); indices into `sections`. */
+  onReorder: (from: number, to: number) => void;
 }
 
 export function SectionList({
@@ -20,7 +23,9 @@ export function SectionList({
   onSelect,
   onToggleHidden,
   onMove,
+  onReorder,
 }: SectionListProps) {
+  const dnd = useDragReorder(onReorder);
   return (
     <nav className="pcms-sections" aria-label={t("sections.title")}>
       <h2 className="pcms-col__title">{t("sections.title")}</h2>
@@ -31,7 +36,16 @@ export function SectionList({
             className={`pcms-section-row${s.id === selectedId ? " is-selected" : ""}${
               s.hidden ? " is-hidden" : ""
             }`}
+            {...dnd.zoneProps(i)}
           >
+            <span
+              className="pcms-draghandle"
+              aria-label={t("common.drag")}
+              title={t("common.drag")}
+              {...dnd.handleProps(i)}
+            >
+              ⠿
+            </span>
             <button
               type="button"
               className="pcms-section-row__label"

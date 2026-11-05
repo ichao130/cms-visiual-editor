@@ -534,6 +534,12 @@ button.pcms-danger { color: var(--pcms-danger); border-color: var(--pcms-danger-
 
 /* Menu manager */
 .pcms-menuitem { display: flex; gap: 0.4rem; align-items: center; margin-bottom: 0.5rem; }
+/* Drag-and-drop list reordering (shared across menus, sections, blocks, …). */
+.pcms-draghandle { flex: 0 0 auto; cursor: grab; user-select: none; color: var(--pcms-muted); padding: 0 0.15rem; line-height: 1; font-size: 1rem; touch-action: none; }
+.pcms-draghandle:hover { color: var(--pcms-text); }
+.pcms-draghandle:active { cursor: grabbing; }
+[data-dragging] { opacity: 0.45; }
+[data-dragover] { outline: 2px dashed var(--pcms-accent); outline-offset: 1px; border-radius: 6px; }
 .pcms-menuitem input { font: inherit; padding: 0.35rem 0.5rem; border: 1px solid var(--pcms-border); border-radius: 6px; }
 .pcms-menuitem__label { width: 38%; }
 .pcms-menuitem__url { flex: 1; min-width: 0; font-family: ui-monospace, monospace; }

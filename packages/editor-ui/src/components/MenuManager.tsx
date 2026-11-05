@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { MenuItem } from "@pcms/shared";
 import type { LinkTarget } from "../state/linkTargets.js";
+import { useDragReorder, moveItem } from "../state/useDragReorder.js";
 import { t } from "../i18n.js";
 
 interface MenuManagerProps {
@@ -30,6 +31,7 @@ export function MenuManager({ menus, onCommit, targets = [] }: MenuManagerProps)
     [next[idx], next[to]] = [next[to] as MenuItem, next[idx] as MenuItem];
     onCommit(selected, next);
   };
+  const dnd = useDragReorder((from, to) => onCommit(selected, moveItem(items, from, to)));
 
   return (
     <div className="pcms-structpage pcms-structpage--narrow">
@@ -50,7 +52,15 @@ export function MenuManager({ menus, onCommit, targets = [] }: MenuManagerProps)
         )}
 
         {items.map((it, i) => (
-          <div className="pcms-menuitem" key={i}>
+          <div className="pcms-menuitem" key={i} {...dnd.zoneProps(i)}>
+            <span
+              className="pcms-draghandle"
+              aria-label={t("common.drag")}
+              title={t("common.drag")}
+              {...dnd.handleProps(i)}
+            >
+              ⠿
+            </span>
             <input
               className="pcms-menuitem__label"
               value={it.label}
