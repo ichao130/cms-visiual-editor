@@ -558,8 +558,8 @@ button.pcms-danger { color: var(--pcms-danger); border-color: var(--pcms-danger-
 .pcms-rte__content .ProseMirror ul, .pcms-rte__content .ProseMirror ol { padding-left: 1.4rem; margin: 0 0 0.6rem; }
 
 /* Block editor (content body) */
-.pcms-blocks { border: 1px solid var(--pcms-border); border-radius: 8px; overflow: hidden; }
-.pcms-blocks__inline { position: sticky; top: 0; z-index: 2; display: flex; gap: 0.15rem; padding: 0.3rem; background: var(--pcms-hover); border-bottom: 1px solid var(--pcms-border); }
+.pcms-blocks { border: 1px solid var(--pcms-border); border-radius: 8px; }
+.pcms-blocks__inline { position: sticky; top: 0; z-index: 2; display: flex; gap: 0.15rem; padding: 0.3rem; background: var(--pcms-hover); border-bottom: 1px solid var(--pcms-border); border-radius: 7px 7px 0 0; }
 .pcms-blocks__inline button { padding: 0.2rem 0.5rem; font-size: 0.78rem; border: 1px solid transparent; background: transparent; border-radius: 5px; }
 .pcms-blocks__inline button:hover { background: var(--pcms-surface); border-color: var(--pcms-border); }
 .pcms-blocks__empty { margin: 0; padding: 1rem 0.8rem; color: var(--pcms-muted); font-size: 0.82rem; }
