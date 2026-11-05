@@ -19,6 +19,7 @@ import { ContentTypeManager } from "../components/ContentTypeManager.js";
 import { TaxonomyManager } from "../components/TaxonomyManager.js";
 import { MenuManager } from "../components/MenuManager.js";
 import { SiteSaveBar } from "../components/SiteSaveBar.js";
+import { Icon, type IconName } from "../components/Icon.js";
 import { t, type MessageKey } from "../i18n.js";
 
 /** Tabs that edit the shared workspace document and share the save bar. */
@@ -41,6 +42,21 @@ interface NavItem {
   id: SiteTab;
   label: MessageKey;
 }
+
+const TAB_ICON: Record<SiteTab, IconName> = {
+  info: "info",
+  posts: "posts",
+  pages: "pages",
+  media: "media",
+  types: "types",
+  taxonomies: "taxonomies",
+  menus: "menus",
+  forms: "forms",
+  redirects: "redirects",
+  publish: "publish",
+  theme: "theme",
+  settings: "settings",
+};
 
 interface NavGroup {
   heading?: MessageKey;
@@ -148,6 +164,9 @@ export function SiteScreen({ api, route, onNavigate }: Props) {
                   className={`pcms-subnav__item${tab === item.id ? " is-active" : ""}`}
                   onClick={() => onNavigate({ screen: "site", siteId, tab: item.id })}
                 >
+                  <span className="pcms-subnav__icon">
+                    <Icon name={TAB_ICON[item.id]} size={17} />
+                  </span>
                   {t(item.label)}
                 </button>
               ))}

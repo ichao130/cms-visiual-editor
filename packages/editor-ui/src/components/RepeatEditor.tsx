@@ -2,6 +2,7 @@ import type { FieldValue, RepeatSchema } from "@pcms/shared";
 import { FieldInput } from "./FieldInput.js";
 import { useDragReorder, moveItem } from "../state/useDragReorder.js";
 import { t } from "../i18n.js";
+import { Icon } from "./Icon.js";
 
 type Row = Record<string, FieldValue>;
 
@@ -38,7 +39,7 @@ export function RepeatEditor({ repeat, rows, onChange }: RepeatEditorProps) {
               title={t("common.drag")}
               {...dnd.handleProps(i)}
             >
-              ⠿
+              <Icon name="grip" size={15} />
             </span>
             {t("repeat.item")} {i + 1}
           </legend>
@@ -54,7 +55,7 @@ export function RepeatEditor({ repeat, rows, onChange }: RepeatEditorProps) {
           ))}
           <div className="pcms-repeat__actions">
             <button type="button" onClick={() => move(i, -1)} disabled={i === 0} title={t("sections.up")}>
-              ↑
+              <Icon name="chevron-up" size={15} />
             </button>
             <button
               type="button"
@@ -62,7 +63,7 @@ export function RepeatEditor({ repeat, rows, onChange }: RepeatEditorProps) {
               disabled={i === rows.length - 1}
               title={t("sections.down")}
             >
-              ↓
+              <Icon name="chevron-down" size={15} />
             </button>
             <button type="button" className="pcms-repeat__remove" onClick={() => remove(i)}>
               {t("repeat.remove")}

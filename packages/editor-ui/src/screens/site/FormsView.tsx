@@ -4,6 +4,7 @@ import { buildFormEmbed } from "@pcms/engine";
 import type { PcmsApi } from "../../api/types.js";
 import { useDragReorder, moveItem } from "../../state/useDragReorder.js";
 import { t, type MessageKey } from "../../i18n.js";
+import { Icon } from "../../components/Icon.js";
 
 interface Props {
   api: PcmsApi;
@@ -199,7 +200,7 @@ function FormBuilder({
                 title={t("common.drag")}
                 {...dnd.handleProps(i)}
               >
-                ⠿
+                <Icon name="grip" size={15} />
               </span>
               <input
                 className="pcms-formfield__label"
@@ -222,8 +223,12 @@ function FormBuilder({
                 />
                 {t("forms.required")}
               </label>
-              <button onClick={() => moveField(i, -1)} title={t("sections.up")}>↑</button>
-              <button onClick={() => moveField(i, 1)} title={t("sections.down")}>↓</button>
+              <button onClick={() => moveField(i, -1)} title={t("sections.up")}>
+                <Icon name="chevron-up" size={15} />
+              </button>
+              <button onClick={() => moveField(i, 1)} title={t("sections.down")}>
+                <Icon name="chevron-down" size={15} />
+              </button>
               <button className="pcms-formfield__del" onClick={() => removeField(i)}>{t("forms.removeField")}</button>
             </div>
             {f.type === "select" && (

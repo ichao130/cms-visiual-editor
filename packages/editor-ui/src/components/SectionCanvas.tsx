@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { t } from "../i18n.js";
+import { Icon } from "./Icon.js";
 
 export interface InstanceRow {
   id: string;
@@ -59,7 +60,7 @@ export function SectionCanvas({
             }${dragIndex === i ? " is-dragging" : ""}`}
           >
             <span className="pcms-drag" title={t("sections.drag")} aria-hidden="true">
-              ⠿
+              <Icon name="grip" size={15} />
             </span>
             <button
               type="button"
@@ -70,7 +71,7 @@ export function SectionCanvas({
             </button>
             <div className="pcms-section-row__actions">
               <button type="button" title={t("sections.up")} onClick={() => onMove(i, i - 1)} disabled={i === 0}>
-                ↑
+                <Icon name="chevron-up" size={15} />
               </button>
               <button
                 type="button"
@@ -78,7 +79,7 @@ export function SectionCanvas({
                 onClick={() => onMove(i, i + 1)}
                 disabled={i === instances.length - 1}
               >
-                ↓
+                <Icon name="chevron-down" size={15} />
               </button>
               <button type="button" className="pcms-toggle" onClick={() => onToggleHidden(s.id)}>
                 {s.hidden ? t("sections.show") : t("sections.hide")}

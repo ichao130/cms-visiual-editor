@@ -296,8 +296,9 @@ button.pcms-aibtn:hover:not(:disabled) { filter: brightness(1.08); background: v
 }
 .pcms-section-row__actions { display: flex; gap: 0.15rem; }
 .pcms-section-row__actions button { padding: 0.2rem 0.4rem; font-size: 0.75rem; }
+.pcms-section-row__actions button:has(.pcms-icon) { display: inline-flex; align-items: center; justify-content: center; }
 .pcms-section-row.is-dragging { opacity: 0.5; }
-.pcms-drag { cursor: grab; color: var(--pcms-muted); font-size: 0.9rem; user-select: none; padding: 0 0.1rem; }
+.pcms-drag { display: inline-flex; align-items: center; cursor: grab; color: var(--pcms-muted); user-select: none; padding: 0 0.1rem; }
 
 .pcms-sectionpalette { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .pcms-sectionpalette button { padding: 0.5rem 1rem; }
@@ -553,7 +554,7 @@ button.pcms-danger { color: var(--pcms-danger); border-color: var(--pcms-danger-
 /* Menu manager */
 .pcms-menuitem { display: flex; gap: 0.4rem; align-items: center; margin-bottom: 0.5rem; }
 /* Drag-and-drop list reordering (shared across menus, sections, blocks, …). */
-.pcms-draghandle { flex: 0 0 auto; cursor: grab; user-select: none; color: var(--pcms-muted); padding: 0 0.15rem; line-height: 1; font-size: 1rem; touch-action: none; }
+.pcms-draghandle { display: inline-flex; align-items: center; flex: 0 0 auto; cursor: grab; user-select: none; color: var(--pcms-muted); padding: 0 0.15rem; line-height: 1; touch-action: none; }
 .pcms-draghandle:hover { color: var(--pcms-text); }
 .pcms-draghandle:active { cursor: grabbing; }
 [data-dragging] { opacity: 0.45; }
@@ -766,9 +767,12 @@ button.pcms-danger { color: var(--pcms-danger); border-color: var(--pcms-danger-
 /* Site layout */
 .pcms-sitelayout { flex: 1; min-height: 0; display: flex; }
 .pcms-subnav { width: 180px; flex: none; border-right: 1px solid var(--pcms-border); background: var(--pcms-panel); padding: 0.75rem; display: flex; flex-direction: column; gap: 0.2rem; }
-.pcms-subnav__item { text-align: left; border: none; background: none; padding: 0.5rem 0.6rem; border-radius: 6px; }
+.pcms-subnav__item { display: flex; align-items: center; gap: 0.55rem; text-align: left; border: none; background: none; padding: 0.5rem 0.6rem; border-radius: 6px; }
 .pcms-subnav__item:hover:not(.is-active) { background: var(--pcms-hover); }
 .pcms-subnav__item.is-active { background: var(--pcms-accent-weak); color: var(--pcms-accent); font-weight: 600; }
+.pcms-icon { flex: none; vertical-align: middle; }
+.pcms-subnav__icon { display: inline-flex; flex: none; color: var(--pcms-muted); }
+.pcms-subnav__item.is-active .pcms-subnav__icon, .pcms-subnav__item:hover .pcms-subnav__icon { color: inherit; }
 
 /* Link-style buttons keep no hover fill (they read as links, not controls) */
 .pcms-crumbs__link:hover:not(:disabled), .pcms-tabbar__back:hover:not(:disabled),
@@ -819,7 +823,7 @@ button.pcms-danger { color: var(--pcms-danger); border-color: var(--pcms-danger-
 .pcms-itemlist__row.is-selected { background: var(--pcms-accent-weak); }
 .pcms-itemlist__slug { color: var(--pcms-muted); font-size: 0.8rem; }
 .pcms-itemlist__move { flex: none; display: flex; flex-direction: column; gap: 1px; }
-.pcms-itemlist__move button { border: 1px solid var(--pcms-border); background: var(--pcms-control); border-radius: 4px; width: 1.4rem; height: 0.95rem; line-height: 1; font-size: 0.6rem; color: var(--pcms-muted); cursor: pointer; padding: 0; }
+.pcms-itemlist__move button { display: flex; align-items: center; justify-content: center; border: 1px solid var(--pcms-border); background: var(--pcms-control); border-radius: 4px; width: 1.5rem; height: 1.05rem; line-height: 1; color: var(--pcms-muted); cursor: pointer; padding: 0; }
 .pcms-itemlist__move button:hover:not(:disabled) { background: var(--pcms-hover); color: inherit; }
 .pcms-itemlist__move button:disabled { opacity: 0.35; cursor: default; }
 

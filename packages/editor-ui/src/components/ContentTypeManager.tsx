@@ -3,6 +3,7 @@ import type { ContentTypeDef, FieldDef, FieldType } from "@pcms/shared";
 import { slugify } from "../state/editorState.js";
 import { useDragReorder, moveItem } from "../state/useDragReorder.js";
 import { t } from "../i18n.js";
+import { Icon } from "./Icon.js";
 
 interface ContentTypeManagerProps {
   types: ContentTypeDef[];
@@ -141,7 +142,7 @@ export function ContentTypeManager({ types, onCommit }: ContentTypeManagerProps)
                       title={t("common.drag")}
                       {...dnd.handleProps(i)}
                     >
-                      ⠿
+                      <Icon name="grip" size={15} />
                     </span>
                     <input
                       className="pcms-fielddef__name"
@@ -192,14 +193,14 @@ export function ContentTypeManager({ types, onCommit }: ContentTypeManagerProps)
                     )}
                     <div className="pcms-fielddef__actions">
                       <button type="button" onClick={() => moveField(i, -1)} disabled={i === 0}>
-                        ↑
+                        <Icon name="chevron-up" size={15} />
                       </button>
                       <button
                         type="button"
                         onClick={() => moveField(i, 1)}
                         disabled={i === current.fields.length - 1}
                       >
-                        ↓
+                        <Icon name="chevron-down" size={15} />
                       </button>
                       <button
                         type="button"

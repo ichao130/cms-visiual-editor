@@ -3,6 +3,7 @@ import type { MenuItem } from "@pcms/shared";
 import type { LinkTarget } from "../state/linkTargets.js";
 import { useDragReorder, moveItem } from "../state/useDragReorder.js";
 import { t } from "../i18n.js";
+import { Icon } from "./Icon.js";
 
 interface MenuManagerProps {
   menus: Record<string, MenuItem[]>;
@@ -59,7 +60,7 @@ export function MenuManager({ menus, onCommit, targets = [] }: MenuManagerProps)
               title={t("common.drag")}
               {...dnd.handleProps(i)}
             >
-              ⠿
+              <Icon name="grip" size={15} />
             </span>
             <input
               className="pcms-menuitem__label"
@@ -99,10 +100,10 @@ export function MenuManager({ menus, onCommit, targets = [] }: MenuManagerProps)
             )}
             <div className="pcms-menuitem__actions">
               <button type="button" onClick={() => move(i, -1)} disabled={i === 0}>
-                ↑
+                <Icon name="chevron-up" size={15} />
               </button>
               <button type="button" onClick={() => move(i, 1)} disabled={i === items.length - 1}>
-                ↓
+                <Icon name="chevron-down" size={15} />
               </button>
               <button type="button" className="pcms-danger" onClick={() => remove(i)}>
                 {t("repeat.remove")}

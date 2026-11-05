@@ -17,6 +17,7 @@ import { useDragReorder } from "../../state/useDragReorder.js";
 import { useToast } from "../../state/ToastContext.js";
 import { t } from "../../i18n.js";
 import { isScheduled } from "@pcms/engine";
+import { Icon } from "../../components/Icon.js";
 
 /** Posts (and custom post types). Pages live in their own view. */
 export function PostsView() {
@@ -268,7 +269,7 @@ function PostTypeGroup({
                   title={t("common.drag")}
                   {...dnd.handleProps(idx)}
                 >
-                  ⠿
+                  <Icon name="grip" size={15} />
                 </span>
               )}
               <input
@@ -305,7 +306,7 @@ function PostTypeGroup({
                     aria-label={t("content.moveUp")}
                     title={t("content.moveUp")}
                   >
-                    ▲
+                    <Icon name="chevron-up" size={15} />
                   </button>
                   <button
                     type="button"
@@ -314,7 +315,7 @@ function PostTypeGroup({
                     aria-label={t("content.moveDown")}
                     title={t("content.moveDown")}
                   >
-                    ▼
+                    <Icon name="chevron-down" size={15} />
                   </button>
                 </span>
               )}

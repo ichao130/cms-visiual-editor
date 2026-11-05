@@ -1,5 +1,6 @@
 import { useDragReorder } from "../state/useDragReorder.js";
 import { t } from "../i18n.js";
+import { Icon } from "./Icon.js";
 
 export interface SectionRow {
   id: string;
@@ -44,7 +45,7 @@ export function SectionList({
               title={t("common.drag")}
               {...dnd.handleProps(i)}
             >
-              ⠿
+              <Icon name="grip" size={15} />
             </span>
             <button
               type="button"
@@ -60,7 +61,7 @@ export function SectionList({
                 onClick={() => onMove(s.id, -1)}
                 disabled={i === 0}
               >
-                ↑
+                <Icon name="chevron-up" size={15} />
               </button>
               <button
                 type="button"
@@ -68,7 +69,7 @@ export function SectionList({
                 onClick={() => onMove(s.id, 1)}
                 disabled={i === sections.length - 1}
               >
-                ↓
+                <Icon name="chevron-down" size={15} />
               </button>
               <button
                 type="button"

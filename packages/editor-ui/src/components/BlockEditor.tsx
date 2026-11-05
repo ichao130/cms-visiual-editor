@@ -3,6 +3,7 @@ import { blocksToHtml, htmlToBlocks, type Block } from "@pcms/engine";
 import { useMedia } from "../media/MediaContext.js";
 import { useDragReorder, moveItem } from "../state/useDragReorder.js";
 import { t } from "../i18n.js";
+import { Icon } from "./Icon.js";
 
 interface BlockEditorProps {
   value: string;
@@ -139,7 +140,7 @@ export function BlockEditor({ value, onChange }: BlockEditorProps) {
               title={t("common.drag")}
               {...dnd.handleProps(i)}
             >
-              ⠿
+              <Icon name="grip" size={15} />
             </span>
             <button
               type="button"
@@ -148,7 +149,7 @@ export function BlockEditor({ value, onChange }: BlockEditorProps) {
               aria-label={t("blocks.up")}
               title={t("blocks.up")}
             >
-              ▲
+              <Icon name="chevron-up" size={15} />
             </button>
             <button
               type="button"
@@ -157,7 +158,7 @@ export function BlockEditor({ value, onChange }: BlockEditorProps) {
               aria-label={t("blocks.down")}
               title={t("blocks.down")}
             >
-              ▼
+              <Icon name="chevron-down" size={15} />
             </button>
             <button
               type="button"
