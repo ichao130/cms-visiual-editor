@@ -8,7 +8,7 @@ import { DashboardScreen } from "../screens/DashboardScreen.js";
 import { ProjectScreen } from "../screens/ProjectScreen.js";
 import { SiteScreen } from "../screens/SiteScreen.js";
 import { ThemeEditorScreen } from "../screens/ThemeEditorScreen.js";
-import { t, useLocale, setLocale } from "../i18n.js";
+import { t, useLocale } from "../i18n.js";
 import kumitoMark from "../assets/kumito-mark.png";
 
 interface AppProps {
@@ -136,20 +136,6 @@ export function App({ api }: AppProps) {
           onNavigate={navigate}
         />
         <div className="pcms-topbar__spacer" />
-        <div className="pcms-langtoggle" role="group" aria-label="language">
-          <button
-            className={locale === "ja" ? "is-active" : ""}
-            onClick={() => setLocale("ja")}
-          >
-            JA
-          </button>
-          <button
-            className={locale === "en" ? "is-active" : ""}
-            onClick={() => setLocale("en")}
-          >
-            EN
-          </button>
-        </div>
         {account && (
           <button
             className="pcms-topbar__account"

@@ -647,9 +647,33 @@ button.pcms-danger { color: var(--pcms-danger); border-color: var(--pcms-danger-
 
 /* Dashboard / Project pages */
 .pcms-page { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 320px; }
+/* Pages with no right-hand panel (e.g. the site list — settings moved to a ⋯ menu). */
+.pcms-page--single { grid-template-columns: 1fr; }
 .pcms-page__main { overflow-y: auto; padding: 1.5rem; }
 .pcms-page__side { overflow-y: auto; padding: 1.5rem; border-left: 1px solid var(--pcms-border); background: var(--pcms-panel); }
 .pcms-page__title { font-size: 1.2rem; margin: 0 0 1rem; }
+
+/* Title row with a trailing ⋯ menu (project-level settings). */
+.pcms-page__titlerow { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; }
+.pcms-page__titlerow .pcms-page__title { margin: 0; }
+.pcms-kebabwrap { position: relative; }
+.pcms-kebab {
+  width: 2rem; height: 2rem; display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--pcms-border); border-radius: 7px; background: var(--pcms-panel);
+  color: var(--pcms-muted); font-size: 1.1rem; line-height: 1; cursor: pointer;
+}
+.pcms-kebab:hover, .pcms-kebab[aria-expanded="true"] { color: var(--pcms-text); border-color: var(--pcms-accent-border); }
+.pcms-dropdown__scrim { position: fixed; inset: 0; z-index: 40; border: none; background: transparent; cursor: default; }
+.pcms-dropdown {
+  position: absolute; top: calc(100% + 4px); left: 0; z-index: 41; min-width: 160px;
+  padding: 4px; background: var(--pcms-panel); border: 1px solid var(--pcms-border);
+  border-radius: 9px; box-shadow: var(--pcms-shadow-md);
+}
+.pcms-dropdown button {
+  display: block; width: 100%; text-align: left; padding: 0.4rem 0.6rem; font: inherit;
+  border: none; background: none; border-radius: 6px; color: var(--pcms-text); cursor: pointer;
+}
+.pcms-dropdown button:hover { background: var(--pcms-accent-weak); color: var(--pcms-accent); }
 
 .pcms-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; }
 .pcms-card { display: flex; flex-direction: column; align-items: flex-start; gap: 0.35rem; text-align: left; padding: 1rem; border: 1px solid var(--pcms-border); border-radius: var(--pcms-radius-lg); background: var(--pcms-panel); box-shadow: var(--pcms-shadow-sm); transition: border-color 0.12s, box-shadow 0.12s, transform 0.12s; }

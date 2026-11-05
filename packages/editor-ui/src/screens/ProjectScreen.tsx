@@ -5,6 +5,7 @@ import { CreateCard } from "../components/CreateCard.js";
 import { CardRenameForm } from "../components/CardRenameForm.js";
 import { renderHomeThumbnail } from "../preview/render.js";
 import { useToast } from "../state/ToastContext.js";
+import { useDialog } from "../state/useDialog.js";
 import { t } from "../i18n.js";
 
 /** Logical width the thumbnail iframe renders at before being scaled to fit. */
@@ -61,6 +62,9 @@ export function ProjectScreen({ api, projectId, onNavigate, onShellChange }: Pro
   const [sites, setSites] = useState<SiteSummary[]>([]);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [thumbHtml, setThumbHtml] = useState<string | null>(null);
+  // Project-level menu (⋯ beside the title) and the basic-settings dialog it opens.
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const toast = useToast();
 
   useEffect(() => {
@@ -115,9 +119,44 @@ export function ProjectScreen({ api, projectId, onNavigate, onShellChange }: Pro
   };
 
   return (
-    <div className="pcms-page">
+    <div className="pcms-page pcms-page--single">
       <div className="pcms-page__main">
-        <h1 className="pcms-page__title">{t("project.sites")}</h1>
+        <div className="pcms-page__titlerow">
+          <h1 className="pcms-page__title">{t("project.sites")}</h1>
+          <div className="pcms-kebabwrap">
+            <button
+              type="button"
+              className="pcms-kebab"
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              aria-label={t("common.menu")}
+              onClick={() => setMenuOpen((o) => !o)}
+            >
+              ⋯
+            </button>
+            {menuOpen && (
+              <>
+                <div
+                  className="pcms-dropdown__scrim"
+                  aria-hidden="true"
+                  onClick={() => setMenuOpen(false)}
+                />
+                <div className="pcms-dropdown" role="menu">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setSettingsOpen(true);
+                    }}
+                  >
+                    {t("common.settings")}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
         <div className="pcms-cards">
           {sites.map((s) =>
             renaming === s.id ? (
@@ -175,10 +214,27 @@ export function ProjectScreen({ api, projectId, onNavigate, onShellChange }: Pro
         </div>
       </div>
 
-      <aside className="pcms-page__side">
-        <h2 className="pcms-col__title">{t("project.basicSettings")}</h2>
+      {settingsOpen && <ProjectSettingsModal onClose={() => setSettingsOpen(false)} />}
+    </div>
+  );
+}
+
+/** Project-wide basic settings, opened from the ⋯ menu beside the title. */
+function ProjectSettingsModal({ onClose }: { onClose: () => void }) {
+  const ref = useDialog<HTMLDivElement>(onClose);
+  return (
+    <div className="pcms-modal" role="dialog" aria-modal="true" aria-label={t("project.basicSettings")}>
+      <div className="pcms-modal__backdrop" onClick={onClose} />
+      <div className="pcms-modal__panel pcms-modal__panel--narrow" ref={ref} tabIndex={-1}>
+        <header className="pcms-modal__head">
+          <h2>{t("project.basicSettings")}</h2>
+          <div className="pcms-modal__spacer" />
+          <button type="button" onClick={onClose} aria-label={t("common.close")}>
+            ✕
+          </button>
+        </header>
         <p className="pcms-empty">{t("project.basicSettings.hint")}</p>
-      </aside>
+      </div>
     </div>
   );
 }

@@ -5,7 +5,7 @@ import type { Route } from "../state/route.js";
 import { CreateCard } from "../components/CreateCard.js";
 import { CardRenameForm } from "../components/CardRenameForm.js";
 import { useToast } from "../state/ToastContext.js";
-import { t } from "../i18n.js";
+import { t, useLocale, setLocale } from "../i18n.js";
 
 interface Props {
   api: PcmsApi;
@@ -20,6 +20,7 @@ export function DashboardScreen({ api, account, onNavigate, onShellChange }: Pro
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [cloud, setCloud] = useState<CloudStatus | null>(null);
+  const locale = useLocale();
   const toast = useToast();
 
   useEffect(() => {
@@ -141,6 +142,23 @@ export function DashboardScreen({ api, account, onNavigate, onShellChange }: Pro
               <span className="pcms-account__aitext">
                 {account.ai.used} / {account.ai.limit}
               </span>
+            </div>
+            <div className="pcms-account__row">
+              <span className="pcms-account__label">{t("settings.language")}</span>
+              <div className="pcms-langtoggle" role="group" aria-label={t("settings.language")}>
+                <button
+                  className={locale === "ja" ? "is-active" : ""}
+                  onClick={() => setLocale("ja")}
+                >
+                  JA
+                </button>
+                <button
+                  className={locale === "en" ? "is-active" : ""}
+                  onClick={() => setLocale("en")}
+                >
+                  EN
+                </button>
+              </div>
             </div>
           </div>
         ) : (
