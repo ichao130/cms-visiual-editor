@@ -34,10 +34,16 @@ const api: PcmsApi = {
   deleteContent: (type: string, slug: string) =>
     ipcRenderer.invoke("pcms:deleteContent", type, slug),
   listMedia: () => ipcRenderer.invoke("pcms:listMedia"),
-  saveMedia: (files: MediaUpload[]) => ipcRenderer.invoke("pcms:saveMedia", files),
+  saveMedia: (files: MediaUpload[], folder?: string) =>
+    ipcRenderer.invoke("pcms:saveMedia", files, folder),
   deleteMedia: (path: string) => ipcRenderer.invoke("pcms:deleteMedia", path),
   setMediaAlt: (path: string, alt: string) =>
     ipcRenderer.invoke("pcms:setMediaAlt", path, alt),
+  setMediaFolder: (path: string, folder: string) =>
+    ipcRenderer.invoke("pcms:setMediaFolder", path, folder),
+  listMediaFolders: () => ipcRenderer.invoke("pcms:listMediaFolders"),
+  createMediaFolder: (name: string) => ipcRenderer.invoke("pcms:createMediaFolder", name),
+  deleteMediaFolder: (name: string) => ipcRenderer.invoke("pcms:deleteMediaFolder", name),
   getDeployConfig: () => ipcRenderer.invoke("pcms:getDeployConfig"),
   setDeployConfig: (config: DeployConfigInput) =>
     ipcRenderer.invoke("pcms:setDeployConfig", config),

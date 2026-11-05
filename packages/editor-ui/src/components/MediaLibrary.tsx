@@ -4,7 +4,7 @@ import { useDialog } from "../state/useDialog.js";
 import { t } from "../i18n.js";
 
 /** Editable default alt text for one media item; commits on blur. */
-function AltField({ item, onCommit }: { item: MediaItem; onCommit: (alt: string) => void }) {
+export function AltField({ item, onCommit }: { item: MediaItem; onCommit: (alt: string) => void }) {
   const [alt, setAlt] = useState(item.alt ?? "");
   // Keep in sync when the underlying record changes (e.g. after a save round-trip).
   useEffect(() => setAlt(item.alt ?? ""), [item.alt]);

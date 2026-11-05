@@ -33,6 +33,10 @@ import {
   saveMedia,
   deleteMedia,
   setMediaAlt,
+  setMediaFolder,
+  listMediaFolders,
+  createMediaFolder,
+  deleteMediaFolder,
   loadRedirects,
   saveRedirects,
   createBackup,
@@ -166,12 +170,22 @@ function registerIpc(): void {
     deleteContent(type, slug),
   );
   ipcMain.handle("pcms:listMedia", () => listMedia());
-  ipcMain.handle("pcms:saveMedia", (_event, files: MediaUpload[]) =>
-    saveMedia(files),
+  ipcMain.handle("pcms:saveMedia", (_event, files: MediaUpload[], folder?: string) =>
+    saveMedia(files, folder),
   );
   ipcMain.handle("pcms:deleteMedia", (_event, path: string) => deleteMedia(path));
   ipcMain.handle("pcms:setMediaAlt", (_event, path: string, alt: string) =>
     setMediaAlt(path, alt),
+  );
+  ipcMain.handle("pcms:setMediaFolder", (_event, path: string, folder: string) =>
+    setMediaFolder(path, folder),
+  );
+  ipcMain.handle("pcms:listMediaFolders", () => listMediaFolders());
+  ipcMain.handle("pcms:createMediaFolder", (_event, name: string) =>
+    createMediaFolder(name),
+  );
+  ipcMain.handle("pcms:deleteMediaFolder", (_event, name: string) =>
+    deleteMediaFolder(name),
   );
 
   ipcMain.handle("pcms:getDeployConfig", () => getDeployConfig());

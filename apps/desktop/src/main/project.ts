@@ -438,26 +438,84 @@ function readAltMap(): Record<string, string> {
   }
 }
 
+/**
+ * Sidecar holding media folder organization: the folders the operator created
+ * (including empty ones) and each file's folder. Folders are grouping metadata
+ * only — file names and output paths stay flat, so moving never breaks a URL.
+ */
+interface FolderSidecar {
+  folders: string[];
+  items: Record<string, string>;
+}
+
+function folderSidecar(): string {
+  return join(mediaDir(), ".folders.json");
+}
+
+function readFolderMap(): FolderSidecar {
+  const file = folderSidecar();
+  const empty: FolderSidecar = { folders: [], items: {} };
+  if (!existsSync(file)) return empty;
+  try {
+    const parsed = JSON.parse(readFileSync(file, "utf8")) as Partial<FolderSidecar>;
+    return {
+      folders: Array.isArray(parsed.folders) ? parsed.folders : [],
+      items:
+        parsed.items && typeof parsed.items === "object"
+          ? (parsed.items as Record<string, string>)
+          : {},
+    };
+  } catch {
+    return empty;
+  }
+}
+
+function writeFolderMap(map: FolderSidecar): void {
+  const folders = [...new Set(map.folders)].sort();
+  const items: Record<string, string> = {};
+  for (const [name, folder] of Object.entries(map.items)) {
+    if (folder) items[name] = folder;
+  }
+  writeFileSync(folderSidecar(), JSON.stringify({ folders, items }, null, 2));
+}
+
+/** All folders: ones the operator created plus ones in use by items. */
+function allFolders(map: FolderSidecar): string[] {
+  const set = new Set(map.folders);
+  for (const folder of Object.values(map.items)) if (folder) set.add(folder);
+  return [...set].sort();
+}
+
 export function listMedia(): MediaItem[] {
   const dir = mediaDir();
   const alts = readAltMap();
+  const folders = readFolderMap().items;
   const items: MediaItem[] = [];
   for (const file of readdirSync(dir)) {
     if (file.startsWith(".")) continue;
-    const item = mediaItemFromBytes(file, readFileSync(join(dir, file)));
+    let item = mediaItemFromBytes(file, readFileSync(join(dir, file)));
     const alt = alts[file];
-    items.push(alt != null && alt !== "" ? { ...item, alt } : item);
+    if (alt != null && alt !== "") item = { ...item, alt };
+    const folder = folders[file];
+    if (folder) item = { ...item, folder };
+    items.push(item);
   }
   return items;
 }
 
-export function saveMedia(files: MediaUpload[]): MediaItem[] {
+export function saveMedia(files: MediaUpload[], folder?: string): MediaItem[] {
   const dir = mediaDir();
+  const trimmed = folder?.trim() ?? "";
+  if (trimmed !== "") {
+    const map = readFolderMap();
+    for (const f of files) map.items[f.fileName] = trimmed;
+    writeFolderMap(map);
+  }
   return files.map((f) => {
     const bytes = f.bytes instanceof Uint8Array ? f.bytes : new Uint8Array(f.bytes);
     writeFileSync(join(dir, f.fileName), bytes);
     const item = mediaItemFromBytes(f.fileName, bytes);
-    return { ...item, width: f.width, height: f.height };
+    return { ...item, width: f.width, height: f.height, ...(trimmed ? { folder: trimmed } : {}) };
   });
 }
 
@@ -471,6 +529,11 @@ export function deleteMedia(path: string): void {
     delete alts[name];
     writeFileSync(altSidecar(), JSON.stringify(alts, null, 2));
   }
+  const map = readFolderMap();
+  if (name in map.items) {
+    delete map.items[name];
+    writeFolderMap(map);
+  }
 }
 
 export function setMediaAlt(path: string, alt: string): void {
@@ -479,6 +542,36 @@ export function setMediaAlt(path: string, alt: string): void {
   if (alt === "") delete alts[name];
   else alts[name] = alt;
   writeFileSync(altSidecar(), JSON.stringify(alts, null, 2));
+}
+
+export function setMediaFolder(path: string, folder: string): void {
+  const name = basename(path);
+  const map = readFolderMap();
+  const trimmed = folder.trim();
+  if (trimmed === "") delete map.items[name];
+  else map.items[name] = trimmed;
+  writeFolderMap(map);
+}
+
+export function listMediaFolders(): string[] {
+  return allFolders(readFolderMap());
+}
+
+export function createMediaFolder(name: string): void {
+  const trimmed = name.trim();
+  if (trimmed === "") return;
+  const map = readFolderMap();
+  map.folders.push(trimmed);
+  writeFolderMap(map);
+}
+
+export function deleteMediaFolder(name: string): void {
+  const map = readFolderMap();
+  map.folders = map.folders.filter((f) => f !== name);
+  for (const [file, folder] of Object.entries(map.items)) {
+    if (folder === name) delete map.items[file];
+  }
+  writeFolderMap(map);
 }
 
 /** Decode a data: URL to bytes (base64 or URL-encoded), or null if malformed. */

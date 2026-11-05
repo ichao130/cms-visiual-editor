@@ -360,6 +360,14 @@ export interface MediaItem {
    */
   alt?: string;
   /**
+   * Organizational folder, for the media manager only (e.g. "banners"). Purely
+   * a grouping: the stored file name and output `path` stay flat, so moving an
+   * item between folders never changes its URL or breaks references. Empty /
+   * undefined means the unfiled root. Added in schema v8 (backward compatible),
+   * no migration needed. Nesting (slash-separated) is reserved for later.
+   */
+  folder?: string;
+  /**
    * Data URL for display inside the editor only (thumbnails, preview). Never
    * written to the site — the published HTML references `path`.
    */

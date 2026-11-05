@@ -18,6 +18,7 @@ const TAB_LABEL: Record<SiteTab, MessageKey> = {
   info: "site.tab.info",
   posts: "site.tab.posts",
   pages: "site.tab.pages",
+  media: "site.tab.media",
   types: "site.tab.types",
   taxonomies: "site.tab.taxonomies",
   menus: "site.tab.menus",

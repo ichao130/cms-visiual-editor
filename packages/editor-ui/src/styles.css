@@ -443,6 +443,24 @@ button.pcms-aibtn:hover:not(:disabled) { filter: brightness(1.08); background: v
 .pcms-media__usage { font-size: 0.68rem; color: var(--pcms-accent); white-space: nowrap; }
 .pcms-media__usage.is-unused { color: var(--pcms-muted); }
 .pcms-media__alt { width: 100%; box-sizing: border-box; font: inherit; font-size: 0.72rem; padding: 0.25rem 0.4rem; border: 1px solid var(--pcms-border); border-radius: 4px; }
+.pcms-media__thumb { display: block; }
+.pcms-media__folderpick { width: 100%; box-sizing: border-box; font: inherit; font-size: 0.72rem; padding: 0.2rem 0.3rem; border: 1px solid var(--pcms-border); border-radius: 4px; color: var(--pcms-muted); }
+
+/* Full-page media manager: folder sidebar + item grid. */
+.pcms-mediaview__body { display: flex; gap: 1.25rem; align-items: flex-start; }
+.pcms-mediaview__main { flex: 1; min-width: 0; }
+.pcms-folders { flex: 0 0 13rem; display: flex; flex-direction: column; gap: 0.15rem; }
+.pcms-folders__item { display: flex; align-items: center; gap: 0.4rem; width: 100%; padding: 0.4rem 0.55rem; border: 1px solid transparent; border-radius: 7px; background: transparent; font: inherit; font-size: 0.85rem; color: var(--pcms-text); text-align: left; cursor: pointer; }
+.pcms-folders__item:hover { background: var(--pcms-hover); }
+.pcms-folders__item.is-active { background: var(--pcms-hover); border-color: var(--pcms-border); font-weight: 600; }
+.pcms-folders__item > .pcms-folders__name { flex: 1; min-width: 0; padding: 0; border: none; background: transparent; font: inherit; color: inherit; text-align: left; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pcms-folders__item > span:first-child { flex: 1; }
+.pcms-folders__count { flex: 0 0 auto; font-size: 0.72rem; color: var(--pcms-muted); }
+.pcms-folders__del { flex: 0 0 auto; width: 20px; height: 20px; padding: 0; display: flex; align-items: center; justify-content: center; border: none; border-radius: 5px; background: transparent; color: var(--pcms-muted); cursor: pointer; opacity: 0; }
+.pcms-folders__item:hover .pcms-folders__del, .pcms-folders__del:focus-visible { opacity: 1; }
+.pcms-folders__del:hover { background: var(--pcms-danger); color: #fff; }
+.pcms-folders__add { margin-top: 0.4rem; padding: 0.4rem 0.55rem; border: 1px dashed var(--pcms-border); border-radius: 7px; background: transparent; font: inherit; font-size: 0.82rem; color: var(--pcms-muted); text-align: left; cursor: pointer; }
+.pcms-folders__add:hover { border-style: solid; color: var(--pcms-text); }
 
 .pcms-visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 .pcms-pageselect select { font: inherit; padding: 0.3rem 0.4rem; border: 1px solid var(--pcms-border); border-radius: 6px; max-width: 220px; }

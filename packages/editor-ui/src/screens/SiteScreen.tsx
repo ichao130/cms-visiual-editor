@@ -9,6 +9,7 @@ import { MediaContext, useMediaLibrary } from "../media/MediaContext.js";
 import { SiteInfoView } from "./site/SiteInfoView.js";
 import { PostsView } from "./site/PostsView.js";
 import { PagesView } from "./site/PagesView.js";
+import { MediaView } from "./site/MediaView.js";
 import { FormsView } from "./site/FormsView.js";
 import { RedirectsView } from "./site/RedirectsView.js";
 import { SiteSettingsView } from "./site/SiteSettingsView.js";
@@ -36,9 +37,10 @@ interface Props {
   onNavigate: (route: Route) => void;
 }
 
-type NavItem =
-  | { kind: "tab"; id: SiteTab; label: MessageKey }
-  | { kind: "action"; key: string; label: MessageKey };
+interface NavItem {
+  id: SiteTab;
+  label: MessageKey;
+}
 
 interface NavGroup {
   heading?: MessageKey;
@@ -46,33 +48,33 @@ interface NavGroup {
 }
 
 const NAV: NavGroup[] = [
-  { items: [{ kind: "tab", id: "info", label: "site.tab.info" }] },
+  { items: [{ id: "info", label: "site.tab.info" }] },
   {
     heading: "nav.group.content",
     items: [
-      { kind: "tab", id: "posts", label: "site.tab.posts" },
-      { kind: "tab", id: "pages", label: "site.tab.pages" },
-      { kind: "action", key: "media", label: "site.tab.media" },
+      { id: "posts", label: "site.tab.posts" },
+      { id: "pages", label: "site.tab.pages" },
+      { id: "media", label: "site.tab.media" },
     ],
   },
   {
     heading: "nav.group.structure",
     items: [
-      { kind: "tab", id: "types", label: "site.tab.types" },
-      { kind: "tab", id: "taxonomies", label: "site.tab.taxonomies" },
-      { kind: "tab", id: "menus", label: "site.tab.menus" },
+      { id: "types", label: "site.tab.types" },
+      { id: "taxonomies", label: "site.tab.taxonomies" },
+      { id: "menus", label: "site.tab.menus" },
     ],
   },
   {
     heading: "nav.group.ops",
     items: [
-      { kind: "tab", id: "forms", label: "site.tab.forms" },
-      { kind: "tab", id: "redirects", label: "site.tab.redirects" },
-      { kind: "tab", id: "publish", label: "site.tab.publish" },
+      { id: "forms", label: "site.tab.forms" },
+      { id: "redirects", label: "site.tab.redirects" },
+      { id: "publish", label: "site.tab.publish" },
     ],
   },
-  { heading: "nav.group.design", items: [{ kind: "tab", id: "theme", label: "site.tab.theme" }] },
-  { items: [{ kind: "tab", id: "settings", label: "site.tab.settings" }] },
+  { heading: "nav.group.design", items: [{ id: "theme", label: "site.tab.theme" }] },
+  { items: [{ id: "settings", label: "site.tab.settings" }] },
 ];
 
 /**
@@ -86,10 +88,6 @@ export function SiteScreen({ api, route, onNavigate }: Props) {
   const media = useMediaLibrary(api);
   const { doc, commit, setDirty, dirty, save, undo, redo, canUndo, canRedo } = useSiteWorkspace();
   const { siteId, tab } = route;
-
-  const onAction = (key: string) => {
-    if (key === "media") media.value.openLibrary();
-  };
 
   // Keyboard shortcuts for the editing tabs: Cmd/Ctrl+S saves the workspace;
   // Cmd/Ctrl+Z / Shift+Cmd+Z (or Ctrl+Y) undo/redo, but only when focus is not
@@ -144,25 +142,15 @@ export function SiteScreen({ api, route, onNavigate }: Props) {
           {NAV.map((group, gi) => (
             <div key={gi} className="pcms-subnav__group">
               {group.heading && <div className="pcms-subnav__heading">{t(group.heading)}</div>}
-              {group.items.map((item) =>
-                item.kind === "tab" ? (
-                  <button
-                    key={item.id}
-                    className={`pcms-subnav__item${tab === item.id ? " is-active" : ""}`}
-                    onClick={() => onNavigate({ screen: "site", siteId, tab: item.id })}
-                  >
-                    {t(item.label)}
-                  </button>
-                ) : (
-                  <button
-                    key={item.key}
-                    className="pcms-subnav__item"
-                    onClick={() => onAction(item.key)}
-                  >
-                    {t(item.label)}
-                  </button>
-                ),
-              )}
+              {group.items.map((item) => (
+                <button
+                  key={item.id}
+                  className={`pcms-subnav__item${tab === item.id ? " is-active" : ""}`}
+                  onClick={() => onNavigate({ screen: "site", siteId, tab: item.id })}
+                >
+                  {t(item.label)}
+                </button>
+              ))}
             </div>
           ))}
         </nav>
@@ -172,6 +160,7 @@ export function SiteScreen({ api, route, onNavigate }: Props) {
           {tab === "info" && <SiteInfoView api={api} siteId={siteId} />}
           {tab === "posts" && <PostsView />}
           {tab === "pages" && <PagesView />}
+          {tab === "media" && <MediaView />}
           {tab === "types" && (
             <ContentTypeManager types={doc.contentTypes} onCommit={onTypesCommit} />
           )}

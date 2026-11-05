@@ -8,6 +8,7 @@ export type SiteTab =
   | "info"
   | "posts"
   | "pages"
+  | "media"
   | "types"
   | "taxonomies"
   | "menus"

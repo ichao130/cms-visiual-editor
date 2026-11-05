@@ -46,12 +46,23 @@ export interface PcmsApi {
   saveContent(content: ContentItem[]): Promise<void>;
   /** List media already stored for the site (with data URLs for display). */
   listMedia(): Promise<MediaItem[]>;
-  /** Persist imported, already-processed (WebP) images; returns their records. */
-  saveMedia(files: MediaUpload[]): Promise<MediaItem[]>;
+  /**
+   * Persist imported, already-processed (WebP) images; returns their records.
+   * `folder` files them under that media folder (empty = the unfiled root).
+   */
+  saveMedia(files: MediaUpload[], folder?: string): Promise<MediaItem[]>;
   /** Remove a stored media file by its path (e.g. "media/foo.webp"). */
   deleteMedia(path: string): Promise<void>;
   /** Set the default alt text for a stored media file. */
   setMediaAlt(path: string, alt: string): Promise<void>;
+  /** Move a stored media file into a folder (empty string = the unfiled root). */
+  setMediaFolder(path: string, folder: string): Promise<void>;
+  /** List the media folders, including empty ones the operator created. */
+  listMediaFolders(): Promise<string[]>;
+  /** Create an empty media folder. */
+  createMediaFolder(name: string): Promise<void>;
+  /** Delete a media folder; its items move back to the unfiled root. */
+  deleteMediaFolder(name: string): Promise<void>;
   /** Persist custom post type / field definitions (content-types.json). */
   saveContentTypes(types: ContentTypeDef[]): Promise<void>;
   /** Persist navigation menus (menus.json). */

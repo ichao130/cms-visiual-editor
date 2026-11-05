@@ -74,6 +74,7 @@ const SITE_KEY = "pcms.mock.site";
 const DRAFT_KEY = "pcms.mock.draft";
 const CONTENT_KEY = "pcms.mock.content";
 const MEDIA_KEY = "pcms.mock.media";
+const MEDIA_FOLDERS_KEY = "pcms.mock.mediaFolders";
 const TYPES_KEY = "pcms.mock.types";
 const TAX_KEY = "pcms.mock.taxonomies";
 const MENUS_KEY = "pcms.mock.menus";
@@ -230,6 +231,39 @@ function loadMedia(): MediaItem[] {
   } catch {
     return defaultMedia;
   }
+}
+
+/** Empty folders the operator created (folders with items are derived too). */
+function loadMediaFolders(): string[] {
+  try {
+    const raw = localStorage.getItem(MEDIA_FOLDERS_KEY);
+    return raw ? (JSON.parse(raw) as string[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveMediaList(items: MediaItem[]): void {
+  try {
+    localStorage.setItem(MEDIA_KEY, JSON.stringify(items));
+  } catch {
+    /* ignore storage failures in the mock */
+  }
+}
+
+function saveMediaFolders(folders: string[]): void {
+  try {
+    localStorage.setItem(MEDIA_FOLDERS_KEY, JSON.stringify([...new Set(folders)].sort()));
+  } catch {
+    /* ignore storage failures in the mock */
+  }
+}
+
+/** All folders: ones the operator created plus ones in use by items. */
+function allMediaFolders(items: MediaItem[], stored: string[]): string[] {
+  const set = new Set(stored);
+  for (const m of items) if (m.folder) set.add(m.folder);
+  return [...set].sort();
 }
 
 function loadRedirects(): Redirect[] {
@@ -1047,7 +1081,7 @@ export function createMockApi(): PcmsApi {
     async listMedia(): Promise<MediaItem[]> {
       return loadMedia();
     },
-    async saveMedia(files: MediaUpload[]): Promise<MediaItem[]> {
+    async saveMedia(files: MediaUpload[], folder?: string): Promise<MediaItem[]> {
       const saved: MediaItem[] = files.map((f) => ({
         id: f.fileName.replace(/\.[^.]+$/, ""),
         fileName: f.fileName,
@@ -1055,32 +1089,40 @@ export function createMockApi(): PcmsApi {
         width: f.width,
         height: f.height,
         size: f.bytes.length,
+        ...(folder ? { folder } : {}),
         dataUrl: bytesToWebpDataUrl(f.bytes),
       }));
       const byPath = new Map(loadMedia().map((m) => [m.path, m]));
       for (const m of saved) byPath.set(m.path, m);
-      try {
-        localStorage.setItem(MEDIA_KEY, JSON.stringify([...byPath.values()]));
-      } catch {
-        /* ignore storage failures in the mock */
-      }
+      saveMediaList([...byPath.values()]);
       return saved;
     },
     async deleteMedia(path: string): Promise<void> {
-      const kept = loadMedia().filter((m) => m.path !== path);
-      try {
-        localStorage.setItem(MEDIA_KEY, JSON.stringify(kept));
-      } catch {
-        /* ignore storage failures in the mock */
-      }
+      saveMediaList(loadMedia().filter((m) => m.path !== path));
     },
     async setMediaAlt(path: string, alt: string): Promise<void> {
-      const next = loadMedia().map((m) => (m.path === path ? { ...m, alt } : m));
-      try {
-        localStorage.setItem(MEDIA_KEY, JSON.stringify(next));
-      } catch {
-        /* ignore storage failures in the mock */
-      }
+      saveMediaList(loadMedia().map((m) => (m.path === path ? { ...m, alt } : m)));
+    },
+    async setMediaFolder(path: string, folder: string): Promise<void> {
+      saveMediaList(
+        loadMedia().map((m) =>
+          m.path === path ? { ...m, folder: folder || undefined } : m,
+        ),
+      );
+    },
+    async listMediaFolders(): Promise<string[]> {
+      return allMediaFolders(loadMedia(), loadMediaFolders());
+    },
+    async createMediaFolder(name: string): Promise<void> {
+      const trimmed = name.trim();
+      if (trimmed === "") return;
+      saveMediaFolders([...loadMediaFolders(), trimmed]);
+    },
+    async deleteMediaFolder(name: string): Promise<void> {
+      saveMediaList(
+        loadMedia().map((m) => (m.folder === name ? { ...m, folder: undefined } : m)),
+      );
+      saveMediaFolders(loadMediaFolders().filter((f) => f !== name));
     },
   };
 }
