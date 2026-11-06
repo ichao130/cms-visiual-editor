@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { ContentTypeDef, FieldDef, FieldType } from "@pcms/shared";
 import { slugify } from "../state/editorState.js";
 import { useDragReorder, moveItem } from "../state/useDragReorder.js";
-import { t } from "../i18n.js";
+import { t, type MessageKey } from "../i18n.js";
 import { Icon } from "./Icon.js";
 
 interface ContentTypeManagerProps {
@@ -22,6 +22,19 @@ const FIELD_TYPES: FieldType[] = [
   "checkbox",
   "link",
 ];
+
+/** Japanese labels for the field types offered above. */
+const FIELD_TYPE_LABEL: Partial<Record<FieldType, MessageKey>> = {
+  text: "fieldtype.text",
+  longtext: "fieldtype.longtext",
+  richtext: "fieldtype.richtext",
+  number: "fieldtype.number",
+  date: "fieldtype.date",
+  image: "fieldtype.image",
+  select: "fieldtype.select",
+  checkbox: "fieldtype.checkbox",
+  link: "fieldtype.link",
+};
 
 /** GUI to define custom post types and their fields (content-types.json). */
 export function ContentTypeManager({ types, onCommit }: ContentTypeManagerProps) {
@@ -149,7 +162,7 @@ export function ContentTypeManager({ types, onCommit }: ContentTypeManagerProps)
                       value={f.name}
                       onChange={(e) => updateField(i, { name: e.target.value })}
                       disabled={f.name === "title"}
-                      placeholder="name"
+                      placeholder={t("types.fieldName")}
                     />
                     <input
                       value={f.label}
@@ -162,7 +175,7 @@ export function ContentTypeManager({ types, onCommit }: ContentTypeManagerProps)
                     >
                       {FIELD_TYPES.map((ft) => (
                         <option key={ft} value={ft}>
-                          {ft}
+                          {FIELD_TYPE_LABEL[ft] ? t(FIELD_TYPE_LABEL[ft]) : ft}
                         </option>
                       ))}
                     </select>

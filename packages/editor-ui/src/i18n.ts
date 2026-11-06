@@ -207,6 +207,16 @@ const ja = {
   "types.addField": "フィールドを追加",
   "types.deleteType": "このタイプを削除",
   "types.deleteConfirm": "このタイプと、その投稿をすべて削除しますか？",
+  "types.fieldName": "項目名",
+  "fieldtype.text": "テキスト",
+  "fieldtype.longtext": "長文",
+  "fieldtype.richtext": "リッチテキスト",
+  "fieldtype.number": "数値",
+  "fieldtype.date": "日付",
+  "fieldtype.image": "画像",
+  "fieldtype.select": "選択",
+  "fieldtype.checkbox": "チェック",
+  "fieldtype.link": "リンク",
 
   // App shell
   "common.loading": "読み込み中…",
