@@ -50,6 +50,7 @@ export function PublishFlow({ api }: { api: PcmsApi }) {
   const [serverFiles, setServerFiles] = useState<string[] | null>(null);
   const [serverTarget, setServerTarget] = useState("");
   const [serverError, setServerError] = useState<string | null>(null);
+  const [serverDetail, setServerDetail] = useState<string | null>(null);
   const [fileBusy, setFileBusy] = useState<"" | "local" | "server">("");
 
   useEffect(() => {
@@ -89,6 +90,7 @@ export function PublishFlow({ api }: { api: PcmsApi }) {
       setPreview(null);
       setServerFiles(null);
       setServerError(null);
+      setServerDetail(null);
       setServerTarget("");
     }
     if (next === "sftp" && (port === "" || port === "21" || port === "990")) setPort("22");
@@ -176,11 +178,13 @@ export function PublishFlow({ api }: { api: PcmsApi }) {
   const connectServer = async () => {
     setFileBusy("server");
     setServerError(null);
+    setServerDetail(null);
     try {
       const r = await api.listServerFiles();
       setServerTarget(r.target);
       if (r.error) {
         setServerError(r.error);
+        setServerDetail(r.detail ?? null);
         setServerFiles(null);
       } else {
         setServerFiles(r.files);
@@ -193,6 +197,7 @@ export function PublishFlow({ api }: { api: PcmsApi }) {
   const disconnectServer = () => {
     setServerFiles(null);
     setServerError(null);
+    setServerDetail(null);
   };
 
   const rollback = async (id: string) => {
@@ -366,7 +371,7 @@ export function PublishFlow({ api }: { api: PcmsApi }) {
             </div>
             {serverTarget && <p className="pcms-filebrowser__target">{serverTarget}</p>}
             {serverError ? (
-              <DeployErrorDiagnosis message={serverError} />
+              <DeployErrorDiagnosis message={serverError} detail={serverDetail} />
             ) : serverFiles === null ? (
               <p className="pcms-empty">{t("publish.files.offline")}</p>
             ) : (
@@ -507,8 +512,11 @@ function PathList({
  * it, derived from the raw transport error. The raw message is kept in a
  * collapsible for support. CLAUDE.md phase 6: エラー診断.
  */
-function DeployErrorDiagnosis({ message }: { message: string }) {
+function DeployErrorDiagnosis({ message, detail }: { message: string; detail?: string | null }) {
   const d = diagnoseDeployError(message);
+  // Diagnosis is derived from `message` only; `detail` (e.g. the FTP dialogue)
+  // is shown verbatim in the technical detail without affecting the friendly text.
+  const raw = detail ? `${message}\n\n--- 通信ログ ---\n${detail}` : message;
   return (
     <div className="pcms-publish__diagnosis" role="alert">
       <p className="pcms-publish__diagmsg">{d.message}</p>
@@ -518,7 +526,7 @@ function DeployErrorDiagnosis({ message }: { message: string }) {
       </p>
       <details className="pcms-publish__diagraw">
         <summary>{t("publish.diagDetail")}</summary>
-        <pre>{message}</pre>
+        <pre>{raw}</pre>
       </details>
     </div>
   );

@@ -40,12 +40,25 @@ export class FtpTransport implements Transport {
   private client: FtpClientLike | null = null;
   private root = "";
   private readonly ensured = new Set<string>();
+  /** Recent FTP dialogue (passwords masked by basic-ftp), for error reports. */
+  private readonly logLines: string[] = [];
 
   constructor(
     private readonly config: FtpConfig,
     /** Testing seam: supply a fake client instead of loading `basic-ftp`. */
     private readonly makeClient?: () => Promise<FtpClientLike>,
   ) {}
+
+  private pushLog(line: string): void {
+    // basic-ftp logs "> PASS ###" (password already masked). Keep a bounded tail.
+    this.logLines.push(line.replace(/\s+$/, ""));
+    if (this.logLines.length > 80) this.logLines.shift();
+  }
+
+  /** The recent FTP command/response dialogue, or undefined if none captured. */
+  diagnostics(): string | undefined {
+    return this.logLines.length ? this.logLines.join("\n") : undefined;
+  }
 
   private async loadClient(timeoutMs: number): Promise<FtpClientLike> {
     if (this.makeClient) return this.makeClient();
@@ -58,6 +71,15 @@ export class FtpTransport implements Transport {
     if (!Client) throw new Error("basic-ftp の読み込みに失敗しました。");
     // basic-ftp applies this timeout to the control and data sockets.
     const client = new Client(timeoutMs > 0 ? timeoutMs : 0);
+    // Capture the protocol dialogue (PASV response, where it stalls, …) so a
+    // failed connection can show the operator what actually happened. basic-ftp
+    // masks the password in its own log output ("> PASS ###").
+    const ctx = (client as unknown as { ftp?: { verbose?: boolean; log?: (m: string) => void } })
+      .ftp;
+    if (ctx) {
+      ctx.verbose = true;
+      ctx.log = (m: string) => this.pushLog(m);
+    }
     // Force classic PASV (IPv4, NAT-aware) instead of basic-ftp's default,
     // which probes EPSV first. Shared hosts (e.g. Xserver) commonly leave the
     // EPSV data channel stalling until timeout; plain PASV with the control

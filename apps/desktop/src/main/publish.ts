@@ -144,6 +144,8 @@ export interface ServerListing {
   files: string[];
   target: string;
   error?: string;
+  /** Technical detail for the error (e.g. the FTP protocol dialogue). */
+  detail?: string;
 }
 
 // --- Paths -----------------------------------------------------------------
@@ -483,7 +485,13 @@ export async function listServerFiles(): Promise<ServerListing> {
         : [];
     return { files, target };
   } catch (err) {
-    return { files: [], target, error: err instanceof Error ? err.message : String(err) };
+    const detail = transport.diagnostics?.();
+    return {
+      files: [],
+      target,
+      error: err instanceof Error ? err.message : String(err),
+      ...(detail ? { detail } : {}),
+    };
   } finally {
     await transport.close?.();
   }

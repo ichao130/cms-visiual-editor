@@ -62,6 +62,12 @@ export interface Transport {
   list?(): Promise<string[]>;
   /** Release any held connection. */
   close?(): Promise<void>;
+  /**
+   * Recent protocol dialogue for error reporting (e.g. the FTP command/response
+   * log), shown in the UI's technical detail when a connection fails. Optional;
+   * secrets (passwords) are masked by the transport. Never needed to publish.
+   */
+  diagnostics?(): string | undefined;
 }
 
 export interface PublishOptions {

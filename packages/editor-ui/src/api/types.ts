@@ -308,6 +308,8 @@ export interface ServerListing {
   target: string;
   /** Raw transport error when the connection/listing failed, for diagnosis. */
   error?: string;
+  /** Technical detail for the error (e.g. the FTP protocol dialogue). */
+  detail?: string;
 }
 
 /** FTP control-connection security (mirrors @pcms/deploy's FtpSecurity). */
