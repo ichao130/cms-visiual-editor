@@ -15,6 +15,7 @@ import {
   SftpTransport,
   preflight,
   publish,
+  withTimeout,
   type FileSet,
   type FtpSecurity,
   type Issue,
@@ -472,7 +473,14 @@ export function listLocalFiles(): string[] {
 export async function listServerFiles(): Promise<ServerListing> {
   const { transport, target } = makeTransport(loadRawConfig());
   try {
-    const files = typeof transport.list === "function" ? await transport.list() : [];
+    // A hard ceiling over the whole connect + list: the listing opens a data
+    // connection (passive mode), which can stall independently of the control
+    // connection. Without this the "接続して取得" button could sit on 接続中…
+    // forever. 25s leaves room for a slow connect (≤20s) plus the listing.
+    const files =
+      typeof transport.list === "function"
+        ? await withTimeout(transport.list(), 25000, "サーバーのファイル一覧取得")
+        : [];
     return { files, target };
   } catch (err) {
     return { files: [], target, error: err instanceof Error ? err.message : String(err) };

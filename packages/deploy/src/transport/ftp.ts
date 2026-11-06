@@ -50,11 +50,22 @@ export class FtpTransport implements Transport {
   private async loadClient(timeoutMs: number): Promise<FtpClientLike> {
     if (this.makeClient) return this.makeClient();
     const moduleName = "basic-ftp";
-    const mod = (await import(moduleName)) as { Client?: new (timeout?: number) => FtpClientLike };
+    const mod = (await import(moduleName)) as {
+      Client?: new (timeout?: number) => FtpClientLike;
+      enterPassiveModeIPv4?: unknown;
+    };
     const Client = mod.Client;
     if (!Client) throw new Error("basic-ftp の読み込みに失敗しました。");
-    // basic-ftp applies this to the control and data sockets.
-    return new Client(timeoutMs > 0 ? timeoutMs : 0);
+    // basic-ftp applies this timeout to the control and data sockets.
+    const client = new Client(timeoutMs > 0 ? timeoutMs : 0);
+    // Force classic PASV (IPv4, NAT-aware) instead of basic-ftp's default,
+    // which probes EPSV first. Shared hosts (e.g. Xserver) commonly leave the
+    // EPSV data channel stalling until timeout; plain PASV with the control
+    // host IP is the widely-used compatibility fix and avoids the hang.
+    if (typeof mod.enterPassiveModeIPv4 === "function") {
+      (client as unknown as { prepareTransfer: unknown }).prepareTransfer = mod.enterPassiveModeIPv4;
+    }
+    return client;
   }
 
   private async conn(): Promise<FtpClientLike> {

@@ -20,6 +20,7 @@ export type {
   S3Config,
 } from "./types.js";
 
+export { withTimeout, DEFAULT_CONNECT_TIMEOUT_MS } from "./timeout.js";
 export { manifestOf, hashContent, toBytes } from "./hash.js";
 export { diffManifests } from "./diff.js";
 export { preflight } from "./preflight.js";
