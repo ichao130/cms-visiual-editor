@@ -1,9 +1,10 @@
 import { posix } from "node:path";
 import { Readable, Writable } from "node:stream";
-import type { FtpConfig, Transport } from "../types.js";
+import type { DirListing, FtpConfig, Transport } from "../types.js";
 import { toBytes } from "../hash.js";
 import { withTimeout, DEFAULT_CONNECT_TIMEOUT_MS } from "../timeout.js";
-import { ListingBudget } from "../listing.js";
+import { ListingBudget, MAX_LISTING_ENTRIES } from "../listing.js";
+import { parentOf, sortDirEntries } from "./browse.js";
 
 /**
  * Minimal surface of `basic-ftp`'s Client that we use (loaded dynamically).
@@ -182,6 +183,30 @@ export class FtpTransport implements Transport {
   /** Whether the last list() was cut short by a size/depth/time limit. */
   listTruncated(): boolean {
     return this.budget?.truncated ?? false;
+  }
+
+  /**
+   * List one directory level so the operator can browse the server and pick the
+   * publish folder. `path === ""` starts at the login directory (pwd). Navigation
+   * is by absolute path and ignores the configured remoteDir.
+   */
+  async browse(path: string): Promise<DirListing> {
+    const client = await this.conn();
+    const timeoutMs = this.config.timeoutMillis ?? DEFAULT_CONNECT_TIMEOUT_MS;
+    let dir = path.trim();
+    if (!dir) {
+      dir = (await withTimeout(client.pwd(), timeoutMs, "サーバーのフォルダ参照")) || "/";
+    }
+    dir = posix.normalize(dir);
+    const raw = await client.list(dir);
+    const truncated = raw.length > MAX_LISTING_ENTRIES;
+    const entries = sortDirEntries(
+      raw
+        .filter((e) => e.name !== "." && e.name !== "..")
+        .slice(0, MAX_LISTING_ENTRIES)
+        .map((e) => ({ name: e.name, isDirectory: e.isDirectory })),
+    );
+    return { path: dir, parent: parentOf(dir), entries, ...(truncated ? { truncated } : {}) };
   }
 
   private async walk(

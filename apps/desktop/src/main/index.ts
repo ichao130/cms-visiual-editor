@@ -55,6 +55,7 @@ import {
   rollbackPublish,
   listLocalFiles,
   listServerFiles,
+  browseServer,
   type DeployConfigInput,
 } from "./publish.js";
 import {
@@ -202,6 +203,7 @@ function registerIpc(): void {
   );
   ipcMain.handle("pcms:listLocalFiles", () => listLocalFiles());
   ipcMain.handle("pcms:listServerFiles", () => listServerFiles());
+  ipcMain.handle("pcms:browseServer", (_event, path: string) => browseServer(path));
 
   // AI assist. Offline heuristics for the evaluation build; a real build would
   // forward these to the Firebase AI proxy (no API key in the app).

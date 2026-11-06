@@ -1,8 +1,9 @@
 import { posix } from "node:path";
-import type { SftpConfig, Transport } from "../types.js";
+import type { DirListing, SftpConfig, Transport } from "../types.js";
 import { toBytes } from "../hash.js";
 import { withTimeout, DEFAULT_CONNECT_TIMEOUT_MS } from "../timeout.js";
-import { ListingBudget } from "../listing.js";
+import { ListingBudget, MAX_LISTING_ENTRIES } from "../listing.js";
+import { parentOf, sortDirEntries } from "./browse.js";
 
 /** Minimal surface of ssh2-sftp-client that we use (loaded dynamically). */
 interface SftpClient {
@@ -13,6 +14,10 @@ interface SftpClient {
   mkdir(remote: string, recursive?: boolean): Promise<string>;
   exists(remote: string): Promise<false | "d" | "-" | "l">;
   list(remote: string): Promise<Array<{ type: string; name: string }>>;
+  /** Resolve a (possibly relative) path to an absolute one; "" if missing. */
+  realPath(remote: string): Promise<string>;
+  /** The remote working (home) directory. */
+  cwd(): Promise<string>;
   end(): Promise<void>;
 }
 
@@ -99,6 +104,28 @@ export class SftpTransport implements Transport {
   /** Whether the last list() was cut short by a size/depth/time limit. */
   listTruncated(): boolean {
     return this.budget?.truncated ?? false;
+  }
+
+  /**
+   * List one directory level so the operator can browse the server and pick the
+   * publish folder. `path === ""` starts at the login (home) directory.
+   * Navigation is by absolute path and ignores the configured remoteDir.
+   */
+  async browse(path: string): Promise<DirListing> {
+    const client = await this.conn();
+    const want = path.trim();
+    let dir = want ? await client.realPath(want) : await client.cwd();
+    if (!dir) dir = want || "/";
+    dir = posix.normalize(dir);
+    const raw = await client.list(dir);
+    const truncated = raw.length > MAX_LISTING_ENTRIES;
+    const entries = sortDirEntries(
+      raw
+        .filter((e) => e.name !== "." && e.name !== "..")
+        .slice(0, MAX_LISTING_ENTRIES)
+        .map((e) => ({ name: e.name, isDirectory: e.type === "d" })),
+    );
+    return { path: dir, parent: parentOf(dir), entries, ...(truncated ? { truncated } : {}) };
   }
 
   private async walk(

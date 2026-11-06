@@ -150,6 +150,21 @@ export interface ServerListing {
   truncated?: boolean;
 }
 
+/** One directory level on the server, for the "choose a folder" browser. */
+export interface ServerBrowse {
+  /** Absolute path of the directory listed (empty when the browse failed). */
+  path: string;
+  /** Parent directory, or null at the filesystem root / on failure. */
+  parent: string | null;
+  entries: { name: string; isDirectory: boolean }[];
+  /** The directory held more entries than the cap and was cut short. */
+  truncated?: boolean;
+  /** Raw transport error when the connection/listing failed, for diagnosis. */
+  error?: string;
+  /** Technical detail for the error (e.g. the FTP protocol dialogue). */
+  detail?: string;
+}
+
 // --- Paths -----------------------------------------------------------------
 
 const userData = () => app.getPath("userData");
@@ -492,6 +507,48 @@ export async function listServerFiles(): Promise<ServerListing> {
     return {
       files: [],
       target,
+      error: err instanceof Error ? err.message : String(err),
+      ...(detail ? { detail } : {}),
+    };
+  } finally {
+    await transport.close?.();
+  }
+}
+
+/**
+ * List one directory level on the configured server so the operator can browse
+ * and choose the publish folder (`remoteDir`) without knowing its path in
+ * advance. `path === ""` starts at the login directory. One-shot: connect, list,
+ * disconnect. Only FTP/SFTP support browsing; other targets report so. A failure
+ * is returned as `error` rather than thrown. Uses the saved connection details,
+ * which stay on this machine (CLAUDE.md).
+ */
+export async function browseServer(path: string): Promise<ServerBrowse> {
+  const { transport } = makeTransport(loadRawConfig());
+  try {
+    if (typeof transport.browse !== "function") {
+      return {
+        path: "",
+        parent: null,
+        entries: [],
+        error: "この公開先はフォルダ参照に対応していません。",
+      };
+    }
+    // Same hard ceiling as the file listing: a browse opens a passive data
+    // connection that can stall independently of the control connection.
+    const r = await withTimeout(transport.browse(path), 25000, "サーバーのフォルダ参照");
+    return {
+      path: r.path,
+      parent: r.parent,
+      entries: r.entries,
+      ...(r.truncated ? { truncated: true } : {}),
+    };
+  } catch (err) {
+    const detail = transport.diagnostics?.();
+    return {
+      path: "",
+      parent: null,
+      entries: [],
       error: err instanceof Error ? err.message : String(err),
       ...(detail ? { detail } : {}),
     };

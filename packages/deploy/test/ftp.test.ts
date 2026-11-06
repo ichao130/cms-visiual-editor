@@ -160,6 +160,51 @@ describe("FtpTransport", () => {
     expect(t.listTruncated()).toBe(false);
   });
 
+  it("browse('') starts at the login directory and lists one level", async () => {
+    const { fake, t } = make();
+    // Entries directly under the login home: a "public_html" dir and a file.
+    fake.files.set("/home/site/public_html/index.html", Buffer.from("a"));
+    fake.files.set("/home/site/readme.txt", Buffer.from("b"));
+    const r = await t.browse("");
+    expect(r.path).toBe("/home/site");
+    expect(r.parent).toBe("/home");
+    // Directories first, then files.
+    expect(r.entries).toEqual([
+      { name: "public_html", isDirectory: true },
+      { name: "readme.txt", isDirectory: false },
+    ]);
+  });
+
+  it("browse(path) descends into a subdirectory and reports the parent", async () => {
+    const { t } = make();
+    await t.put("index.html", "a"); // /home/site/public_html/index.html
+    await t.put("blog/post.html", "c"); // /home/site/public_html/blog/post.html
+    const r = await t.browse("/home/site/public_html");
+    expect(r.path).toBe("/home/site/public_html");
+    expect(r.parent).toBe("/home/site");
+    expect(r.entries).toEqual([
+      { name: "blog", isDirectory: true },
+      { name: "index.html", isDirectory: false },
+    ]);
+  });
+
+  it("browse at the filesystem root reports no parent", async () => {
+    const { t } = make();
+    await t.put("index.html", "a");
+    const r = await t.browse("/");
+    expect(r.parent).toBeNull();
+  });
+
+  it("caps a huge directory in browse and flags truncation", async () => {
+    const { fake, t } = make();
+    for (let i = 0; i < 600; i++) {
+      fake.files.set(`/home/site/public_html/f${i}.html`, Buffer.from("x"));
+    }
+    const r = await t.browse("/home/site/public_html");
+    expect(r.entries.length).toBe(MAX_LISTING_ENTRIES);
+    expect(r.truncated).toBe(true);
+  });
+
   it("rejects with a timeout and closes the client when the connection hangs", async () => {
     let closed = false;
     const hanging: FtpClientLike = {

@@ -34,6 +34,7 @@ import type {
   PublishIssue,
   PublishPreview,
   PublishReport,
+  ServerBrowse,
   ServerListing,
   SiteStats,
   SiteSummary,
@@ -478,6 +479,52 @@ function targetLabelOf(deploy: StoredDeploy): string {
   return `${label}: ${deploy.username}@${deploy.host}:${deploy.remoteDir}`;
 }
 
+/**
+ * A representative rental-server directory tree for the folder browser in the
+ * eval build (no real server). Shaped like a typical shared host: the login
+ * lands above the domains, each domain has its own public_html, and one already
+ * holds a WordPress install — so browsing to "ここだ！" is demonstrable.
+ */
+const MOCK_FS: Record<string, { name: string; isDirectory: boolean }[]> = {
+  "/": [
+    { name: "example.com", isDirectory: true },
+    { name: "sub.example.com", isDirectory: true },
+    { name: "mail", isDirectory: true },
+    { name: "readme.txt", isDirectory: false },
+  ],
+  "/example.com": [
+    { name: "public_html", isDirectory: true },
+    { name: "log", isDirectory: true },
+  ],
+  "/example.com/public_html": [
+    { name: "wp", isDirectory: true },
+    { name: ".htaccess", isDirectory: false },
+    { name: "index.php", isDirectory: false },
+  ],
+  "/example.com/public_html/wp": [
+    { name: "wp-admin", isDirectory: true },
+    { name: "wp-content", isDirectory: true },
+    { name: "wp-includes", isDirectory: true },
+    { name: "index.php", isDirectory: false },
+    { name: "wp-config.php", isDirectory: false },
+  ],
+  "/sub.example.com": [{ name: "public_html", isDirectory: true }],
+  "/sub.example.com/public_html": [{ name: "index.html", isDirectory: false }],
+  "/mail": [],
+};
+
+/** Browse one level of the fake server tree (eval build; no real connection). */
+function mockBrowse(path: string): ServerBrowse {
+  let dir = (path || "/").trim() || "/";
+  if (dir.length > 1 && dir.endsWith("/")) dir = dir.slice(0, -1);
+  const entries = (MOCK_FS[dir] ?? []).slice().sort((a, b) => {
+    if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1;
+    return a.name.localeCompare(b.name, undefined, { sensitivity: "base", numeric: true });
+  });
+  const parent = dir === "/" ? null : dir.slice(0, dir.lastIndexOf("/")) || "/";
+  return { path: dir, parent, entries };
+}
+
 /** Content hash per output path for the current generated site. */
 function currentManifest(): Record<string, string> {
   return manifestOf(generateMockSite());
@@ -896,6 +943,20 @@ export function createMockApi(): PcmsApi {
       }
       const published = loadPublished();
       return { files: published ? Object.keys(published).sort() : [], target };
+    },
+    async browseServer(path: string): Promise<ServerBrowse> {
+      const deploy = loadDeploy();
+      // Only FTP/SFTP support browsing. In the eval build there is no real
+      // server, so a reachable target (host set + password saved) walks a
+      // representative fake tree; otherwise the connection-style error path is
+      // demonstrated, same as listServerFiles / publish.
+      if (deploy.type !== "sftp" && deploy.type !== "ftp") {
+        return { path: "", parent: null, entries: [], error: "この公開先はフォルダ参照に対応していません。" };
+      }
+      if (deploy.host.trim() === "" || !deploy.hasPassword) {
+        return { path: "", parent: null, entries: [], error: simulatedRemoteError(deploy) };
+      }
+      return mockBrowse(path);
     },
     async aiThemeify(html: string) {
       const themed = themeifyHtml(html);

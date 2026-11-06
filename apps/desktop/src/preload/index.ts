@@ -53,6 +53,7 @@ const api: PcmsApi = {
   rollbackPublish: (id: string) => ipcRenderer.invoke("pcms:rollbackPublish", id),
   listLocalFiles: () => ipcRenderer.invoke("pcms:listLocalFiles"),
   listServerFiles: () => ipcRenderer.invoke("pcms:listServerFiles"),
+  browseServer: (path: string) => ipcRenderer.invoke("pcms:browseServer", path),
   aiThemeify: (html: string) => ipcRenderer.invoke("pcms:aiThemeify", html),
   aiDraft: (prompt: string) => ipcRenderer.invoke("pcms:aiDraft", prompt),
   aiRewrite: (text: string, instruction: string) =>

@@ -8,6 +8,7 @@ import type {
   PublishIssue,
   PublishPreview,
   PublishReport,
+  ServerBrowse,
 } from "../api/types.js";
 import { t } from "../i18n.js";
 import { useToast } from "../state/ToastContext.js";
@@ -54,6 +55,13 @@ export function PublishFlow({ api }: { api: PcmsApi }) {
   const [serverTruncated, setServerTruncated] = useState(false);
   const [fileBusy, setFileBusy] = useState<"" | "local" | "server">("");
 
+  // Server folder browser: walk the server and pick the publish path, instead
+  // of having to know it up front. `browseOpen` shows the panel; `browse` holds
+  // the current directory level (or an error).
+  const [browseOpen, setBrowseOpen] = useState(false);
+  const [browse, setBrowse] = useState<ServerBrowse | null>(null);
+  const [browseBusy, setBrowseBusy] = useState(false);
+
   useEffect(() => {
     void api.getDeployConfig().then((c) => {
       setConfig(c);
@@ -94,6 +102,8 @@ export function PublishFlow({ api }: { api: PcmsApi }) {
       setServerDetail(null);
       setServerTruncated(false);
       setServerTarget("");
+      setBrowseOpen(false);
+      setBrowse(null);
     }
     if (next === "sftp" && (port === "" || port === "21" || port === "990")) setPort("22");
     if (next === "ftp" && (port === "" || port === "22")) {
@@ -205,6 +215,55 @@ export function PublishFlow({ api }: { api: PcmsApi }) {
     setServerTruncated(false);
   };
 
+  const closeBrowser = () => {
+    setBrowseOpen(false);
+    setBrowse(null);
+  };
+
+  const browseTo = async (path: string) => {
+    setBrowseBusy(true);
+    try {
+      setBrowse(await api.browseServer(path));
+    } finally {
+      setBrowseBusy(false);
+    }
+  };
+
+  // Open the folder browser. Save the target first so the typed host / password
+  // are persisted (the browse connects with the saved details, which stay on
+  // this machine — CLAUDE.md), then list the login directory ("").
+  const openBrowser = async () => {
+    setBrowseOpen(true);
+    setBrowse(null);
+    setBrowseBusy(true);
+    try {
+      await saveTarget();
+      setBrowse(await api.browseServer(""));
+    } finally {
+      setBrowseBusy(false);
+    }
+  };
+
+  // "このフォルダに公開する": adopt the browsed path as the remote dir and save
+  // it, so the choice sticks without a second trip to 公開先を保存.
+  const chooseHere = async () => {
+    if (!browse?.path) return;
+    setRemoteDir(browse.path);
+    const input =
+      type === "ftp"
+        ? ({ type: "ftp", host, port: Number(port) || undefined, username, remoteDir: browse.path, security, password: password || undefined } as const)
+        : ({ type: "sftp", host, port: Number(port) || 22, username, remoteDir: browse.path, password: password || undefined } as const);
+    await api.setDeployConfig(input);
+    setPassword("");
+    setConfig(await api.getDeployConfig());
+    closeBrowser();
+    // The previously fetched server listing was for the old path — drop it so
+    // it doesn't look like it belongs to the newly chosen folder.
+    setServerFiles(null);
+    setServerTruncated(false);
+    toast(t("publish.browse.picked"));
+  };
+
   const rollback = async (id: string) => {
     if (!window.confirm(t("publish.rollback") + "？")) return;
     setBusy("publish");
@@ -310,8 +369,27 @@ export function PublishFlow({ api }: { api: PcmsApi }) {
                 placeholder="例: /example.com/public_html/"
               />
             </Field>
+            <button
+              type="button"
+              className="pcms-publish__browsebtn"
+              onClick={openBrowser}
+              disabled={browseBusy || host.trim() === ""}
+            >
+              <Icon name="folder" size={14} />
+              {t("publish.remoteDirBrowse")}
+            </button>
             {remoteDir.trim() === "" && (
               <p className="pcms-publish__hint">{t("publish.remoteDirEmptyWarn")}</p>
+            )}
+            {browseOpen && (
+              <ServerBrowser
+                browse={browse}
+                busy={browseBusy}
+                onUp={() => browse?.parent != null && void browseTo(browse.parent)}
+                onEnter={(p) => void browseTo(p)}
+                onChoose={() => void chooseHere()}
+                onClose={closeBrowser}
+              />
             )}
             <Field label={t("publish.password")}>
               <input
@@ -499,6 +577,102 @@ function FileColumn({
         </li>
       ))}
     </ul>
+  );
+}
+
+/** Join an absolute posix dir with a child name (root-safe). */
+function joinPath(base: string, name: string): string {
+  return base.replace(/\/+$/, "") + "/" + name;
+}
+
+/**
+ * The server folder browser: walk the destination one directory at a time and
+ * pick where the site is published, the way a desktop FTP client does — so the
+ * operator doesn't have to know the remote path up front. Navigation is by
+ * absolute path; files are shown (greyed) only for recognition ("ここだ！").
+ */
+function ServerBrowser({
+  browse,
+  busy,
+  onUp,
+  onEnter,
+  onChoose,
+  onClose,
+}: {
+  browse: ServerBrowse | null;
+  busy: boolean;
+  onUp: () => void;
+  onEnter: (path: string) => void;
+  onChoose: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <section className="pcms-serverbrowse" role="group" aria-label={t("publish.browse.title")}>
+      <div className="pcms-serverbrowse__head">
+        <span className="pcms-serverbrowse__title">
+          <Icon name="folder" size={15} />
+          {t("publish.browse.title")}
+        </span>
+        <button type="button" onClick={onClose}>
+          {t("publish.browse.cancel")}
+        </button>
+      </div>
+      <p className="pcms-filebrowser__hint">{t("publish.browse.hint")}</p>
+      {browse?.error ? (
+        <DeployErrorDiagnosis message={browse.error} detail={browse.detail} />
+      ) : (
+        <>
+          <div className="pcms-serverbrowse__path">
+            <button type="button" onClick={onUp} disabled={busy || !browse?.parent}>
+              <Icon name="chevron-up" size={14} />
+              {t("publish.browse.up")}
+            </button>
+            <code className="pcms-serverbrowse__cwd">{browse?.path || "…"}</code>
+          </div>
+          <ul className="pcms-serverbrowse__list">
+            {busy ? (
+              <li className="pcms-empty">{t("publish.browse.loading")}</li>
+            ) : !browse || browse.entries.length === 0 ? (
+              <li className="pcms-empty">{t("publish.browse.empty")}</li>
+            ) : (
+              browse.entries.map((e) =>
+                e.isDirectory ? (
+                  <li key={e.name} className="pcms-serverbrowse__item is-dir">
+                    <button type="button" onClick={() => onEnter(joinPath(browse.path, e.name))}>
+                      <Icon name="folder" size={15} />
+                      <span>{e.name}</span>
+                    </button>
+                  </li>
+                ) : (
+                  <li key={e.name} className="pcms-serverbrowse__item is-file">
+                    <span>{e.name}</span>
+                  </li>
+                ),
+              )
+            )}
+            {browse?.truncated && (
+              <li className="pcms-filebrowser__warn" role="status">
+                {t("publish.browse.truncated")}
+              </li>
+            )}
+          </ul>
+          <div className="pcms-serverbrowse__foot">
+            <span className="pcms-serverbrowse__current">
+              {t("publish.browse.selected")}
+              <code>{browse?.path || "…"}</code>
+            </span>
+            <button
+              type="button"
+              className="pcms-primary"
+              onClick={onChoose}
+              disabled={busy || !browse?.path}
+            >
+              {t("publish.browse.here")}
+            </button>
+          </div>
+        </>
+      )}
+    </section>
   );
 }
 

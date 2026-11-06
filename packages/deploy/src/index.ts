@@ -12,6 +12,8 @@ export type {
   Issue,
   IssueLevel,
   Transport,
+  DirEntry,
+  DirListing,
   PublishOptions,
   PublishResult,
   SftpConfig,

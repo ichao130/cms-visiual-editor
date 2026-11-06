@@ -90,6 +90,12 @@ export interface PcmsApi {
    * connection failure, `error` carries the raw transport message for diagnosis.
    */
   listServerFiles(): Promise<ServerListing>;
+  /**
+   * List one directory level on the configured server so the operator can browse
+   * and pick the publish folder (`remoteDir`) without knowing its path up front.
+   * `path === ""` starts at the login directory. Only FTP/SFTP support browsing.
+   */
+  browseServer(path: string): Promise<ServerBrowse>;
 
   // AI assist. These go through the Firebase proxy in production (no API key in
   // the app); offline heuristics stand in for the evaluation build.
@@ -312,6 +318,22 @@ export interface ServerListing {
   detail?: string;
   /** The listing was cut short (the destination holds more than the shown cap). */
   truncated?: boolean;
+}
+
+/** One directory level on the server, for the "choose a folder" browser. */
+export interface ServerBrowse {
+  /** Absolute path of the directory listed (empty when the browse failed). */
+  path: string;
+  /** Parent directory, or null at the filesystem root / on failure. */
+  parent: string | null;
+  /** Entries in this directory (directories first). */
+  entries: { name: string; isDirectory: boolean }[];
+  /** The directory held more entries than the cap and was cut short. */
+  truncated?: boolean;
+  /** Raw transport error when the connection/listing failed, for diagnosis. */
+  error?: string;
+  /** Technical detail for the error (e.g. the FTP protocol dialogue). */
+  detail?: string;
 }
 
 /** FTP control-connection security (mirrors @pcms/deploy's FtpSecurity). */

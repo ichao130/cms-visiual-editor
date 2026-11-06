@@ -35,6 +35,28 @@ export interface ManifestDiff {
   unchanged: string[];
 }
 
+/** One entry in a single-level server directory listing (for path browsing). */
+export interface DirEntry {
+  name: string;
+  isDirectory: boolean;
+}
+
+/**
+ * The contents of one server directory, returned by `Transport.browse` so the
+ * operator can walk the server and pick the publish folder without knowing its
+ * path in advance.
+ */
+export interface DirListing {
+  /** Absolute path of the directory that was listed (posix separators). */
+  path: string;
+  /** The parent directory, or null when already at the filesystem root. */
+  parent: string | null;
+  /** Entries in this directory (directories first), excluding "." and "..". */
+  entries: DirEntry[];
+  /** True when the directory held more entries than the cap and was cut short. */
+  truncated?: boolean;
+}
+
 export type IssueLevel = "error" | "warning";
 
 /** A pre-publish check result. */
@@ -65,6 +87,14 @@ export interface Transport {
    * (e.g. the destination holds a whole existing site). Optional.
    */
   listTruncated?(): boolean;
+  /**
+   * List ONE directory level at an absolute server path, so the operator can
+   * browse the server and choose the publish folder without knowing its path up
+   * front (like a desktop FTP client). `path === ""` means the login/home
+   * directory. Navigation is by absolute path and is independent of the
+   * configured remoteDir. Optional — not needed to publish.
+   */
+  browse?(path: string): Promise<DirListing>;
   /** Release any held connection. */
   close?(): Promise<void>;
   /**
