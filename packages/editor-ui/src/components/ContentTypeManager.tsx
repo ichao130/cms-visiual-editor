@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { ContentTypeDef, FieldDef, FieldType } from "@pcms/shared";
 import { slugify } from "../state/editorState.js";
 import { useDragReorder, moveItem } from "../state/useDragReorder.js";
+import { CommaListInput } from "./CommaListInput.js";
 import { t, type MessageKey } from "../i18n.js";
 import { Icon } from "./Icon.js";
 
@@ -190,17 +191,10 @@ export function ContentTypeManager({ types, onCommit }: ContentTypeManagerProps)
                       {t("types.required")}
                     </label>
                     {f.type === "select" && (
-                      <input
+                      <CommaListInput
                         className="pcms-fielddef__options"
-                        value={(f.options ?? []).join(", ")}
-                        onChange={(e) =>
-                          updateField(i, {
-                            options: e.target.value
-                              .split(",")
-                              .map((s) => s.trim())
-                              .filter(Boolean),
-                          })
-                        }
+                        value={f.options ?? []}
+                        onChange={(options) => updateField(i, { options })}
                         placeholder={t("types.options")}
                       />
                     )}

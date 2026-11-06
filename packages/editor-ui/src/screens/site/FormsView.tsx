@@ -5,6 +5,7 @@ import type { PcmsApi } from "../../api/types.js";
 import { useDragReorder, moveItem } from "../../state/useDragReorder.js";
 import { t, type MessageKey } from "../../i18n.js";
 import { Icon } from "../../components/Icon.js";
+import { CommaListInput } from "../../components/CommaListInput.js";
 
 interface Props {
   api: PcmsApi;
@@ -232,15 +233,11 @@ function FormBuilder({
               <button className="pcms-formfield__del" onClick={() => removeField(i)}>{t("forms.removeField")}</button>
             </div>
             {f.type === "select" && (
-              <input
+              <CommaListInput
                 className="pcms-formfield__options"
-                value={(f.options ?? []).join(", ")}
+                value={f.options ?? []}
                 placeholder={t("forms.options")}
-                onChange={(e) =>
-                  setField(i, {
-                    options: e.target.value.split(",").map((s) => s.trim()).filter(Boolean),
-                  })
-                }
+                onChange={(options) => setField(i, { options })}
               />
             )}
           </div>
@@ -253,15 +250,10 @@ function FormBuilder({
       <h2 className="pcms-col__title">{t("forms.settings")}</h2>
       <label className="pcms-field">
         <span className="pcms-field__label">{t("forms.notify")}</span>
-        <input
-          value={form.notifyEmails.join(", ")}
+        <CommaListInput
+          value={form.notifyEmails}
           placeholder={t("forms.notifyHint")}
-          onChange={(e) =>
-            onChange({
-              ...form,
-              notifyEmails: e.target.value.split(",").map((s) => s.trim()).filter(Boolean),
-            })
-          }
+          onChange={(notifyEmails) => onChange({ ...form, notifyEmails })}
         />
       </label>
       <label className="pcms-formfield__req">

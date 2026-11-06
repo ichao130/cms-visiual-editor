@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { ContentTypeDef, TaxonomyDef } from "@pcms/shared";
 import { slugify } from "../state/editorState.js";
+import { CommaListInput } from "./CommaListInput.js";
 import { t } from "../i18n.js";
 
 interface TaxonomyManagerProps {
@@ -100,16 +101,9 @@ export function TaxonomyManager({ taxonomies, contentTypes, onCommit }: Taxonomy
 
               <label className="pcms-field">
                 <span className="pcms-field__label">{t("tax.terms")}</span>
-                <input
-                  value={(current.terms ?? []).join(", ")}
-                  onChange={(e) =>
-                    update(current.name, {
-                      terms: e.target.value
-                        .split(",")
-                        .map((s) => s.trim())
-                        .filter(Boolean),
-                    })
-                  }
+                <CommaListInput
+                  value={current.terms ?? []}
+                  onChange={(terms) => update(current.name, { terms })}
                   placeholder={t("tax.termsHint")}
                 />
               </label>
