@@ -105,8 +105,14 @@ export function MenuManager({ menus, onCommit, targets = [] }: MenuManagerProps)
               <button type="button" onClick={() => move(i, 1)} disabled={i === items.length - 1}>
                 <Icon name="chevron-down" size={15} />
               </button>
-              <button type="button" className="pcms-danger" onClick={() => remove(i)}>
-                {t("repeat.remove")}
+              <button
+                type="button"
+                className="pcms-delbtn"
+                onClick={() => remove(i)}
+                title={t("repeat.remove")}
+                aria-label={t("repeat.remove")}
+              >
+                <Icon name="trash" size={15} />
               </button>
             </div>
           </div>

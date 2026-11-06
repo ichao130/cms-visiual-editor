@@ -211,11 +211,13 @@ export function ContentTypeManager({ types, onCommit }: ContentTypeManagerProps)
                       </button>
                       <button
                         type="button"
-                        className="pcms-danger"
+                        className="pcms-delbtn"
                         onClick={() => removeField(i)}
                         disabled={f.name === "title"}
+                        title={t("repeat.remove")}
+                        aria-label={t("repeat.remove")}
                       >
-                        {t("repeat.remove")}
+                        <Icon name="trash" size={15} />
                       </button>
                     </div>
                   </div>

@@ -65,8 +65,14 @@ export function RepeatEditor({ repeat, rows, onChange }: RepeatEditorProps) {
             >
               <Icon name="chevron-down" size={15} />
             </button>
-            <button type="button" className="pcms-repeat__remove" onClick={() => remove(i)}>
-              {t("repeat.remove")}
+            <button
+              type="button"
+              className="pcms-delbtn"
+              onClick={() => remove(i)}
+              title={t("repeat.remove")}
+              aria-label={t("repeat.remove")}
+            >
+              <Icon name="trash" size={15} />
             </button>
           </div>
         </fieldset>
