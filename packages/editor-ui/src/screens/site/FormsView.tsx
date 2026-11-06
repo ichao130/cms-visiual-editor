@@ -230,7 +230,14 @@ function FormBuilder({
               <button onClick={() => moveField(i, 1)} title={t("sections.down")}>
                 <Icon name="chevron-down" size={15} />
               </button>
-              <button className="pcms-formfield__del" onClick={() => removeField(i)}>{t("forms.removeField")}</button>
+              <button
+                className="pcms-formfield__del"
+                onClick={() => removeField(i)}
+                title={t("forms.removeField")}
+                aria-label={t("forms.removeField")}
+              >
+                <Icon name="trash" size={15} />
+              </button>
             </div>
             {f.type === "select" && (
               <CommaListInput

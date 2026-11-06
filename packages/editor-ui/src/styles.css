@@ -982,7 +982,8 @@ button.pcms-danger:hover:not(:disabled) { background: var(--pcms-danger-weak); b
 .pcms-formfield__row select { font: inherit; padding: 0.35rem 0.4rem; border: 1px solid var(--pcms-border); border-radius: 6px; }
 .pcms-formfield__req { display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.85rem; white-space: nowrap; }
 .pcms-formfield__row button { font-size: 0.8rem; padding: 0.2rem 0.45rem; }
-.pcms-formfield__del { color: var(--pcms-danger); }
+.pcms-formfield__del { color: var(--pcms-muted); }
+.pcms-formfield__del:hover { color: var(--pcms-danger); }
 .pcms-formfield__options { width: 100%; margin-top: 0.4rem; font: inherit; padding: 0.35rem 0.45rem; border: 1px solid var(--pcms-border); border-radius: 6px; }
 .pcms-addsection__btn { align-self: flex-start; }
 .pcms-formbuild__delete { margin-top: 1.5rem; }
