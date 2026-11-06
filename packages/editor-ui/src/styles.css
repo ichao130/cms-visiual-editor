@@ -1180,6 +1180,8 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline: non
 /* Redirect manager */
 .pcms-redirects__table { margin-top: 0.8rem; }
 .pcms-redirects__path { font-family: var(--pcms-mono, ui-monospace, monospace); font-size: 0.82rem; }
+.pcms-redirects__del { color: var(--pcms-muted); padding: 0.2rem 0.4rem; }
+.pcms-redirects__del:hover { color: var(--pcms-danger); }
 .pcms-redirects__empty { color: var(--pcms-muted); margin: 0.8rem 0; }
 .pcms-redirects__add { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.9rem; flex-wrap: wrap; }
 .pcms-redirects__input { flex: 1 1 12rem; min-width: 8rem; }

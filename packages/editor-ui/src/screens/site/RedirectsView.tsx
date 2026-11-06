@@ -4,6 +4,7 @@ import type { PcmsApi } from "../../api/types.js";
 import { useSiteWorkspace } from "../../state/SiteWorkspace.js";
 import { buildLinkTargets } from "../../state/linkTargets.js";
 import { t } from "../../i18n.js";
+import { Icon } from "../../components/Icon.js";
 
 interface Props {
   api: PcmsApi;
@@ -91,10 +92,12 @@ export function RedirectsView({ api, siteId: _siteId }: Props) {
                 <td>
                   <button
                     type="button"
-                    className="pcms-danger"
+                    className="pcms-redirects__del"
                     onClick={() => remove(r.from)}
+                    title={t("redirects.delete")}
+                    aria-label={t("redirects.delete")}
                   >
-                    {t("redirects.delete")}
+                    <Icon name="trash" size={15} />
                   </button>
                 </td>
               </tr>
