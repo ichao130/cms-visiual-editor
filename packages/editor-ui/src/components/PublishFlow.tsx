@@ -70,6 +70,13 @@ export function PublishFlow({ api }: { api: PcmsApi }) {
   // Switch the default port with the target type, unless the operator has typed
   // a non-default value for the other type.
   const pickType = (next: "local" | "sftp" | "ftp" | "s3") => {
+    if (next !== type) {
+      // The pre-check / publish result belongs to the previously selected
+      // target, so clear it when switching — otherwise a stale「公開しました」or
+      // diff follows the operator onto a different destination (confusing).
+      setReport(null);
+      setPreview(null);
+    }
     if (next === "sftp" && (port === "" || port === "21" || port === "990")) setPort("22");
     if (next === "ftp" && (port === "" || port === "22")) {
       setPort(security === "ftps-implicit" ? "990" : "21");
