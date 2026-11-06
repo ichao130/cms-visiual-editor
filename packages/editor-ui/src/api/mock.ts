@@ -34,6 +34,7 @@ import type {
   PublishIssue,
   PublishPreview,
   PublishReport,
+  ServerListing,
   SiteStats,
   SiteSummary,
   ThemeFileKind,
@@ -466,6 +467,17 @@ function simulatedS3Error(c: Extract<StoredDeploy, { type: "s3" }>): string {
   return `connect ETIMEDOUT ${c.bucket}.s3.${c.region}.amazonaws.com:443`;
 }
 
+/** Destination label for a saved deploy config (matches publishSite's target). */
+function targetLabelOf(deploy: StoredDeploy): string {
+  if (deploy.type === "local") return MOCK_TARGET;
+  if (deploy.type === "s3") {
+    const where = deploy.prefix ? `${deploy.bucket}/${deploy.prefix}` : deploy.bucket;
+    return `S3: ${where}（${deploy.region}）`;
+  }
+  const label = deploy.type === "sftp" ? "SFTP" : deploy.security === "ftp" ? "FTP" : "FTPS";
+  return `${label}: ${deploy.username}@${deploy.host}:${deploy.remoteDir}`;
+}
+
 /** Content hash per output path for the current generated site. */
 function currentManifest(): Record<string, string> {
   return manifestOf(generateMockSite());
@@ -864,6 +876,26 @@ export function createMockApi(): PcmsApi {
     },
     async rollbackPublish(): Promise<PublishReport> {
       return { ok: true, issues: [], uploaded: 0, deleted: 0, unchanged: 0, target: MOCK_TARGET };
+    },
+    async listLocalFiles(): Promise<string[]> {
+      return Object.keys(currentManifest()).sort();
+    },
+    async listServerFiles(): Promise<ServerListing> {
+      const deploy = loadDeploy();
+      const target = targetLabelOf(deploy);
+      // No real server in the eval build: a remote target reports a
+      // representative connection failure (as publish does) so the offline /
+      // diagnosis path is demonstrable. For the local-folder target, the
+      // "server" is the folder this app last published into — reflect its
+      // contents (the last publish manifest).
+      if (deploy.type === "sftp" || deploy.type === "ftp") {
+        return { files: [], target, error: simulatedRemoteError(deploy) };
+      }
+      if (deploy.type === "s3") {
+        return { files: [], target, error: simulatedS3Error(deploy) };
+      }
+      const published = loadPublished();
+      return { files: published ? Object.keys(published).sort() : [], target };
     },
     async aiThemeify(html: string) {
       const themed = themeifyHtml(html);

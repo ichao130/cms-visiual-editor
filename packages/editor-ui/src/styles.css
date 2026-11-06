@@ -208,6 +208,67 @@ button.pcms-aibtn:hover:not(:disabled) { filter: brightness(1.08); background: v
   color: var(--pcms-text-muted);
 }
 .pcms-publish__files.is-delete .pcms-publish__filelist { color: var(--pcms-danger); }
+/* File browser: local output vs. what is on the destination, side by side. */
+.pcms-publish__filebrowser { margin-top: 1rem; }
+.pcms-filebrowser__hint { font-size: 0.8rem; color: var(--pcms-muted); margin: 0.25rem 0 0; }
+.pcms-filebrowser {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+@media (max-width: 640px) {
+  .pcms-filebrowser { grid-template-columns: 1fr; }
+}
+.pcms-filebrowser__pane {
+  border: 1px solid var(--pcms-border);
+  border-radius: 8px;
+  padding: 0.5rem 0.6rem;
+  min-width: 0;
+  background: var(--pcms-surface, transparent);
+}
+.pcms-filebrowser__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+.pcms-filebrowser__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  min-width: 0;
+}
+.pcms-filebrowser__count { color: var(--pcms-muted); font-weight: 400; }
+.pcms-filebrowser__head button { flex: none; }
+.pcms-filebrowser__target {
+  font-size: 0.75rem;
+  color: var(--pcms-muted);
+  margin: 0 0 0.35rem;
+  word-break: break-all;
+}
+.pcms-filebrowser__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 14rem;
+  overflow: auto;
+  font-family: var(--pcms-mono, ui-monospace, monospace);
+  font-size: 0.78rem;
+}
+.pcms-filebrowser__item {
+  padding: 0.1rem 0.15rem;
+  color: var(--pcms-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pcms-filebrowser__item.is-new { color: var(--pcms-success); }
+.pcms-filebrowser__item.is-orphan { color: var(--pcms-muted); font-style: italic; }
+
 .pcms-publish__issues { list-style: none; padding: 0; margin: 0.5rem 0 0; }
 .pcms-publish__issue { font-size: 0.82rem; padding: 0.15rem 0; }
 .pcms-publish__issue.is-error { color: var(--pcms-danger); }

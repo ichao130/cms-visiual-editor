@@ -13,6 +13,8 @@ export interface S3ObjectStore {
   deleteObject(input: { key: string }): Promise<void>;
   /** Return the object's bytes, or null when it does not exist. */
   getObject(input: { key: string }): Promise<Uint8Array | null>;
+  /** Return every object key under `prefix` (optional — used to list the bucket). */
+  listObjects?(input: { prefix: string }): Promise<string[]>;
   close?(): void;
 }
 
@@ -102,6 +104,17 @@ export class S3Transport implements Transport {
     return store.getObject({ key: this.key(path) });
   }
 
+  async list(): Promise<string[]> {
+    const store = await this.conn();
+    if (!store.listObjects) return [];
+    const keys = await store.listObjects({ prefix: this.prefix });
+    const base = this.prefix ? this.prefix + "/" : "";
+    return keys
+      .map((k) => (base && k.startsWith(base) ? k.slice(base.length) : k))
+      .filter((k) => k.length > 0)
+      .sort();
+  }
+
   async close(): Promise<void> {
     this.store?.close?.();
     this.store = null;
@@ -125,6 +138,7 @@ interface AwsS3Module {
   PutObjectCommand: new (input: Record<string, unknown>) => unknown;
   DeleteObjectCommand: new (input: Record<string, unknown>) => unknown;
   GetObjectCommand: new (input: Record<string, unknown>) => unknown;
+  ListObjectsV2Command: new (input: Record<string, unknown>) => unknown;
 }
 
 /** Load `@aws-sdk/client-s3` and adapt it to the S3ObjectStore interface. */
@@ -149,6 +163,28 @@ async function loadOps(config: S3Config): Promise<S3ObjectStore> {
     },
     async deleteObject({ key }) {
       await client.send(new mod.DeleteObjectCommand({ Bucket, Key: key }));
+    },
+    async listObjects({ prefix }) {
+      const keys: string[] = [];
+      let token: string | undefined;
+      do {
+        const res = (await client.send(
+          new mod.ListObjectsV2Command({
+            Bucket,
+            Prefix: prefix ? prefix + "/" : undefined,
+            ContinuationToken: token,
+          }),
+        )) as {
+          Contents?: Array<{ Key?: string }>;
+          IsTruncated?: boolean;
+          NextContinuationToken?: string;
+        };
+        for (const obj of res.Contents ?? []) {
+          if (obj.Key) keys.push(obj.Key);
+        }
+        token = res.IsTruncated ? res.NextContinuationToken : undefined;
+      } while (token);
+      return keys;
     },
     async getObject({ key }) {
       try {

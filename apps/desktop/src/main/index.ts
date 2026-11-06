@@ -53,6 +53,8 @@ import {
   publishSite,
   listPublishHistory,
   rollbackPublish,
+  listLocalFiles,
+  listServerFiles,
   type DeployConfigInput,
 } from "./publish.js";
 import {
@@ -198,6 +200,8 @@ function registerIpc(): void {
   ipcMain.handle("pcms:rollbackPublish", (_event, id: string) =>
     rollbackPublish(id),
   );
+  ipcMain.handle("pcms:listLocalFiles", () => listLocalFiles());
+  ipcMain.handle("pcms:listServerFiles", () => listServerFiles());
 
   // AI assist. Offline heuristics for the evaluation build; a real build would
   // forward these to the Firebase AI proxy (no API key in the app).

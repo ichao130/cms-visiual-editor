@@ -139,6 +139,12 @@ export interface PublishHistoryEntry {
   fileCount: number;
 }
 
+export interface ServerListing {
+  files: string[];
+  target: string;
+  error?: string;
+}
+
 // --- Paths -----------------------------------------------------------------
 
 const userData = () => app.getPath("userData");
@@ -448,4 +454,29 @@ export async function rollbackPublish(id: string): Promise<PublishReport> {
     return { ok: false, issues: [], uploaded: 0, deleted: 0, unchanged: 0, target: "", error: "履歴が見つかりません" };
   }
   return runPublish(walk(dir));
+}
+
+// --- File listings (local output vs. what is on the server) ----------------
+
+/** The files the current site generates — what a publish would send. */
+export function listLocalFiles(): string[] {
+  return Object.keys(assembleOutput()).sort();
+}
+
+/**
+ * Connect to the configured destination and list the files that are there now
+ * (bounded to the site's root). One-shot: connect, list, disconnect. A
+ * connection failure is returned as `error` (the UI diagnoses it) rather than
+ * thrown. Connection details stay on this machine (CLAUDE.md).
+ */
+export async function listServerFiles(): Promise<ServerListing> {
+  const { transport, target } = makeTransport(loadRawConfig());
+  try {
+    const files = typeof transport.list === "function" ? await transport.list() : [];
+    return { files, target };
+  } catch (err) {
+    return { files: [], target, error: err instanceof Error ? err.message : String(err) };
+  } finally {
+    await transport.close?.();
+  }
 }

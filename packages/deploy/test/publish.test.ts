@@ -81,3 +81,15 @@ describe("publish", () => {
     expect(existsSync(join(root, "c.txt"))).toBe(false);
   });
 });
+
+describe("LocalTransport.list", () => {
+  it("lists every published file as a site-relative path", async () => {
+    await publish({ "index.html": "a", "assets/style.css": "b", "blog/post.html": "c" }, transport);
+    expect(await transport.list()).toEqual(["assets/style.css", "blog/post.html", "index.html"]);
+  });
+
+  it("returns an empty list for a directory that does not exist yet", async () => {
+    const missing = new LocalTransport(join(root, "nope"));
+    expect(await missing.list()).toEqual([]);
+  });
+});

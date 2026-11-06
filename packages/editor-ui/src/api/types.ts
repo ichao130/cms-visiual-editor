@@ -82,6 +82,14 @@ export interface PcmsApi {
   listPublishHistory(): Promise<PublishHistoryEntry[]>;
   /** Re-publish a previous snapshot. */
   rollbackPublish(id: string): Promise<PublishReport>;
+  /** The files the current site generates — what a publish would send. */
+  listLocalFiles(): Promise<string[]>;
+  /**
+   * Connect to the configured destination and list the files that are there
+   * now (under the site's root). One-shot: connects, lists, disconnects. On a
+   * connection failure, `error` carries the raw transport message for diagnosis.
+   */
+  listServerFiles(): Promise<ServerListing>;
 
   // AI assist. These go through the Firebase proxy in production (no API key in
   // the app); offline heuristics stand in for the evaluation build.
@@ -290,6 +298,16 @@ export interface PublishHistoryEntry {
   id: string;
   publishedAt: string;
   fileCount: number;
+}
+
+/** The files currently on the publish destination (server / folder). */
+export interface ServerListing {
+  /** Site-relative paths present at the destination. Empty when offline/failed. */
+  files: string[];
+  /** Human-readable destination label (same as a publish report's target). */
+  target: string;
+  /** Raw transport error when the connection/listing failed, for diagnosis. */
+  error?: string;
 }
 
 /** FTP control-connection security (mirrors @pcms/deploy's FtpSecurity). */

@@ -11,6 +11,7 @@ import type {
 } from "../api/types.js";
 import { t } from "../i18n.js";
 import { useToast } from "../state/ToastContext.js";
+import { Icon } from "./Icon.js";
 
 /**
  * The publish flow body (target config, pre-check, publish, rollback), without
@@ -43,6 +44,14 @@ export function PublishFlow({ api }: { api: PcmsApi }) {
   const [endpoint, setEndpoint] = useState("");
   const [hasSecret, setHasSecret] = useState(false);
 
+  // File listings: local output (what a publish would send) vs. the files on
+  // the destination. `serverFiles === null` means not connected (offline).
+  const [localFiles, setLocalFiles] = useState<string[] | null>(null);
+  const [serverFiles, setServerFiles] = useState<string[] | null>(null);
+  const [serverTarget, setServerTarget] = useState("");
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [fileBusy, setFileBusy] = useState<"" | "local" | "server">("");
+
   useEffect(() => {
     void api.getDeployConfig().then((c) => {
       setConfig(c);
@@ -65,17 +74,22 @@ export function PublishFlow({ api }: { api: PcmsApi }) {
       }
     });
     void api.listPublishHistory().then(setHistory);
+    void api.listLocalFiles().then(setLocalFiles);
   }, [api]);
 
   // Switch the default port with the target type, unless the operator has typed
   // a non-default value for the other type.
   const pickType = (next: "local" | "sftp" | "ftp" | "s3") => {
     if (next !== type) {
-      // The pre-check / publish result belongs to the previously selected
-      // target, so clear it when switching — otherwise a stale「公開しました」or
-      // diff follows the operator onto a different destination (confusing).
+      // The pre-check / publish result and the fetched server listing belong to
+      // the previously selected target, so clear them when switching — otherwise
+      // a stale「公開しました」, diff or file list follows the operator onto a
+      // different destination (confusing).
       setReport(null);
       setPreview(null);
+      setServerFiles(null);
+      setServerError(null);
+      setServerTarget("");
     }
     if (next === "sftp" && (port === "" || port === "21" || port === "990")) setPort("22");
     if (next === "ftp" && (port === "" || port === "22")) {
@@ -148,6 +162,37 @@ export function PublishFlow({ api }: { api: PcmsApi }) {
     } finally {
       setBusy("");
     }
+  };
+
+  const refreshLocal = async () => {
+    setFileBusy("local");
+    try {
+      setLocalFiles(await api.listLocalFiles());
+    } finally {
+      setFileBusy("");
+    }
+  };
+
+  const connectServer = async () => {
+    setFileBusy("server");
+    setServerError(null);
+    try {
+      const r = await api.listServerFiles();
+      setServerTarget(r.target);
+      if (r.error) {
+        setServerError(r.error);
+        setServerFiles(null);
+      } else {
+        setServerFiles(r.files);
+      }
+    } finally {
+      setFileBusy("");
+    }
+  };
+
+  const disconnectServer = () => {
+    setServerFiles(null);
+    setServerError(null);
   };
 
   const rollback = async (id: string) => {
@@ -279,6 +324,58 @@ export function PublishFlow({ api }: { api: PcmsApi }) {
         {config && <span className="pcms-publish__targetlabel">{targetLabel(config)}</span>}
       </section>
 
+      <section className="pcms-publish__filebrowser">
+        <h3 className="pcms-types__fieldshead">{t("publish.files.title")}</h3>
+        <p className="pcms-filebrowser__hint">{t("publish.files.hint")}</p>
+        <div className="pcms-filebrowser">
+          <div className="pcms-filebrowser__pane">
+            <div className="pcms-filebrowser__head">
+              <span className="pcms-filebrowser__title">
+                <Icon name="folder" size={15} />
+                {t("publish.files.local")}
+                {localFiles && <span className="pcms-filebrowser__count">（{localFiles.length}）</span>}
+              </span>
+              <button type="button" onClick={refreshLocal} disabled={fileBusy !== ""}>
+                {t("publish.files.refresh")}
+              </button>
+            </div>
+            <FileColumn files={localFiles} other={serverFiles} markClass="is-new" />
+          </div>
+
+          <div className="pcms-filebrowser__pane">
+            <div className="pcms-filebrowser__head">
+              <span className="pcms-filebrowser__title">
+                <Icon name="publish" size={15} />
+                {t("publish.files.server")}
+                {serverFiles && <span className="pcms-filebrowser__count">（{serverFiles.length}）</span>}
+              </span>
+              {serverFiles === null ? (
+                <button
+                  type="button"
+                  className="pcms-primary"
+                  onClick={connectServer}
+                  disabled={fileBusy !== ""}
+                >
+                  {fileBusy === "server" ? t("publish.files.loading") : t("publish.files.connect")}
+                </button>
+              ) : (
+                <button type="button" onClick={disconnectServer} disabled={fileBusy !== ""}>
+                  {t("publish.files.disconnect")}
+                </button>
+              )}
+            </div>
+            {serverTarget && <p className="pcms-filebrowser__target">{serverTarget}</p>}
+            {serverError ? (
+              <DeployErrorDiagnosis message={serverError} />
+            ) : serverFiles === null ? (
+              <p className="pcms-empty">{t("publish.files.offline")}</p>
+            ) : (
+              <FileColumn files={serverFiles} other={localFiles} markClass="is-orphan" />
+            )}
+          </div>
+        </div>
+      </section>
+
       {preview && (
         <section className="pcms-publish__result">
           <p className="pcms-publish__counts">
@@ -346,6 +443,38 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
       <span className="pcms-field__label">{label}</span>
       {children}
     </label>
+  );
+}
+
+/**
+ * One side of the file browser: a scrollable list of paths. Paths that are not
+ * present on the other side are flagged (`markClass`) — on the local side these
+ * are files not yet on the server (will upload); on the server side they are
+ * files not in the current output (orphans this app did not place).
+ */
+function FileColumn({
+  files,
+  other,
+  markClass,
+}: {
+  files: string[] | null;
+  other: string[] | null;
+  markClass: string;
+}) {
+  if (files === null) return <p className="pcms-empty">{t("publish.files.loading")}</p>;
+  if (files.length === 0) return <p className="pcms-empty">{t("publish.files.empty")}</p>;
+  const otherSet = other ? new Set(other) : null;
+  return (
+    <ul className="pcms-filebrowser__list">
+      {files.map((p) => (
+        <li
+          key={p}
+          className={`pcms-filebrowser__item${otherSet && !otherSet.has(p) ? " " + markClass : ""}`}
+        >
+          {p}
+        </li>
+      ))}
+    </ul>
   );
 }
 

@@ -1,5 +1,5 @@
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
-import { dirname, join, normalize, resolve, sep } from "node:path";
+import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { dirname, join, normalize, relative, resolve, sep } from "node:path";
 import type { Transport } from "../types.js";
 import { toBytes } from "../hash.js";
 
@@ -38,8 +38,32 @@ export class LocalTransport implements Transport {
     }
   }
 
+  async list(): Promise<string[]> {
+    const out: string[] = [];
+    await walkDir(this.root, this.root, out);
+    return out.sort();
+  }
+
   // Exposed for callers that want the absolute path of an output file.
   pathOf(path: string): string {
     return join(this.root, path);
+  }
+}
+
+/** Collect every file under `dir` as a path relative to `root` (posix). */
+async function walkDir(root: string, dir: string, out: string[]): Promise<void> {
+  let entries: import("node:fs").Dirent[];
+  try {
+    entries = await readdir(dir, { withFileTypes: true });
+  } catch {
+    return; // missing directory → nothing published there yet
+  }
+  for (const entry of entries) {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      await walkDir(root, full, out);
+    } else if (entry.isFile()) {
+      out.push(relative(root, full).split(sep).join("/"));
+    }
   }
 }

@@ -41,6 +41,18 @@ class FakeFtp implements FtpClientLike {
     }
     await new Promise<void>((res, rej) => dest.end(data, (e?: Error | null) => (e ? rej(e) : res())));
   }
+  async list(path = "/") {
+    const base = path.endsWith("/") ? path : path + "/";
+    const children = new Map<string, boolean>(); // name → isDirectory
+    for (const key of this.files.keys()) {
+      if (!key.startsWith(base)) continue;
+      const rest = key.slice(base.length);
+      const slash = rest.indexOf("/");
+      if (slash === -1) children.set(rest, false);
+      else children.set(rest.slice(0, slash), true);
+    }
+    return [...children].map(([name, isDirectory]) => ({ name, isDirectory }));
+  }
   close() {
     this.closed = true;
   }
@@ -112,6 +124,14 @@ describe("FtpTransport", () => {
     const implicit = make({ security: "ftps-implicit" });
     await implicit.t.put("a", "1");
     expect(implicit.fake.access_[0]).toMatchObject({ secure: "implicit", port: 990 });
+  });
+
+  it("lists existing files under the remote root as site-relative paths", async () => {
+    const { t } = make();
+    await t.put("index.html", "a");
+    await t.put("assets/style.css", "b");
+    await t.put("blog/post.html", "c");
+    expect(await t.list()).toEqual(["assets/style.css", "blog/post.html", "index.html"]);
   });
 
   it("closes the underlying client", async () => {

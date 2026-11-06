@@ -14,6 +14,7 @@ export interface FtpClientLike {
   uploadFrom(source: Readable, toRemotePath: string): Promise<unknown>;
   remove(remotePath: string): Promise<unknown>;
   downloadTo(dest: Writable, fromRemotePath: string): Promise<unknown>;
+  list(path?: string): Promise<Array<{ name: string; isDirectory: boolean }>>;
   close(): void;
 }
 
@@ -120,6 +121,37 @@ export class FtpTransport implements Transport {
       throw err;
     }
     return new Uint8Array(Buffer.concat(chunks));
+  }
+
+  async list(): Promise<string[]> {
+    const client = await this.conn();
+    const out: string[] = [];
+    await this.walk(client, this.root, "", out);
+    return out.sort();
+  }
+
+  private async walk(
+    client: FtpClientLike,
+    remoteDir: string,
+    rel: string,
+    out: string[],
+  ): Promise<void> {
+    let entries: Array<{ name: string; isDirectory: boolean }>;
+    try {
+      entries = await client.list(remoteDir);
+    } catch (err) {
+      if (replyCode(err) === 550) return; // missing directory → nothing there
+      throw err;
+    }
+    for (const entry of entries) {
+      if (entry.name === "." || entry.name === "..") continue;
+      const childRel = rel ? posix.join(rel, entry.name) : entry.name;
+      if (entry.isDirectory) {
+        await this.walk(client, posix.join(remoteDir, entry.name), childRel, out);
+      } else {
+        out.push(childRel);
+      }
+    }
   }
 
   async close(): Promise<void> {

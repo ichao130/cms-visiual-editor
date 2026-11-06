@@ -10,6 +10,7 @@ interface SftpClient {
   get(remote: string): Promise<Buffer>;
   mkdir(remote: string, recursive?: boolean): Promise<string>;
   exists(remote: string): Promise<false | "d" | "-" | "l">;
+  list(remote: string): Promise<Array<{ type: string; name: string }>>;
   end(): Promise<void>;
 }
 
@@ -70,6 +71,36 @@ export class SftpTransport implements Transport {
     const remote = this.remote(path);
     if (!(await client.exists(remote))) return null;
     return new Uint8Array(await client.get(remote));
+  }
+
+  async list(): Promise<string[]> {
+    const client = await this.conn();
+    const out: string[] = [];
+    await this.walk(client, this.config.remoteDir || ".", "", out);
+    return out.sort();
+  }
+
+  private async walk(
+    client: SftpClient,
+    remoteDir: string,
+    rel: string,
+    out: string[],
+  ): Promise<void> {
+    let entries: Array<{ type: string; name: string }>;
+    try {
+      entries = await client.list(remoteDir);
+    } catch {
+      return; // missing / unreadable directory → nothing to list there
+    }
+    for (const entry of entries) {
+      if (entry.name === "." || entry.name === "..") continue;
+      const childRel = rel ? posix.join(rel, entry.name) : entry.name;
+      if (entry.type === "d") {
+        await this.walk(client, posix.join(remoteDir, entry.name), childRel, out);
+      } else {
+        out.push(childRel);
+      }
+    }
   }
 
   async close(): Promise<void> {

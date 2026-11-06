@@ -53,6 +53,13 @@ export interface Transport {
   put(path: string, data: string | Uint8Array): Promise<void>;
   delete(path: string): Promise<void>;
   get?(path: string): Promise<Uint8Array | null>;
+  /**
+   * List the files that currently exist under the destination's root, as
+   * site-relative paths (posix separators). Optional — used to show the operator
+   * what is on the server, not needed to publish. Bounded to the publish root so
+   * it never walks the whole server.
+   */
+  list?(): Promise<string[]>;
   /** Release any held connection. */
   close?(): Promise<void>;
 }

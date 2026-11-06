@@ -15,6 +15,10 @@ class FakeStore implements S3ObjectStore {
   async getObject({ key }: { key: string }) {
     return this.objects.get(key)?.body ?? null;
   }
+  async listObjects({ prefix }: { prefix: string }) {
+    const base = prefix ? prefix + "/" : "";
+    return [...this.objects.keys()].filter((k) => k.startsWith(base));
+  }
   close() {
     this.closed = true;
   }
@@ -58,6 +62,20 @@ describe("S3Transport", () => {
     await t.delete("gone.html");
     expect(fake.objects.has("gone.html")).toBe(false);
     await expect(t.delete("never.html")).resolves.toBeUndefined();
+  });
+
+  it("lists objects under the prefix as site-relative paths", async () => {
+    const { t } = make({ prefix: "sites/cafe" });
+    await t.put("index.html", "a");
+    await t.put("assets/app.css", "b");
+    expect(await t.list()).toEqual(["assets/app.css", "index.html"]);
+  });
+
+  it("lists objects at the bucket root when there is no prefix", async () => {
+    const { t } = make();
+    await t.put("index.html", "a");
+    await t.put("blog/post.html", "b");
+    expect(await t.list()).toEqual(["blog/post.html", "index.html"]);
   });
 
   it("closes the underlying store", async () => {
