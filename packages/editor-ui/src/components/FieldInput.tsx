@@ -20,10 +20,7 @@ export function FieldInput({ id, label, type, value, onChange }: FieldInputProps
 
   return (
     <label className="pcms-field" htmlFor={id}>
-      <span className="pcms-field__label">
-        {label}
-        <em className="pcms-field__type">{type}</em>
-      </span>
+      <span className="pcms-field__label">{label}</span>
       {type === "image" ? (
         <ImageField id={id} value={str} onChange={onChange} />
       ) : type === "richtext" ? (

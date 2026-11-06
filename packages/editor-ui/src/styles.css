@@ -385,7 +385,6 @@ button.pcms-aibtn:hover:not(:disabled) { filter: brightness(1.08); background: v
   font-size: 0.8rem;
   margin-bottom: 0.25rem;
 }
-.pcms-field__type { color: var(--pcms-muted); font-style: normal; font-size: 0.7rem; }
 .pcms-field input,
 .pcms-field textarea {
   width: 100%;

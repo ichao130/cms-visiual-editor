@@ -25,7 +25,6 @@ export function ContentField({ field, value, onChange, aiRewrite }: ContentField
       <span className="pcms-field__label">
         {field.label || field.name}
         {field.required && <em className="pcms-field__req">必須</em>}
-        <em className="pcms-field__type">{field.type}</em>
       </span>
       {control(id, field, str, onChange)}
       {field.type === "richtext" && aiRewrite && str.trim() !== "" && (
