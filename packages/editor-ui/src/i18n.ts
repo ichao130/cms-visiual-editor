@@ -146,6 +146,8 @@ const ja = {
   "publish.port": "ポート",
   "publish.user": "ユーザー名",
   "publish.remoteDir": "リモートのパス",
+  "publish.remoteDirEmptyWarn":
+    "リモートのパスが空です。この場合、公開先はサーバーの最上位（レンタルサーバーではアカウント全体）になります。このサイトを公開するフォルダ（例: /ドメイン/public_html/）を指定してください。",
   "publish.password": "パスワード",
   "publish.passwordKept": "（保存済み。変更する場合のみ入力）",
   "publish.saveTarget": "公開先を保存",
@@ -178,6 +180,8 @@ const ja = {
   "publish.files.loading": "接続中…",
   "publish.files.offline": "未接続です。「接続して取得」で公開先のファイルを表示します。",
   "publish.files.empty": "ファイルはありません",
+  "publish.files.truncated":
+    "公開先に多数のファイルがあるため、一部のみ表示しています。リモートのパスを、このサイトを公開するフォルダに設定してください。",
   "toolbar.menus": "メニュー",
   "toolbar.tax": "分類",
   "tax.title": "分類（タクソノミー）",

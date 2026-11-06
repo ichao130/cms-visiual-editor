@@ -60,6 +60,11 @@ export interface Transport {
    * it never walks the whole server.
    */
   list?(): Promise<string[]>;
+  /**
+   * Whether the most recent list() was cut short by a size/depth/time limit
+   * (e.g. the destination holds a whole existing site). Optional.
+   */
+  listTruncated?(): boolean;
   /** Release any held connection. */
   close?(): Promise<void>;
   /**

@@ -146,6 +146,8 @@ export interface ServerListing {
   error?: string;
   /** Technical detail for the error (e.g. the FTP protocol dialogue). */
   detail?: string;
+  /** The listing was cut short (the destination holds more than the shown cap). */
+  truncated?: boolean;
 }
 
 // --- Paths -----------------------------------------------------------------
@@ -483,7 +485,8 @@ export async function listServerFiles(): Promise<ServerListing> {
       typeof transport.list === "function"
         ? await withTimeout(transport.list(), 25000, "サーバーのファイル一覧取得")
         : [];
-    return { files, target };
+    const truncated = transport.listTruncated?.() ?? false;
+    return { files, target, ...(truncated ? { truncated } : {}) };
   } catch (err) {
     const detail = transport.diagnostics?.();
     return {

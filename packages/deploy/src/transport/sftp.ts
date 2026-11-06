@@ -2,6 +2,7 @@ import { posix } from "node:path";
 import type { SftpConfig, Transport } from "../types.js";
 import { toBytes } from "../hash.js";
 import { withTimeout, DEFAULT_CONNECT_TIMEOUT_MS } from "../timeout.js";
+import { ListingBudget } from "../listing.js";
 
 /** Minimal surface of ssh2-sftp-client that we use (loaded dynamically). */
 interface SftpClient {
@@ -23,6 +24,8 @@ interface SftpClient {
 export class SftpTransport implements Transport {
   private client: SftpClient | null = null;
   private readonly ensured = new Set<string>();
+  /** Budget of the most recent list(), to report truncation. */
+  private budget: ListingBudget | null = null;
 
   constructor(private readonly config: SftpConfig) {}
 
@@ -88,8 +91,14 @@ export class SftpTransport implements Transport {
   async list(): Promise<string[]> {
     const client = await this.conn();
     const out: string[] = [];
-    await this.walk(client, this.config.remoteDir || ".", "", out);
+    this.budget = new ListingBudget();
+    await this.walk(client, this.config.remoteDir || ".", "", out, 0, this.budget);
     return out.sort();
+  }
+
+  /** Whether the last list() was cut short by a size/depth/time limit. */
+  listTruncated(): boolean {
+    return this.budget?.truncated ?? false;
   }
 
   private async walk(
@@ -97,7 +106,10 @@ export class SftpTransport implements Transport {
     remoteDir: string,
     rel: string,
     out: string[],
+    depth: number,
+    budget: ListingBudget,
   ): Promise<void> {
+    if (budget.spent(out.length) || budget.tooDeep(depth)) return;
     let entries: Array<{ type: string; name: string }>;
     try {
       entries = await client.list(remoteDir);
@@ -105,10 +117,11 @@ export class SftpTransport implements Transport {
       return; // missing / unreadable directory → nothing to list there
     }
     for (const entry of entries) {
+      if (budget.spent(out.length)) return;
       if (entry.name === "." || entry.name === "..") continue;
       const childRel = rel ? posix.join(rel, entry.name) : entry.name;
       if (entry.type === "d") {
-        await this.walk(client, posix.join(remoteDir, entry.name), childRel, out);
+        await this.walk(client, posix.join(remoteDir, entry.name), childRel, out, depth + 1, budget);
       } else {
         out.push(childRel);
       }

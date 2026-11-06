@@ -250,6 +250,15 @@ button.pcms-aibtn:hover:not(:disabled) { filter: brightness(1.08); background: v
   margin: 0 0 0.35rem;
   word-break: break-all;
 }
+.pcms-filebrowser__warn {
+  font-size: 0.78rem;
+  color: var(--pcms-warning);
+  background: var(--pcms-warning-weak);
+  border-radius: 6px;
+  padding: 0.4rem 0.55rem;
+  margin: 0 0 0.45rem;
+  line-height: 1.5;
+}
 .pcms-filebrowser__list {
   list-style: none;
   margin: 0;

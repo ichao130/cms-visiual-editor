@@ -51,6 +51,7 @@ export function PublishFlow({ api }: { api: PcmsApi }) {
   const [serverTarget, setServerTarget] = useState("");
   const [serverError, setServerError] = useState<string | null>(null);
   const [serverDetail, setServerDetail] = useState<string | null>(null);
+  const [serverTruncated, setServerTruncated] = useState(false);
   const [fileBusy, setFileBusy] = useState<"" | "local" | "server">("");
 
   useEffect(() => {
@@ -91,6 +92,7 @@ export function PublishFlow({ api }: { api: PcmsApi }) {
       setServerFiles(null);
       setServerError(null);
       setServerDetail(null);
+      setServerTruncated(false);
       setServerTarget("");
     }
     if (next === "sftp" && (port === "" || port === "21" || port === "990")) setPort("22");
@@ -179,6 +181,7 @@ export function PublishFlow({ api }: { api: PcmsApi }) {
     setFileBusy("server");
     setServerError(null);
     setServerDetail(null);
+    setServerTruncated(false);
     try {
       const r = await api.listServerFiles();
       setServerTarget(r.target);
@@ -188,6 +191,7 @@ export function PublishFlow({ api }: { api: PcmsApi }) {
         setServerFiles(null);
       } else {
         setServerFiles(r.files);
+        setServerTruncated(r.truncated ?? false);
       }
     } finally {
       setFileBusy("");
@@ -198,6 +202,7 @@ export function PublishFlow({ api }: { api: PcmsApi }) {
     setServerFiles(null);
     setServerError(null);
     setServerDetail(null);
+    setServerTruncated(false);
   };
 
   const rollback = async (id: string) => {
@@ -299,8 +304,15 @@ export function PublishFlow({ api }: { api: PcmsApi }) {
               <input value={username} onChange={(e) => setUsername(e.target.value)} />
             </Field>
             <Field label={t("publish.remoteDir")}>
-              <input value={remoteDir} onChange={(e) => setRemoteDir(e.target.value)} />
+              <input
+                value={remoteDir}
+                onChange={(e) => setRemoteDir(e.target.value)}
+                placeholder="例: /example.com/public_html/"
+              />
             </Field>
+            {remoteDir.trim() === "" && (
+              <p className="pcms-publish__hint">{t("publish.remoteDirEmptyWarn")}</p>
+            )}
             <Field label={t("publish.password")}>
               <input
                 type="password"
@@ -375,7 +387,14 @@ export function PublishFlow({ api }: { api: PcmsApi }) {
             ) : serverFiles === null ? (
               <p className="pcms-empty">{t("publish.files.offline")}</p>
             ) : (
-              <FileColumn files={serverFiles} other={localFiles} markClass="is-orphan" />
+              <>
+                {serverTruncated && (
+                  <p className="pcms-filebrowser__warn" role="status">
+                    {t("publish.files.truncated")}
+                  </p>
+                )}
+                <FileColumn files={serverFiles} other={localFiles} markClass="is-orphan" />
+              </>
             )}
           </div>
         </div>

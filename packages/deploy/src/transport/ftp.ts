@@ -3,6 +3,7 @@ import { Readable, Writable } from "node:stream";
 import type { FtpConfig, Transport } from "../types.js";
 import { toBytes } from "../hash.js";
 import { withTimeout, DEFAULT_CONNECT_TIMEOUT_MS } from "../timeout.js";
+import { ListingBudget } from "../listing.js";
 
 /**
  * Minimal surface of `basic-ftp`'s Client that we use (loaded dynamically).
@@ -42,6 +43,8 @@ export class FtpTransport implements Transport {
   private readonly ensured = new Set<string>();
   /** Recent FTP dialogue (passwords masked by basic-ftp), for error reports. */
   private readonly logLines: string[] = [];
+  /** Budget of the most recent list(), to report truncation. */
+  private budget: ListingBudget | null = null;
 
   constructor(
     private readonly config: FtpConfig,
@@ -171,8 +174,14 @@ export class FtpTransport implements Transport {
   async list(): Promise<string[]> {
     const client = await this.conn();
     const out: string[] = [];
-    await this.walk(client, this.root, "", out);
+    this.budget = new ListingBudget();
+    await this.walk(client, this.root, "", out, 0, this.budget);
     return out.sort();
+  }
+
+  /** Whether the last list() was cut short by a size/depth/time limit. */
+  listTruncated(): boolean {
+    return this.budget?.truncated ?? false;
   }
 
   private async walk(
@@ -180,7 +189,10 @@ export class FtpTransport implements Transport {
     remoteDir: string,
     rel: string,
     out: string[],
+    depth: number,
+    budget: ListingBudget,
   ): Promise<void> {
+    if (budget.spent(out.length) || budget.tooDeep(depth)) return;
     let entries: Array<{ name: string; isDirectory: boolean }>;
     try {
       entries = await client.list(remoteDir);
@@ -189,10 +201,11 @@ export class FtpTransport implements Transport {
       throw err;
     }
     for (const entry of entries) {
+      if (budget.spent(out.length)) return;
       if (entry.name === "." || entry.name === "..") continue;
       const childRel = rel ? posix.join(rel, entry.name) : entry.name;
       if (entry.isDirectory) {
-        await this.walk(client, posix.join(remoteDir, entry.name), childRel, out);
+        await this.walk(client, posix.join(remoteDir, entry.name), childRel, out, depth + 1, budget);
       } else {
         out.push(childRel);
       }

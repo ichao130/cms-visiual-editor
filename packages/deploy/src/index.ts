@@ -21,6 +21,7 @@ export type {
 } from "./types.js";
 
 export { withTimeout, DEFAULT_CONNECT_TIMEOUT_MS } from "./timeout.js";
+export { MAX_LISTING_ENTRIES } from "./listing.js";
 export { manifestOf, hashContent, toBytes } from "./hash.js";
 export { diffManifests } from "./diff.js";
 export { preflight } from "./preflight.js";

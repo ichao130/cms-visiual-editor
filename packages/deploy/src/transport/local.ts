@@ -2,6 +2,7 @@ import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { dirname, join, normalize, relative, resolve, sep } from "node:path";
 import type { Transport } from "../types.js";
 import { toBytes } from "../hash.js";
+import { ListingBudget } from "../listing.js";
 
 /**
  * A filesystem transport: publishes into a local directory. Used as the "publish
@@ -9,6 +10,8 @@ import { toBytes } from "../hash.js";
  * confined to the root — traversal (`..`) is rejected.
  */
 export class LocalTransport implements Transport {
+  private budget: ListingBudget | null = null;
+
   constructor(private readonly root: string) {}
 
   private full(path: string): string {
@@ -40,8 +43,14 @@ export class LocalTransport implements Transport {
 
   async list(): Promise<string[]> {
     const out: string[] = [];
-    await walkDir(this.root, this.root, out);
+    this.budget = new ListingBudget();
+    await walkDir(this.root, this.root, out, 0, this.budget);
     return out.sort();
+  }
+
+  /** Whether the last list() was cut short by a size/depth/time limit. */
+  listTruncated(): boolean {
+    return this.budget?.truncated ?? false;
   }
 
   // Exposed for callers that want the absolute path of an output file.
@@ -51,7 +60,14 @@ export class LocalTransport implements Transport {
 }
 
 /** Collect every file under `dir` as a path relative to `root` (posix). */
-async function walkDir(root: string, dir: string, out: string[]): Promise<void> {
+async function walkDir(
+  root: string,
+  dir: string,
+  out: string[],
+  depth: number,
+  budget: ListingBudget,
+): Promise<void> {
+  if (budget.spent(out.length) || budget.tooDeep(depth)) return;
   let entries: import("node:fs").Dirent[];
   try {
     entries = await readdir(dir, { withFileTypes: true });
@@ -59,9 +75,10 @@ async function walkDir(root: string, dir: string, out: string[]): Promise<void> 
     return; // missing directory → nothing published there yet
   }
   for (const entry of entries) {
+    if (budget.spent(out.length)) return;
     const full = join(dir, entry.name);
     if (entry.isDirectory()) {
-      await walkDir(root, full, out);
+      await walkDir(root, full, out, depth + 1, budget);
     } else if (entry.isFile()) {
       out.push(relative(root, full).split(sep).join("/"));
     }

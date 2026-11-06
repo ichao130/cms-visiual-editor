@@ -1,6 +1,6 @@
 import { Readable, Writable } from "node:stream";
 import { describe, expect, it } from "vitest";
-import { FtpTransport, type FtpClientLike } from "../src/index.js";
+import { FtpTransport, MAX_LISTING_ENTRIES, type FtpClientLike } from "../src/index.js";
 
 /** An in-memory fake of the `basic-ftp` surface FtpTransport uses. */
 class FakeFtp implements FtpClientLike {
@@ -139,6 +139,25 @@ describe("FtpTransport", () => {
     await t.put("a", "1");
     await t.close();
     expect(fake.closed).toBe(true);
+  });
+
+  it("caps a huge remote listing and reports truncation", async () => {
+    const { fake, t } = make();
+    // Seed more files than the listing cap directly under the publish root.
+    for (let i = 0; i < 600; i++) {
+      fake.files.set(`/home/site/public_html/f${i}.html`, Buffer.from("x"));
+    }
+    const files = await t.list();
+    expect(files.length).toBe(MAX_LISTING_ENTRIES);
+    expect(t.listTruncated()).toBe(true);
+  });
+
+  it("does not report truncation for a small listing", async () => {
+    const { t } = make();
+    await t.put("index.html", "a");
+    await t.put("assets/style.css", "b");
+    expect(await t.list()).toEqual(["assets/style.css", "index.html"]);
+    expect(t.listTruncated()).toBe(false);
   });
 
   it("rejects with a timeout and closes the client when the connection hangs", async () => {

@@ -310,6 +310,8 @@ export interface ServerListing {
   error?: string;
   /** Technical detail for the error (e.g. the FTP protocol dialogue). */
   detail?: string;
+  /** The listing was cut short (the destination holds more than the shown cap). */
+  truncated?: boolean;
 }
 
 /** FTP control-connection security (mirrors @pcms/deploy's FtpSecurity). */
