@@ -1,6 +1,7 @@
 import { posix } from "node:path";
 import type { SftpConfig, Transport } from "../types.js";
 import { toBytes } from "../hash.js";
+import { withTimeout, DEFAULT_CONNECT_TIMEOUT_MS } from "../timeout.js";
 
 /** Minimal surface of ssh2-sftp-client that we use (loaded dynamically). */
 interface SftpClient {
@@ -35,13 +36,24 @@ export class SftpTransport implements Transport {
     const mod = await import(moduleName);
     const Client = (mod.default ?? mod) as new () => SftpClient;
     const client = new Client();
-    await client.connect({
-      host: this.config.host,
-      port: this.config.port ?? 22,
-      username: this.config.username,
-      password: this.config.password,
-      privateKey: this.config.privateKey,
-    });
+    const timeoutMs = this.config.timeoutMillis ?? DEFAULT_CONNECT_TIMEOUT_MS;
+    // readyTimeout bounds the handshake inside ssh2; withTimeout is a hard
+    // upper bound in case the TCP connect itself stalls (dropped packets).
+    await withTimeout(
+      client.connect({
+        host: this.config.host,
+        port: this.config.port ?? 22,
+        username: this.config.username,
+        password: this.config.password,
+        privateKey: this.config.privateKey,
+        ...(timeoutMs > 0 ? { readyTimeout: timeoutMs } : {}),
+      }),
+      timeoutMs,
+      "サーバーへの接続",
+      () => {
+        void client.end();
+      },
+    );
     this.client = client;
     return client;
   }

@@ -140,4 +140,26 @@ describe("FtpTransport", () => {
     await t.close();
     expect(fake.closed).toBe(true);
   });
+
+  it("rejects with a timeout and closes the client when the connection hangs", async () => {
+    let closed = false;
+    const hanging: FtpClientLike = {
+      access: () => new Promise(() => {}), // never settles (stalled TLS / PASV)
+      pwd: async () => "/",
+      ensureDir: async () => {},
+      uploadFrom: async () => {},
+      remove: async () => {},
+      downloadTo: async () => {},
+      list: async () => [],
+      close: () => {
+        closed = true;
+      },
+    };
+    const t = new FtpTransport(
+      { host: "h", username: "u", password: "p", remoteDir: "public_html", timeoutMillis: 30 },
+      async () => hanging,
+    );
+    await expect(t.put("index.html", "x")).rejects.toThrow(/timeout/i);
+    expect(closed).toBe(true);
+  });
 });

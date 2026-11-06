@@ -91,6 +91,8 @@ export interface SftpConfig {
   privateKey?: string;
   /** Remote base directory the site is published under. */
   remoteDir: string;
+  /** Connection timeout in ms (default 20000). 0 waits indefinitely. */
+  timeoutMillis?: number;
 }
 
 /**
@@ -110,6 +112,8 @@ export interface FtpConfig {
   remoteDir: string;
   /** Control-connection security (default "ftps"). */
   security?: FtpSecurity;
+  /** Connection timeout in ms (default 20000). 0 waits indefinitely. */
+  timeoutMillis?: number;
 }
 
 /**

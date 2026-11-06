@@ -2,6 +2,7 @@ import { posix } from "node:path";
 import { Readable, Writable } from "node:stream";
 import type { FtpConfig, Transport } from "../types.js";
 import { toBytes } from "../hash.js";
+import { withTimeout, DEFAULT_CONNECT_TIMEOUT_MS } from "../timeout.js";
 
 /**
  * Minimal surface of `basic-ftp`'s Client that we use (loaded dynamically).
@@ -46,31 +47,42 @@ export class FtpTransport implements Transport {
     private readonly makeClient?: () => Promise<FtpClientLike>,
   ) {}
 
-  private async loadClient(): Promise<FtpClientLike> {
+  private async loadClient(timeoutMs: number): Promise<FtpClientLike> {
     if (this.makeClient) return this.makeClient();
     const moduleName = "basic-ftp";
-    const mod = (await import(moduleName)) as { Client?: new () => FtpClientLike };
+    const mod = (await import(moduleName)) as { Client?: new (timeout?: number) => FtpClientLike };
     const Client = mod.Client;
     if (!Client) throw new Error("basic-ftp の読み込みに失敗しました。");
-    return new Client();
+    // basic-ftp applies this to the control and data sockets.
+    return new Client(timeoutMs > 0 ? timeoutMs : 0);
   }
 
   private async conn(): Promise<FtpClientLike> {
     if (this.client) return this.client;
-    const client = await this.loadClient();
+    const timeoutMs = this.config.timeoutMillis ?? DEFAULT_CONNECT_TIMEOUT_MS;
+    const client = await this.loadClient(timeoutMs);
     const security = this.config.security ?? "ftps";
-    await client.access({
-      host: this.config.host,
-      port: this.config.port ?? (security === "ftps-implicit" ? 990 : 21),
-      user: this.config.username,
-      password: this.config.password,
-      secure: security === "ftp" ? false : security === "ftps-implicit" ? "implicit" : true,
-    });
+    // Hard upper bound on top of basic-ftp's own timeout: a stalled TLS
+    // handshake or an unreachable passive data channel must not hang forever.
+    await withTimeout(
+      client.access({
+        host: this.config.host,
+        port: this.config.port ?? (security === "ftps-implicit" ? 990 : 21),
+        user: this.config.username,
+        password: this.config.password,
+        secure: security === "ftp" ? false : security === "ftps-implicit" ? "implicit" : true,
+      }),
+      timeoutMs,
+      "サーバーへの接続",
+      () => client.close(),
+    );
     const base = this.config.remoteDir || ".";
     if (base.startsWith("/")) {
       this.root = posix.normalize(base);
     } else {
-      const pwd = await client.pwd();
+      const pwd = await withTimeout(client.pwd(), timeoutMs, "サーバーへの接続", () =>
+        client.close(),
+      );
       this.root = posix.normalize(posix.join(pwd || "/", base));
     }
     this.client = client;
