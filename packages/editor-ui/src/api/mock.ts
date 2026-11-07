@@ -72,6 +72,8 @@ import secText from "../../../../themes/sample-cafe/sections/text.html?raw";
 import secHeader from "../../../../themes/sample-cafe/sections/header.html?raw";
 import secFooter from "../../../../themes/sample-cafe/sections/footer.html?raw";
 import secFeatures from "../../../../themes/sample-cafe/sections/features.html?raw";
+import secContent from "../../../../themes/sample-cafe/sections/content.html?raw";
+import secCta from "../../../../themes/sample-cafe/sections/cta.html?raw";
 import blockFeature from "../../../../themes/sample-cafe/blocks/feature.html?raw";
 import blockImage from "../../../../themes/sample-cafe/blocks/image.html?raw";
 import blockButton from "../../../../themes/sample-cafe/blocks/button.html?raw";
@@ -79,6 +81,9 @@ import blockQuote from "../../../../themes/sample-cafe/blocks/quote.html?raw";
 import blockRichtext from "../../../../themes/sample-cafe/blocks/richtext.html?raw";
 import blockColumns from "../../../../themes/sample-cafe/blocks/columns.html?raw";
 import blockHeading from "../../../../themes/sample-cafe/blocks/heading.html?raw";
+import blockCta from "../../../../themes/sample-cafe/blocks/cta.html?raw";
+import blockBadge from "../../../../themes/sample-cafe/blocks/badge.html?raw";
+import blockSpacer from "../../../../themes/sample-cafe/blocks/spacer.html?raw";
 
 import themeJson from "../../../../themes/sample-cafe/theme.json";
 import previewCss from "../../../../themes/sample-cafe/assets/style.css?raw";
@@ -703,6 +708,8 @@ const THEME_FILES: Record<string, string> = {
   "sections/header.html": secHeader,
   "sections/footer.html": secFooter,
   "sections/features.html": secFeatures,
+  "sections/content.html": secContent,
+  "sections/cta.html": secCta,
   "blocks/feature.html": blockFeature,
   "blocks/image.html": blockImage,
   "blocks/button.html": blockButton,
@@ -710,6 +717,9 @@ const THEME_FILES: Record<string, string> = {
   "blocks/richtext.html": blockRichtext,
   "blocks/columns.html": blockColumns,
   "blocks/heading.html": blockHeading,
+  "blocks/cta.html": blockCta,
+  "blocks/badge.html": blockBadge,
+  "blocks/spacer.html": blockSpacer,
   "assets/style.css": previewCss,
 };
 
