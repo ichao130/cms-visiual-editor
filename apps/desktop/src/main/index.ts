@@ -74,6 +74,7 @@ import {
   listThemeFiles,
   readThemeFile,
   writeThemeFile,
+  writeThemeAsset,
   deleteThemeFile,
   renameThemeFile,
   resetTheme,
@@ -246,6 +247,9 @@ function registerIpc(): void {
   ipcMain.handle("pcms:readThemeFile", (_event, path: string) => readThemeFile(path));
   ipcMain.handle("pcms:writeThemeFile", (_event, path: string, content: string) =>
     writeThemeFile(path, content),
+  );
+  ipcMain.handle("pcms:writeThemeAsset", (_event, path: string, bytes: Uint8Array) =>
+    writeThemeAsset(path, bytes),
   );
   ipcMain.handle("pcms:deleteThemeFile", (_event, path: string) => deleteThemeFile(path));
   ipcMain.handle("pcms:renameThemeFile", (_event, from: string, to: string) =>

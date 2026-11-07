@@ -27,6 +27,9 @@ import {
   createEncryptedBackup,
   openEncryptedBackup,
   KvBackupStore,
+  isBinaryAsset,
+  assetContentType,
+  bytesToDataUrl,
   type BackupData,
   type BackupRef,
   type EncryptedBackup,
@@ -34,7 +37,7 @@ import {
 } from "@pcms/engine";
 import type { FileSet } from "@pcms/deploy";
 import type { MediaUpload, ProjectData } from "@pcms/editor-ui";
-import { applyThemeOverlay } from "./theme-overlay.js";
+import { applyThemeOverlay, overlayHas, overlayGet } from "./theme-overlay.js";
 import { currentUid } from "./auth.js";
 import { storageBackupKv } from "./storageBackup.js";
 
@@ -218,6 +221,34 @@ function readBlocks(): Record<string, string> {
   return readHtmlDir("blocks");
 }
 
+/**
+ * Scan the theme's on-disk `assets/` directory: every file becomes a copyable
+ * asset path, and each binary asset (image/font) also gets a data URL so the
+ * preview and editor can show it. Operator-added assets come from the overlay
+ * (see applyThemeOverlay); this covers what the theme itself ships.
+ */
+function readThemeAssets(): { paths: string[]; map: Record<string, string> } {
+  const dir = join(themeDir(), "assets");
+  const paths = new Set<string>(["assets/style.css"]);
+  const map: Record<string, string> = {};
+  if (existsSync(dir)) {
+    for (const file of readdirSync(dir)) {
+      if (file.startsWith(".")) continue;
+      const rel = `assets/${file}`;
+      paths.add(rel);
+      if (isBinaryAsset(rel)) {
+        try {
+          const bytes = new Uint8Array(readFileSync(join(dir, file)));
+          map[rel] = bytesToDataUrl(bytes, assetContentType(rel));
+        } catch {
+          /* skip unreadable asset */
+        }
+      }
+    }
+  }
+  return { paths: [...paths], map };
+}
+
 /** Read every <type>.html in a theme subfolder into a { type: html } map. */
 function readHtmlDir(sub: string): Record<string, string> {
   const dir = join(themeDir(), sub);
@@ -360,6 +391,7 @@ function recordPermalinkRedirects(oldPermalink: string, newPermalink: string): v
 }
 
 export function loadProject(): ProjectData {
+  const assets = readThemeAssets();
   return {
     site: loadSite(),
     settings: loadSettings(),
@@ -374,13 +406,14 @@ export function loadProject(): ProjectData {
       },
       sections: readSections(),
       blocks: readBlocks(),
-      assets: ["assets/style.css"],
+      assets: assets.paths,
     },
     content: loadContent(),
     menus: loadMenus(),
     contentTypes: loadContentTypes(),
     taxonomies: loadTaxonomies(),
     previewCss: readTheme("assets/style.css"),
+    themeAssets: assets.map,
   };
 }
 
@@ -429,6 +462,18 @@ export function assembleOutput(): FileSet {
     // edited) working copy rather than the original file on disk.
     if (rel === "assets/style.css") {
       files[rel] = new TextEncoder().encode(project.previewCss ?? "");
+      continue;
+    }
+    // Operator-added assets live in the working copy: binary ones as a data URL
+    // (decode to bytes), text ones (CSS/JS/HTML/SVG) as UTF-8.
+    if (overlayHas(rel)) {
+      const content = overlayGet(rel) ?? "";
+      if (isBinaryAsset(rel)) {
+        const bytes = dataUrlToBytes(content);
+        if (bytes) files[rel] = bytes;
+      } else {
+        files[rel] = new TextEncoder().encode(content);
+      }
       continue;
     }
     try {

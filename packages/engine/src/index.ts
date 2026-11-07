@@ -16,6 +16,12 @@ export {
   isColumnsBlock,
 } from "./parser.js";
 export { renameSection } from "./section.js";
+export {
+  isBinaryAsset,
+  assetContentType,
+  bytesToDataUrl,
+  dataUrlToBytes,
+} from "./asset.js";
 export { cssColor, cssValue } from "./css.js";
 export { themeStyleTag, themeRootCss, mergeThemeConfig } from "./theme-style.js";
 export {

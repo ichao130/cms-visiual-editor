@@ -29,6 +29,12 @@ export interface ProjectData {
   taxonomies: TaxonomyDef[];
   /** Theme CSS concatenated for the sandboxed live preview. */
   previewCss: string;
+  /**
+   * Binary theme assets (images/fonts under `assets/`), keyed by theme-relative
+   * path (e.g. "assets/bg.webp") with a `data:` URL value. Used to inline asset
+   * references into the sandboxed preview and to show image assets in the editor.
+   */
+  themeAssets: Record<string, string>;
 }
 
 /**
@@ -139,6 +145,12 @@ export interface PcmsApi {
   listThemeFiles(): Promise<ThemeFileNode[]>;
   readThemeFile(path: string): Promise<string>;
   writeThemeFile(path: string, content: string): Promise<void>;
+  /**
+   * Store a binary theme asset (image/font) under `assets/` in the working copy.
+   * Bytes are kept as a data URL (the working copy is string-only). Text assets
+   * (CSS/JS/HTML/SVG) use writeThemeFile instead.
+   */
+  writeThemeAsset(path: string, bytes: Uint8Array): Promise<void>;
   /** Remove a working-copy file: deletes a created part, or reverts an edited
    *  original back to the theme's version. */
   deleteThemeFile(path: string): Promise<void>;
@@ -238,7 +250,7 @@ export interface ThemeSummary {
   current: boolean;
 }
 
-export type ThemeFileKind = "html" | "css" | "js" | "json" | "other";
+export type ThemeFileKind = "html" | "css" | "js" | "json" | "image" | "other";
 
 export interface ThemeFileNode {
   /** Theme-relative path, e.g. "sections/hero.html". */
@@ -248,6 +260,8 @@ export interface ThemeFileNode {
   custom?: boolean;
   /** An original theme file that has unsaved-to-theme edits in the working copy. */
   edited?: boolean;
+  /** Binary asset (image/font): not text-editable; readThemeFile returns a data URL. */
+  binary?: boolean;
 }
 
 export interface AiThemeifyResult {

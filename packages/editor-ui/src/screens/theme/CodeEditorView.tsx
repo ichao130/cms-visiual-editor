@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { blockPartTemplate, diagnoseThemeHtml, type AiDiagnosis } from "@pcms/engine";
 import type { PcmsApi, ThemeFileKind, ThemeFileNode } from "../../api/types.js";
 import { useSiteWorkspace } from "../../state/SiteWorkspace.js";
@@ -43,6 +43,26 @@ const PART_TEMPLATES: { id: string; label: MessageKey; make: (name: string) => s
 const safeName = (raw: string): string =>
   raw.trim().replace(/[^a-z0-9-]/gi, "-").toLowerCase();
 
+/** Asset filenames keep a single dot + extension (e.g. "bg-pattern.png"). */
+const safeAssetName = (raw: string): string => {
+  const cleaned = raw.trim().toLowerCase().replace(/[^a-z0-9._-]/g, "-");
+  const dot = cleaned.lastIndexOf(".");
+  if (dot <= 0) return cleaned.replace(/\./g, "-");
+  const stem = cleaned.slice(0, dot).replace(/\./g, "-");
+  const ext = cleaned.slice(dot + 1).replace(/[^a-z0-9]/g, "");
+  return ext ? `${stem}.${ext}` : stem;
+};
+
+/** Starter content for a newly created text asset, chosen by extension. */
+const assetStarter = (path: string): string => {
+  if (path.endsWith(".css")) return "/* カスタムスタイル */\n";
+  if (path.endsWith(".js")) return "// カスタムスクリプト\n";
+  if (path.endsWith(".html")) return "<div>\n</div>\n";
+  if (path.endsWith(".svg"))
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"></svg>\n';
+  return "";
+};
+
 /** Diagnose the active file where we can (HTML parts/templates, theme.json). */
 function validateFile(content: string, kind: ThemeFileKind | undefined): AiDiagnosis[] {
   if (kind === "html") return diagnoseThemeHtml(content);
@@ -83,10 +103,12 @@ export function CodeEditorView({ api }: Props) {
   const [content, setContent] = useState("");
   const [dirty, setDirty] = useState(false);
   const [newName, setNewName] = useState<string | null>(null);
-  const [newKind, setNewKind] = useState<"section" | "block">("section");
+  const [newKind, setNewKind] = useState<"section" | "block" | "asset">("section");
   const [newTemplate, setNewTemplate] = useState<string>(PART_TEMPLATES[0]!.id);
   const [rename, setRename] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<"delete" | "reset" | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
 
   // The active node is derived from the current list, so its custom/edited flags
   // stay correct after a save/delete/reset refresh.
@@ -95,6 +117,7 @@ export function CodeEditorView({ api }: Props) {
   // CSS variables the theme defines, so the editor can suggest `var(--…)`.
   const cssVars = useMemo(() => cssVarNames(project.previewCss ?? ""), [project.previewCss]);
   const isSection = active?.kind === "html" && active.path.startsWith("sections/");
+  const isAsset = active?.path.startsWith("assets/") ?? false;
 
   const refreshFiles = useCallback(async () => {
     const list = await api.listThemeFiles();
@@ -138,6 +161,20 @@ export function CodeEditorView({ api }: Props) {
   };
 
   const createPart = async () => {
+    if (newKind === "asset") {
+      const safe = safeAssetName(newName ?? "");
+      if (!safe) {
+        setNewName(null);
+        return;
+      }
+      const path = `assets/${safe}`;
+      await api.writeThemeFile(path, assetStarter(path));
+      await refreshFiles();
+      setActivePath(path);
+      setNewName(null);
+      reloadProject();
+      return;
+    }
     const safe = safeName(newName ?? "");
     if (!safe) {
       setNewName(null);
@@ -153,6 +190,33 @@ export function CodeEditorView({ api }: Props) {
     setActivePath(path);
     setNewName(null);
     reloadProject();
+  };
+
+  /** Upload binary assets (images/fonts) into assets/ via the file picker. */
+  const onUpload = async (list: FileList | null) => {
+    if (!list || list.length === 0) return;
+    let last = "";
+    for (const file of Array.from(list)) {
+      const safe = safeAssetName(file.name);
+      if (!safe) continue;
+      const path = `assets/${safe}`;
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      await api.writeThemeAsset(path, bytes);
+      last = path;
+    }
+    await refreshFiles();
+    if (last) setActivePath(last);
+    reloadProject();
+  };
+
+  const copyText = async (key: string, text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(key);
+      setTimeout(() => setCopied((c) => (c === key ? null : c)), 1500);
+    } catch {
+      /* clipboard unavailable — the path is still shown for manual copy */
+    }
   };
 
   const doRename = async () => {
@@ -206,13 +270,33 @@ export function CodeEditorView({ api }: Props) {
       <aside className="pcms-filetree">
         <div className="pcms-filetree__head">
           <span>{t("code.files")}</span>
-          <button
-            className="pcms-filetree__new"
-            onClick={() => setNewName((v) => (v == null ? "" : null))}
-            title={t("code.newPart")}
-          >
-            <Icon name="plus" size={16} />
-          </button>
+          <div className="pcms-filetree__headbtns">
+            <button
+              className="pcms-filetree__new"
+              onClick={() => fileInput.current?.click()}
+              title={t("code.uploadAsset")}
+            >
+              <Icon name="media" size={16} />
+            </button>
+            <button
+              className="pcms-filetree__new"
+              onClick={() => setNewName((v) => (v == null ? "" : null))}
+              title={t("code.newPart")}
+            >
+              <Icon name="plus" size={16} />
+            </button>
+          </div>
+          <input
+            ref={fileInput}
+            type="file"
+            accept="image/*,font/*,.woff,.woff2,.ttf,.otf"
+            multiple
+            hidden
+            onChange={(e) => {
+              void onUpload(e.target.files);
+              e.target.value = "";
+            }}
+          />
         </div>
         {newName != null && (
           <div className="pcms-filetree__newbox">
@@ -221,7 +305,11 @@ export function CodeEditorView({ api }: Props) {
                 autoFocus
                 className="pcms-filetree__newinput"
                 value={newName}
-                placeholder={t("code.newPartPlaceholder")}
+                placeholder={
+                  newKind === "asset"
+                    ? t("code.newAssetPlaceholder")
+                    : t("code.newPartPlaceholder")
+                }
                 onChange={(e) => setNewName(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") void createPart();
@@ -235,10 +323,11 @@ export function CodeEditorView({ api }: Props) {
             <select
               className="pcms-filetree__tplselect"
               value={newKind}
-              onChange={(e) => setNewKind(e.target.value as "section" | "block")}
+              onChange={(e) => setNewKind(e.target.value as "section" | "block" | "asset")}
             >
               <option value="section">{t("code.kind.section")}</option>
               <option value="block">{t("code.kind.block")}</option>
+              <option value="asset">{t("code.kind.asset")}</option>
             </select>
             {newKind === "section" && (
               <select
@@ -252,6 +341,9 @@ export function CodeEditorView({ api }: Props) {
                   </option>
                 ))}
               </select>
+            )}
+            {newKind === "asset" && (
+              <p className="pcms-filetree__hint">{t("code.assetHint")}</p>
             )}
           </div>
         )}
@@ -353,33 +445,38 @@ export function CodeEditorView({ api }: Props) {
         </div>
         <div className="pcms-codemain__split">
           <div className="pcms-codemain__editorcol">
-            {active ? (
-              <CodeEditor
-                key={active.path}
-                value={content}
-                kind={active.kind}
-                cssVars={cssVars}
-                onChange={(v) => {
-                  setContent(v);
-                  setDirty(true);
-                }}
-              />
-            ) : (
+            {!active ? (
               <p className="pcms-empty">{t("code.pickHint")}</p>
-            )}
-            {active && (
-              <div className={`pcms-codeissues${issues.length ? " has-issues" : ""}`}>
-                {issues.length === 0 ? (
-                  <span className="pcms-codeissues__ok"><Icon name="check" size={14} /> {t("code.validOk")}</span>
-                ) : (
-                  issues.map((iss, i) => (
-                    <span key={i} className={`pcms-codeissues__item is-${iss.level}`}>
-                      {iss.level === "error" ? "⛔" : "⚠️"} {iss.message}
-                      {iss.fix ? <em className="pcms-codeissues__fix">{iss.fix}</em> : null}
-                    </span>
-                  ))
+            ) : active.binary ? (
+              <AssetInfo path={active.path} dataUrl={content} copied={copied} onCopy={copyText} />
+            ) : (
+              <>
+                <CodeEditor
+                  key={active.path}
+                  value={content}
+                  kind={active.kind}
+                  cssVars={cssVars}
+                  onChange={(v) => {
+                    setContent(v);
+                    setDirty(true);
+                  }}
+                />
+                {isAsset && active.path !== "assets/style.css" && (
+                  <AssetInfo path={active.path} copied={copied} onCopy={copyText} />
                 )}
-              </div>
+                <div className={`pcms-codeissues${issues.length ? " has-issues" : ""}`}>
+                  {issues.length === 0 ? (
+                    <span className="pcms-codeissues__ok"><Icon name="check" size={14} /> {t("code.validOk")}</span>
+                  ) : (
+                    issues.map((iss, i) => (
+                      <span key={i} className={`pcms-codeissues__item is-${iss.level}`}>
+                        {iss.level === "error" ? "⛔" : "⚠️"} {iss.message}
+                        {iss.fix ? <em className="pcms-codeissues__fix">{iss.fix}</em> : null}
+                      </span>
+                    ))
+                  )}
+                </div>
+              </>
             )}
           </div>
           {isSection && showPreview && (
@@ -390,6 +487,52 @@ export function CodeEditorView({ api }: Props) {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Shows an asset's reference paths (and, for an image, a preview) with copy
+ * buttons — the operator asked to "get the path" for CSS backgrounds / HTML.
+ */
+function AssetInfo({
+  path,
+  dataUrl,
+  copied,
+  onCopy,
+}: {
+  path: string;
+  dataUrl?: string;
+  copied: string | null;
+  onCopy: (key: string, text: string) => void;
+}) {
+  const name = basename(path);
+  const rows: { key: string; label: MessageKey; value: string }[] = [
+    { key: "path", label: "code.asset.path", value: path },
+    { key: "css", label: "code.asset.inCss", value: `url(${name})` },
+    { key: "html", label: "code.asset.inHtml", value: `/${path}` },
+  ];
+  const isImage = typeof dataUrl === "string" && dataUrl.startsWith("data:image/");
+  return (
+    <div className="pcms-assetinfo">
+      <div className="pcms-assetinfo__title">{t("code.asset.title")}</div>
+      {dataUrl != null &&
+        (isImage ? (
+          <div className="pcms-assetinfo__preview">
+            <img src={dataUrl} alt={name} />
+          </div>
+        ) : (
+          <p className="pcms-assetinfo__hint">{t("code.asset.binaryHint")}</p>
+        ))}
+      {rows.map((r) => (
+        <div key={r.key} className="pcms-assetinfo__row">
+          <span className="pcms-assetinfo__label">{t(r.label)}</span>
+          <code className="pcms-assetinfo__code">{r.value}</code>
+          <button className="pcms-assetinfo__copy" onClick={() => onCopy(r.key, r.value)}>
+            {copied === r.key ? t("code.asset.copied") : t("code.asset.copy")}
+          </button>
+        </div>
+      ))}
     </div>
   );
 }

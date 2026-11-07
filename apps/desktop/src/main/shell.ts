@@ -12,7 +12,12 @@ import type {
   ThemeSummary,
 } from "@pcms/editor-ui";
 import type { FormDef, FormSubmission, VisitStats } from "@pcms/shared";
-import { renameSection } from "@pcms/engine";
+import {
+  renameSection,
+  isBinaryAsset,
+  assetContentType,
+  bytesToDataUrl,
+} from "@pcms/engine";
 import { loadProject } from "./project.js";
 import {
   overlayDelete,
@@ -217,6 +222,11 @@ function themeFiles(project: ProjectData): Record<string, string> {
   files["theme.json"] = JSON.stringify(theme.config ?? {}, null, 2);
   // The stylesheet, so the code editor can edit site-wide CSS directly.
   files["assets/style.css"] = project.previewCss ?? "";
+  // Binary assets (images/fonts) as data URLs, so the editor can list/preview
+  // them. Operator-added assets also surface via the overlay (see below).
+  for (const [path, dataUrl] of Object.entries(project.themeAssets ?? {})) {
+    files[path] = dataUrl;
+  }
   return files;
 }
 
@@ -225,6 +235,7 @@ function fileKind(path: string): ThemeFileKind {
   if (path.endsWith(".css")) return "css";
   if (path.endsWith(".js")) return "js";
   if (path.endsWith(".json")) return "json";
+  if (isBinaryAsset(path)) return "image";
   return "other";
 }
 
@@ -239,6 +250,7 @@ export async function listThemeFiles(): Promise<ThemeFileNode[]> {
       kind: fileKind(path),
       custom: !original,
       edited: original && overlayHas(path),
+      binary: isBinaryAsset(path),
     };
   });
 }
@@ -254,6 +266,11 @@ export async function writeThemeFile(path: string, content: string): Promise<voi
   overlaySet(path, content);
 }
 
+export async function writeThemeAsset(path: string, bytes: Uint8Array): Promise<void> {
+  // The overlay store is string-only, so a binary asset is kept as a data URL.
+  overlaySet(path, bytesToDataUrl(bytes, assetContentType(path)));
+}
+
 export async function deleteThemeFile(path: string): Promise<void> {
   overlayDelete(path);
 }
@@ -264,7 +281,9 @@ export async function renameThemeFile(from: string, to: string): Promise<void> {
   // Only created parts (in the overlay, not original theme files) can be renamed.
   if (from in base || to in base || overlayHas(to)) return;
   const stem = (p: string) => p.replace(/^.*\//, "").replace(/\.[^.]+$/, "");
-  overlaySet(to, renameSection(overlayGet(from) ?? "", stem(from), stem(to)));
+  const content = overlayGet(from) ?? "";
+  // HTML parts keep their data-section id in step; other files just move.
+  overlaySet(to, from.endsWith(".html") ? renameSection(content, stem(from), stem(to)) : content);
   overlayDelete(from);
 }
 

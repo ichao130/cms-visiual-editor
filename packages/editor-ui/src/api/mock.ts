@@ -20,6 +20,9 @@ import {
   rewriteText,
   seoSuggest,
   preflight,
+  isBinaryAsset,
+  assetContentType,
+  bytesToDataUrl,
 } from "@pcms/engine";
 import type { ThemeBundle } from "@pcms/engine";
 import type {
@@ -725,12 +728,30 @@ function themeFileKind(path: string): ThemeFileKind {
   if (path.endsWith(".css")) return "css";
   if (path.endsWith(".js")) return "js";
   if (path.endsWith(".json")) return "json";
+  if (isBinaryAsset(path)) return "image";
   return "other";
 }
 
 /** Theme originals overlaid with the code-editor working copy. */
 function mergedThemeFiles(): Record<string, string> {
   return { ...THEME_FILES, ...themeWorkingCopy() };
+}
+
+/** All theme-relative paths under `assets/` (originals + working copy). */
+function themeAssetPaths(): string[] {
+  return Object.keys(mergedThemeFiles())
+    .filter((p) => p.startsWith("assets/"))
+    .sort();
+}
+
+/** Binary theme assets as a path → data-URL map (for preview inlining). */
+function themeAssetsMap(): Record<string, string> {
+  const files = mergedThemeFiles();
+  const out: Record<string, string> = {};
+  for (const p of themeAssetPaths()) {
+    if (isBinaryAsset(p) && files[p]) out[p] = files[p]!;
+  }
+  return out;
 }
 
 /**
@@ -769,7 +790,7 @@ function buildTheme(): ThemeBundle {
     templates,
     sections,
     blocks,
-    assets: ["assets/style.css"],
+    assets: themeAssetPaths(),
   };
 }
 
@@ -786,6 +807,7 @@ export function createMockApi(): PcmsApi {
         contentTypes: loadTypes(),
         taxonomies: loadTaxonomies(),
         previewCss: mergedThemeFiles()["assets/style.css"] ?? previewCss,
+        themeAssets: themeAssetsMap(),
       };
     },
     async saveSite(site: SiteConfig): Promise<void> {
@@ -1115,6 +1137,7 @@ export function createMockApi(): PcmsApi {
           kind: themeFileKind(path),
           custom: !original,
           edited: original && path in working,
+          binary: isBinaryAsset(path),
         };
       });
     },
@@ -1125,6 +1148,12 @@ export function createMockApi(): PcmsApi {
     async writeThemeFile(path: string, content: string): Promise<void> {
       const working = themeWorkingCopy();
       working[path] = content;
+      saveJson(THEME_KEY, working);
+    },
+    async writeThemeAsset(path: string, bytes: Uint8Array): Promise<void> {
+      // The working copy is string-only, so a binary asset is kept as a data URL.
+      const working = themeWorkingCopy();
+      working[path] = bytesToDataUrl(bytes, assetContentType(path));
       saveJson(THEME_KEY, working);
     },
     async deleteThemeFile(path: string): Promise<void> {

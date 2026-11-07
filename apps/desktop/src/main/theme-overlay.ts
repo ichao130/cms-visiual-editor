@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { app } from "electron";
 import type { ProjectData } from "@pcms/editor-ui";
 import type { ThemeBundle } from "@pcms/engine";
+import { isBinaryAsset } from "@pcms/engine";
 
 /**
  * The code editor's theme working copy.
@@ -93,6 +94,8 @@ export function applyThemeOverlay(project: ProjectData): ProjectData {
     templates: { ...project.theme.templates },
   };
   let previewCss = project.previewCss;
+  const assets = new Set(project.theme.assets ?? []);
+  const themeAssets: Record<string, string> = { ...project.themeAssets };
   for (const [path, content] of store()) {
     const sec = /^sections\/(.+)\.html$/.exec(path);
     if (sec?.[1]) {
@@ -117,7 +120,13 @@ export function applyThemeOverlay(project: ProjectData): ProjectData {
       } catch {
         /* keep the existing config on bad JSON */
       }
+    } else if (path.startsWith("assets/")) {
+      // Operator-added asset (image/JS/CSS/HTML): copy it into the output and,
+      // for a binary asset, expose its data URL for the preview.
+      assets.add(path);
+      if (isBinaryAsset(path)) themeAssets[path] = content;
     }
   }
-  return { ...project, theme, previewCss };
+  theme.assets = [...assets];
+  return { ...project, theme, previewCss, themeAssets };
 }

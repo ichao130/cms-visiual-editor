@@ -137,7 +137,7 @@ export function renderPreview(
 
   // The sandboxed iframe can't load site-relative `media/...` paths, so swap
   // media references to their data URLs for display.
-  return inlineMedia(html, media);
+  return inlineThemeAssets(inlineMedia(html, media), project.themeAssets ?? {});
 }
 
 /**
@@ -176,7 +176,7 @@ export function renderHomeThumbnail(
   // <head>) overrides it.
   const head = `<style>\n${project.previewCss}\n</style>`;
   html = html.includes("<head>") ? html.replace("<head>", `<head>${head}`) : `${head}${html}`;
-  return inlineMedia(html, media);
+  return inlineThemeAssets(inlineMedia(html, media), project.themeAssets ?? {});
 }
 
 /**
@@ -214,7 +214,7 @@ export function renderItemPreview(
   html = html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "");
   const head = `<style>\n${project.previewCss}\n</style>`;
   html = html.includes("<head>") ? html.replace("<head>", `<head>${head}`) : `${head}${html}`;
-  return inlineMedia(html, media);
+  return inlineThemeAssets(inlineMedia(html, media), project.themeAssets ?? {});
 }
 
 function inlineMedia(html: string, media: MediaItem[]): string {
@@ -224,5 +224,33 @@ function inlineMedia(html: string, media: MediaItem[]): string {
     out = out.split(`"${m.path}"`).join(`"${m.dataUrl}"`);
     out = out.split(`"/${m.path}"`).join(`"${m.dataUrl}"`);
   }
+  return out;
+}
+
+/**
+ * The sandboxed `srcdoc` iframe can't load theme `assets/…` files, so swap
+ * references to binary theme assets (images/fonts) for their data URLs. Covers
+ * HTML attributes (`src="assets/bg.png"`) and CSS `url(…)` (including the
+ * stylesheet-relative `url(bg.png)` form, since style.css ships under assets/).
+ */
+function inlineThemeAssets(html: string, assets: Record<string, string>): string {
+  const entries = Object.entries(assets);
+  if (entries.length === 0) return html;
+  const byRef = new Map<string, string>();
+  for (const [path, url] of entries) {
+    const name = path.slice(path.lastIndexOf("/") + 1);
+    for (const key of [path, `/${path}`, name, `./${name}`]) byRef.set(key, url);
+  }
+  let out = html;
+  // HTML attributes.
+  for (const [path, url] of entries) {
+    out = out.split(`"${path}"`).join(`"${url}"`);
+    out = out.split(`"/${path}"`).join(`"${url}"`);
+  }
+  // CSS url(...) references (quoted or bare).
+  out = out.replace(/url\(\s*(['"]?)([^'")]+)\1\s*\)/g, (m, quote: string, ref: string) => {
+    const url = byRef.get(ref.trim());
+    return url ? `url(${quote}${url}${quote})` : m;
+  });
   return out;
 }
