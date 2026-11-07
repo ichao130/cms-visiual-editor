@@ -71,7 +71,6 @@ import {
   loadSiteStats,
   fetchVisitStats,
   listThemes,
-  applyThemeOverlay,
   listThemeFiles,
   readThemeFile,
   writeThemeFile,
@@ -83,6 +82,7 @@ import {
   listSubmissions,
   cloudFormTarget,
 } from "./shell.js";
+import { applyThemeOverlay } from "./theme-overlay.js";
 import { cloudStatus } from "./cloud.js";
 import { signIn, signOut } from "./auth.js";
 

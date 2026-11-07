@@ -52,6 +52,19 @@ function validateFile(content: string, kind: ThemeFileKind | undefined): AiDiagn
       return [{ level: "error", message: `JSON が不正です: ${(e as Error).message}`, fix: "" }];
     }
   }
+  if (kind === "css") {
+    const open = (content.match(/\{/g) ?? []).length;
+    const close = (content.match(/\}/g) ?? []).length;
+    if (open !== close) {
+      return [
+        {
+          level: "warning",
+          message: `波括弧 { } の数が合っていません（{ が ${open} 個、} が ${close} 個）`,
+          fix: "ルールの開き括弧と閉じ括弧の対応を確認してください。",
+        },
+      ];
+    }
+  }
   return [];
 }
 

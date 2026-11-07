@@ -12,9 +12,16 @@ import type {
   ThemeSummary,
 } from "@pcms/editor-ui";
 import type { FormDef, FormSubmission, VisitStats } from "@pcms/shared";
-import type { ThemeBundle } from "@pcms/engine";
 import { renameSection } from "@pcms/engine";
 import { loadProject } from "./project.js";
+import {
+  overlayDelete,
+  overlayGet,
+  overlayHas,
+  overlayKeys,
+  overlaySet,
+  overlayClear,
+} from "./theme-overlay.js";
 import { callFunction, NotSignedInError } from "./functions.js";
 import { currentUid } from "./auth.js";
 import { loadFirebaseConfig } from "./cloud.js";
@@ -57,11 +64,9 @@ function saveRegistry(reg: ShellRegistry): void {
 /**
  * App-shell data for the desktop build. This is a local, single-project view —
  * the cloud account, multi-project listing and analytics are wired later. Theme
- * file edits are kept in an in-session working copy so the theme files on disk
- * are never modified (CLAUDE.md: テーマのファイルは改変しない).
+ * file edits are kept in a persisted working copy (see theme-overlay) so the
+ * theme files on disk are never modified (CLAUDE.md: テーマのファイルは改変しない).
  */
-
-const themeOverlay = new Map<string, string>();
 
 export async function loadAccount(): Promise<AccountView> {
   return { name: "ローカルユーザー", email: "local@pcms", plan: "ローカル", ai: { used: 0, limit: 100 } };
@@ -196,7 +201,8 @@ export async function listThemes(): Promise<ThemeSummary[]> {
   return [{ id: "current", name: String(name), description: "", current: true }];
 }
 
-function themeFiles(theme: ThemeBundle): Record<string, string> {
+function themeFiles(project: ProjectData): Record<string, string> {
+  const theme = project.theme;
   const files: Record<string, string> = {};
   if (theme.layout) files["layout.html"] = theme.layout;
   for (const [name, html] of Object.entries(theme.templates ?? {})) {
@@ -205,7 +211,12 @@ function themeFiles(theme: ThemeBundle): Record<string, string> {
   for (const [name, html] of Object.entries(theme.sections ?? {})) {
     files[`sections/${name}.html`] = html;
   }
+  for (const [name, html] of Object.entries(theme.blocks ?? {})) {
+    files[`blocks/${name}.html`] = html;
+  }
   files["theme.json"] = JSON.stringify(theme.config ?? {}, null, 2);
+  // The stylesheet, so the code editor can edit site-wide CSS directly.
+  files["assets/style.css"] = project.previewCss ?? "";
   return files;
 }
 
@@ -219,83 +230,46 @@ function fileKind(path: string): ThemeFileKind {
 
 export async function listThemeFiles(): Promise<ThemeFileNode[]> {
   const project = await loadProject();
-  const base = themeFiles(project.theme);
-  const paths = new Set([...Object.keys(base), ...themeOverlay.keys()]);
+  const base = themeFiles(project);
+  const paths = new Set([...Object.keys(base), ...overlayKeys()]);
   return [...paths].sort().map((path) => {
     const original = path in base;
     return {
       path,
       kind: fileKind(path),
       custom: !original,
-      edited: original && themeOverlay.has(path),
+      edited: original && overlayHas(path),
     };
   });
 }
 
 export async function readThemeFile(path: string): Promise<string> {
-  if (themeOverlay.has(path)) return themeOverlay.get(path) ?? "";
+  if (overlayHas(path)) return overlayGet(path) ?? "";
   const project = await loadProject();
-  return themeFiles(project.theme)[path] ?? "";
+  return themeFiles(project)[path] ?? "";
 }
 
 export async function writeThemeFile(path: string, content: string): Promise<void> {
   // Working copy only — the original theme files on disk are left untouched.
-  themeOverlay.set(path, content);
-}
-
-/**
- * Overlay the code-editor working copy onto a loaded project's theme, so parts
- * created or edited in the code editor show in the visual editor and preview.
- * Applied to loadProject's result; the files on disk are untouched.
- */
-export function applyThemeOverlay(project: ProjectData): ProjectData {
-  if (themeOverlay.size === 0) return project;
-  const theme: ThemeBundle = {
-    ...project.theme,
-    sections: { ...project.theme.sections },
-    templates: { ...project.theme.templates },
-  };
-  let previewCss = project.previewCss;
-  for (const [path, content] of themeOverlay) {
-    const sec = /^sections\/(.+)\.html$/.exec(path);
-    if (sec?.[1]) {
-      theme.sections = { ...theme.sections, [sec[1]]: content };
-      continue;
-    }
-    const tpl = /^templates\/(.+)\.html$/.exec(path);
-    if (tpl?.[1]) {
-      theme.templates = { ...theme.templates, [tpl[1]]: content };
-      continue;
-    }
-    if (path === "layout.html") theme.layout = content;
-    else if (path === "assets/style.css") previewCss = content;
-    else if (path === "theme.json") {
-      try {
-        theme.config = JSON.parse(content) as ThemeBundle["config"];
-      } catch {
-        /* keep the existing config on bad JSON */
-      }
-    }
-  }
-  return { ...project, theme, previewCss };
+  overlaySet(path, content);
 }
 
 export async function deleteThemeFile(path: string): Promise<void> {
-  themeOverlay.delete(path);
+  overlayDelete(path);
 }
 
 export async function renameThemeFile(from: string, to: string): Promise<void> {
   const project = await loadProject();
-  const base = themeFiles(project.theme);
+  const base = themeFiles(project);
   // Only created parts (in the overlay, not original theme files) can be renamed.
-  if (from in base || to in base || themeOverlay.has(to)) return;
+  if (from in base || to in base || overlayHas(to)) return;
   const stem = (p: string) => p.replace(/^.*\//, "").replace(/\.[^.]+$/, "");
-  themeOverlay.set(to, renameSection(themeOverlay.get(from) ?? "", stem(from), stem(to)));
-  themeOverlay.delete(from);
+  overlaySet(to, renameSection(overlayGet(from) ?? "", stem(from), stem(to)));
+  overlayDelete(from);
 }
 
 export async function resetTheme(): Promise<void> {
-  themeOverlay.clear();
+  overlayClear();
 }
 
 // Contact forms. Kept in-session for the builder; when the operator is signed

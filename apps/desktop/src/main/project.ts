@@ -34,6 +34,7 @@ import {
 } from "@pcms/engine";
 import type { FileSet } from "@pcms/deploy";
 import type { MediaUpload, ProjectData } from "@pcms/editor-ui";
+import { applyThemeOverlay } from "./theme-overlay.js";
 import { currentUid } from "./auth.js";
 import { storageBackupKv } from "./storageBackup.js";
 
@@ -406,7 +407,9 @@ export function saveTaxonomies(taxonomies: TaxonomyDef[]): void {
  * assets and site media, as an in-memory file set for the deploy package.
  */
 export function assembleOutput(): FileSet {
-  const project = loadProject();
+  // Apply the code-editor working copy so edited sections, blocks, templates and
+  // CSS ship in the published output (not just the preview).
+  const project = applyThemeOverlay(loadProject());
   const generated = generateSite({
     site: project.site,
     settings: project.settings,
@@ -422,6 +425,12 @@ export function assembleOutput(): FileSet {
   const files: FileSet = { ...generated.files };
 
   for (const rel of generated.assets) {
+    // The stylesheet is editable in the code editor, so publish the (possibly
+    // edited) working copy rather than the original file on disk.
+    if (rel === "assets/style.css") {
+      files[rel] = new TextEncoder().encode(project.previewCss ?? "");
+      continue;
+    }
     try {
       files[rel] = new Uint8Array(readFileSync(join(themeDir(), rel)));
     } catch {
