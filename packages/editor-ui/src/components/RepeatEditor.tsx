@@ -19,6 +19,13 @@ export function RepeatEditor({ repeat, rows, onChange }: RepeatEditorProps) {
     onChange(next);
   };
   const add = () => onChange([...rows, {}]);
+  const duplicate = (index: number) => {
+    const src = rows[index];
+    if (!src) return;
+    const next = [...rows];
+    next.splice(index + 1, 0, { ...src });
+    onChange(next);
+  };
   const remove = (index: number) => onChange(rows.filter((_, i) => i !== index));
   const move = (index: number, dir: -1 | 1) => {
     const to = index + dir;
@@ -65,6 +72,14 @@ export function RepeatEditor({ repeat, rows, onChange }: RepeatEditorProps) {
               title={t("sections.down")}
             >
               <Icon name="chevron-down" size={15} />
+            </button>
+            <button
+              type="button"
+              onClick={() => duplicate(i)}
+              title={t("repeat.duplicate")}
+              aria-label={t("repeat.duplicate")}
+            >
+              <Icon name="copy" size={15} />
             </button>
             <button
               type="button"
