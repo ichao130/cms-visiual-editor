@@ -158,6 +158,24 @@ button.pcms-publishbtn { background: var(--pcms-success); color: #fff; border-co
 button.pcms-publishbtn:hover:not(:disabled) { filter: brightness(1.08); background: var(--pcms-success); }
 button.pcms-aibtn { background: var(--pcms-ai); color: #fff; border-color: transparent; }
 button.pcms-aibtn:hover:not(:disabled) { filter: brightness(1.08); background: var(--pcms-ai); }
+button.pcms-themebtn { background: var(--pcms-panel); }
+button.pcms-themebtn:hover:not(:disabled) { background: var(--pcms-hover); }
+
+/* Theme-wide style panel (colors / fonts / spacing) */
+.pcms-themestyle { display: flex; flex-direction: column; gap: 0.75rem; overflow-y: auto; }
+.pcms-themestyle__head { display: flex; align-items: center; justify-content: space-between; }
+.pcms-themestyle__close { border: none; background: none; font-size: 1.2rem; line-height: 1; cursor: pointer; color: var(--pcms-muted); padding: 0 0.25rem; }
+.pcms-themestyle__close:hover { color: var(--pcms-text); }
+.pcms-themestyle__hint { font-size: 0.8rem; color: var(--pcms-muted); margin: 0; line-height: 1.6; }
+.pcms-themestyle__group { border-top: 1px solid var(--pcms-border); padding-top: 0.6rem; }
+.pcms-themestyle__grouptitle { font-size: 0.85rem; margin: 0 0 0.5rem; color: var(--pcms-text); }
+.pcms-themestyle__row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.45rem; }
+.pcms-themestyle__label { font-size: 0.82rem; color: var(--pcms-text); }
+.pcms-themestyle__swatch { width: 44px; height: 28px; padding: 0; border: 1px solid var(--pcms-border); border-radius: 6px; background: none; cursor: pointer; }
+.pcms-themestyle__select { max-width: 60%; padding: 0.3rem 0.4rem; border: 1px solid var(--pcms-border); border-radius: 6px; background: var(--pcms-surface); color: var(--pcms-text); }
+.pcms-themestyle__foot { display: flex; align-items: center; gap: 0.5rem; border-top: 1px solid var(--pcms-border); padding-top: 0.6rem; margin-top: auto; }
+.pcms-themestyle__badge { font-size: 0.72rem; color: var(--pcms-ai-text); background: var(--pcms-ai-weak); border-radius: 6px; padding: 0.2rem 0.45rem; }
+.pcms-themestyle__reset { margin-left: auto; }
 
 /* AI panel */
 .pcms-ai__note { font-size: 0.8rem; color: var(--pcms-ai-text); background: var(--pcms-ai-weak); border-radius: 6px; padding: 0.45rem 0.6rem; margin: 0 0 0.75rem; }

@@ -1,4 +1,5 @@
 import {
+  mergeThemeConfig,
   parseTemplate,
   renderComposedPage,
   renderTemplate,
@@ -80,7 +81,7 @@ export function renderPreview(
   media: MediaItem[] = [],
 ): string {
   const site = project.site;
-  const theme = state.settings.theme ?? project.theme.config;
+  const theme = mergeThemeConfig(project.theme.config, state.settings.theme);
   const collections = buildCollections(state.content, site);
   const base = { site, theme, menus: state.menus, collections };
 
@@ -123,8 +124,13 @@ export function renderPreview(
   // Remove any theme scripts (untrusted) before adding our trusted runtime.
   html = html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "");
 
-  const head = `<style>\n${project.previewCss}\n</style><style>${EDITOR_OVERLAY_CSS}</style>`;
-  html = html.includes("</head>") ? html.replace("</head>", `${head}</head>`) : `${head}${html}`;
+  // Theme CSS goes at the START of <head> so the theme-token `:root` block the
+  // engine appends to the END of <head> (settings.theme overrides) wins over it.
+  // The editor overlay goes last.
+  const themeCss = `<style>\n${project.previewCss}\n</style>`;
+  const overlay = `<style>${EDITOR_OVERLAY_CSS}</style>`;
+  html = html.includes("<head>") ? html.replace("<head>", `<head>${themeCss}`) : `${themeCss}${html}`;
+  html = html.includes("</head>") ? html.replace("</head>", `${overlay}</head>`) : `${html}${overlay}`;
 
   const runtime = `<script>${EDITOR_RUNTIME}</script>`;
   html = html.includes("</body>") ? html.replace("</body>", `${runtime}</body>`) : `${html}${runtime}`;
@@ -144,7 +150,7 @@ export function renderHomeThumbnail(
   media: MediaItem[] = [],
 ): string {
   const site = project.site;
-  const theme = project.settings.theme ?? project.theme.config;
+  const theme = mergeThemeConfig(project.theme.config, project.settings.theme);
   const collections = buildCollections(project.content, site);
   const base = { site, theme, menus: project.menus, collections };
   const page = project.settings.pages.index ?? {};
@@ -166,8 +172,10 @@ export function renderHomeThumbnail(
 
   // Strip any theme scripts; the thumbnail iframe is sandboxed with no scripts.
   html = html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "");
+  // Theme CSS at the start of <head> so the engine's theme-token :root (end of
+  // <head>) overrides it.
   const head = `<style>\n${project.previewCss}\n</style>`;
-  html = html.includes("</head>") ? html.replace("</head>", `${head}</head>`) : `${head}${html}`;
+  html = html.includes("<head>") ? html.replace("<head>", `<head>${head}`) : `${head}${html}`;
   return inlineMedia(html, media);
 }
 
@@ -185,7 +193,7 @@ export function renderItemPreview(
   media: MediaItem[] = [],
 ): string {
   const site = project.site;
-  const theme = state.settings.theme ?? project.theme.config;
+  const theme = mergeThemeConfig(project.theme.config, state.settings.theme);
   const collections = buildCollections(state.content, site);
   const base = { site, theme, menus: state.menus, collections };
   const item = findItem(state, type, slug);
@@ -205,7 +213,7 @@ export function renderItemPreview(
   });
   html = html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "");
   const head = `<style>\n${project.previewCss}\n</style>`;
-  html = html.includes("</head>") ? html.replace("</head>", `${head}</head>`) : `${head}${html}`;
+  html = html.includes("<head>") ? html.replace("<head>", `<head>${head}`) : `${head}${html}`;
   return inlineMedia(html, media);
 }
 

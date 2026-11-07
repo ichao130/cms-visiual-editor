@@ -49,13 +49,16 @@ import {
   setRegionInstanceStyle,
   setRepeatRows,
   setSectionOrder,
+  setThemeToken,
+  clearThemeOverrides,
   toggleInstanceHidden,
   toggleRegionInstanceHidden,
   toggleSectionHidden,
   type InstanceLoc,
+  type ThemeTokenGroup,
 } from "../state/mutations.js";
 import type { RegionName } from "@pcms/shared";
-import { parseSectionSchema, sectionBlockTypes } from "@pcms/engine";
+import { mergeThemeConfig, parseSectionSchema, sectionBlockTypes } from "@pcms/engine";
 import { SectionFields } from "./SectionFields.js";
 import { renderPreview, schemaForPage } from "../preview/render.js";
 import { MediaContext, useMediaLibrary } from "../media/MediaContext.js";
@@ -65,6 +68,7 @@ import { Preview } from "./Preview.js";
 import { SettingsPanel } from "./SettingsPanel.js";
 import { SectionCanvas, type InstanceRow } from "./SectionCanvas.js";
 import { BlockManager, BlockSettings } from "./BlockPanel.js";
+import { ThemeStylePanel } from "./ThemeStylePanel.js";
 import { InlineEditor, type Anchor } from "./InlineEditor.js";
 import { AddSectionModal } from "./AddSectionModal.js";
 import { ContentForm } from "./ContentForm.js";
@@ -102,6 +106,8 @@ export function ThemeEditor() {
   const [blockInsertAt, setBlockInsertAt] = useState<
     { scope: Scope; section: string; index: number } | null
   >(null);
+  // The site-wide theme style panel (colors / fonts / spacing) is open.
+  const [themeStyleOpen, setThemeStyleOpen] = useState(false);
   const mediaLib = useMediaLibrary(api);
 
   // Select the first target once the project is loaded.
@@ -302,7 +308,8 @@ export function ThemeEditor() {
       selectedInstanceSchema &&
       anchor &&
       inlineOpen &&
-      !selectedBlockId,
+      !selectedBlockId &&
+      !themeStyleOpen,
   );
 
   // Selecting a section (from a list or the preview) opens its inline card.
@@ -554,6 +561,31 @@ export function ThemeEditor() {
     [applyBlockFieldEdit, selectedId, selectedBlockId, editScope],
   );
 
+  // --- Site-wide theme style (colors / fonts / spacing) --------------------
+  // Overrides live in settings.theme and are merged over the theme's presets.
+  // The live preview re-renders from doc.settings.theme, so edits show at once.
+
+  const effectiveTheme = useMemo(
+    () => mergeThemeConfig(project?.theme.config, doc.settings.theme),
+    [project, doc.settings.theme],
+  );
+
+  const onThemeToken = useCallback(
+    (group: ThemeTokenGroup, key: string, value: string) => {
+      commit(
+        { ...doc, settings: setThemeToken(doc.settings, group, key, value) },
+        `theme:${group}:${key}`,
+      );
+      setDirty(true);
+    },
+    [commit, doc],
+  );
+
+  const onThemeReset = useCallback(() => {
+    commit({ ...doc, settings: clearThemeOverrides(doc.settings) });
+    setDirty(true);
+  }, [commit, doc]);
+
   // --- Content-target editing ----------------------------------------------
 
   const onContentChange = useCallback(
@@ -802,6 +834,10 @@ export function ThemeEditor() {
           onSelectTarget={onSelectTarget}
           device={device}
           onDevice={setDevice}
+          onThemeStyle={() => {
+            setThemeStyleOpen(true);
+            setInlineOpen(false);
+          }}
           onAi={() => setAiOpen(true)}
           canUndo={canUndo}
           canRedo={canRedo}
@@ -904,7 +940,15 @@ export function ThemeEditor() {
           }
         />
 
-        {inlineActive ? null : target.kind === "page" && activeComposed ? (
+        {themeStyleOpen ? (
+          <ThemeStylePanel
+            theme={effectiveTheme}
+            overridden={doc.settings.theme != null}
+            onToken={onThemeToken}
+            onReset={onThemeReset}
+            onClose={() => setThemeStyleOpen(false)}
+          />
+        ) : inlineActive ? null : target.kind === "page" && activeComposed ? (
           selectedBlock && selectedBlockSchema ? (
             <BlockSettings
               block={selectedBlock}

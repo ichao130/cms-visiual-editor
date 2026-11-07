@@ -7,6 +7,7 @@ import type {
   SectionState,
   SectionStyle,
   SiteSettings,
+  ThemeConfig,
 } from "@pcms/shared";
 
 /** Read a page's settings, or an empty object when the page has none yet. */
@@ -511,4 +512,45 @@ export function setBlockField(
   return withBlocks(settings, loc, sectionId, (list) =>
     list.map((b) => (b.id === blockId ? { ...b, fields: { ...b.fields, [path]: value } } : b)),
   );
+}
+
+// --- Theme-wide style overrides (colors / fonts / spacing) ------------------
+// `settings.theme` holds only the operator's overrides (deltas); rendering
+// merges them over the theme's own presets (theme.json). Setting a token to ""
+// removes the override so that token falls back to the theme default.
+
+/** Which token group an override belongs to. */
+export type ThemeTokenGroup = "colors" | "fonts" | "spacing";
+
+export function setThemeToken(
+  settings: SiteSettings,
+  group: ThemeTokenGroup,
+  key: string,
+  value: string,
+): SiteSettings {
+  const bag: Record<string, string> = { ...settings.theme?.[group] };
+  if (value === "") delete bag[key];
+  else bag[key] = value;
+  const theme: ThemeConfig = { ...settings.theme, [group]: bag };
+  return normalizeTheme(settings, theme);
+}
+
+/** Drop every operator override, reverting the whole site to the theme presets. */
+export function clearThemeOverrides(settings: SiteSettings): SiteSettings {
+  if (settings.theme == null) return settings;
+  const next = { ...settings };
+  delete next.theme;
+  return next;
+}
+
+/** Keep only non-empty token groups; drop `theme` entirely when nothing is set. */
+function normalizeTheme(settings: SiteSettings, theme: ThemeConfig): SiteSettings {
+  const clean: ThemeConfig = {};
+  if (theme.name) clean.name = theme.name;
+  for (const g of ["colors", "fonts", "spacing"] as ThemeTokenGroup[]) {
+    const bag = theme[g];
+    if (bag && Object.keys(bag).length > 0) clean[g] = bag;
+  }
+  if (Object.keys(clean).length === 0) return clearThemeOverrides(settings);
+  return { ...settings, theme: clean };
 }

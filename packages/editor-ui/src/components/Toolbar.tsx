@@ -8,6 +8,7 @@ interface ToolbarProps {
   onSelectTarget: (key: string) => void;
   device: "desktop" | "mobile";
   onDevice: (device: "desktop" | "mobile") => void;
+  onThemeStyle: () => void;
   onAi: () => void;
   canUndo: boolean;
   canRedo: boolean;
@@ -23,6 +24,7 @@ export function Toolbar({
   onSelectTarget,
   device,
   onDevice,
+  onThemeStyle,
   onAi,
   canUndo,
   canRedo,
@@ -66,6 +68,9 @@ export function Toolbar({
         </button>
       </div>
       <div className="pcms-toolbar__spacer" />
+      <button type="button" className="pcms-themebtn" onClick={onThemeStyle}>
+        🎨 {t("themeStyle.open")}
+      </button>
       <button type="button" className="pcms-aibtn" onClick={onAi}>
         {t("toolbar.ai")}
       </button>

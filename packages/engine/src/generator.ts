@@ -12,6 +12,7 @@ import type {
   ThemeConfig,
 } from "@pcms/shared";
 import { renderComposedPage, renderTemplate, RESPONSIVE_CSS } from "./renderer.js";
+import { mergeThemeConfig } from "./theme-style.js";
 import type { RenderScope, TermContext } from "./context.js";
 import { archivePagePath, archivePageUrl, paginate } from "./pagination.js";
 import {
@@ -114,7 +115,7 @@ export function generateSite(input: SiteInput): GeneratedSite {
 
   const baseScope = {
     site: input.site,
-    theme: input.settings.theme ?? input.theme.config,
+    theme: mergeThemeConfig(input.theme.config, input.settings.theme),
     menus,
     collections,
     media: mediaByPath,

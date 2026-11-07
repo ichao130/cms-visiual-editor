@@ -8,8 +8,10 @@ import type {
   SiteRegions,
 } from "@pcms/shared";
 import { ATTR, EDITOR_ATTRS } from "./attributes.js";
+import { cssColor } from "./css.js";
 import { detectFieldType } from "./field-type.js";
 import { escapeHtml } from "./markdown.js";
+import { themeStyleTag } from "./theme-style.js";
 import {
   isEmpty,
   resolveField,
@@ -101,6 +103,15 @@ function fillLayout(
     }
   }
   processTree(layoutRoot, { ...scope, page: {} } as RenderScope);
+  // Emit the theme's style tokens (colors / fonts / spacing) as a `:root` block
+  // at the end of <head>, after the theme's own stylesheet, so operator
+  // overrides (settings.theme) win over the theme defaults. Themes without
+  // tokens get nothing (their stylesheet's own :root applies).
+  const styleTag = themeStyleTag(scope.theme);
+  if (styleTag) {
+    const head = layoutRoot.querySelector("head");
+    if (head) head.insertAdjacentHTML("beforeend", styleTag);
+  }
   return layoutRoot.toString();
 }
 
@@ -261,11 +272,6 @@ function sectionStyleAttr(style: SectionInstance["style"]): string {
   const pad = style.paddingY ? PADDING_Y[style.paddingY] : undefined;
   if (pad != null) css.push(`padding-top:${pad}`, `padding-bottom:${pad}`);
   return css.length > 0 ? ` style="${css.join(";")}"` : "";
-}
-
-/** Keep only characters valid in a CSS color so the value can't break out. */
-function cssColor(value: string): string {
-  return value.replace(/[^#a-zA-Z0-9(),.%\s-]/g, "").trim();
 }
 
 /** Device-visibility class for a section ("" when shown on all devices). */

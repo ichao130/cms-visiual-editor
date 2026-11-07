@@ -9,6 +9,8 @@
 export { ATTR, EDITOR_ATTRS } from "./attributes.js";
 export { parseTemplate, parseSectionSchema, sectionBlockTypes } from "./parser.js";
 export { renameSection } from "./section.js";
+export { cssColor, cssValue } from "./css.js";
+export { themeStyleTag, themeRootCss, mergeThemeConfig } from "./theme-style.js";
 export {
   renderTemplate,
   renderComposedPage,
