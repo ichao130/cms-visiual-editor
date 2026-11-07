@@ -34,6 +34,8 @@ const ja = {
   "block.add": "ブロックを追加",
   "block.up": "上へ",
   "block.down": "下へ",
+  "block.duplicate": "複製",
+  "block.drag": "ドラッグで並べ替え",
   "block.delete": "削除",
   "block.settings": "ブロック設定",
   "block.backToSection": "セクション設定に戻る",

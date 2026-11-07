@@ -1,9 +1,10 @@
-import type { ReactNode } from "react";
+import { useState } from "react";
+import type { DragEvent, ReactNode } from "react";
 import type { BlockInstance, SectionInstance, SectionSchema } from "@pcms/shared";
 import { SectionFields } from "./SectionFields.js";
 import { t } from "../i18n.js";
 
-type BlockOp = "up" | "down" | "del";
+type BlockOp = "up" | "down" | "dup" | "del";
 
 interface BlockManagerProps {
   blocks: BlockInstance[];
@@ -11,14 +12,16 @@ interface BlockManagerProps {
   selectedBlockId: string | null;
   onSelect: (blockId: string) => void;
   onOp: (blockId: string, op: BlockOp) => void;
+  /** Drag-reorder: move the block to the gap `toIndex` (0..length). */
+  onMove: (blockId: string, toIndex: number) => void;
   /** Opens the block picker to add a block at the end of the list. */
   onAddClick: () => void;
 }
 
 /**
- * The nested-block list shown under a section's settings: select / reorder /
- * delete the blocks, and add a new one. Field editing of a block happens in
- * BlockSettings (opened by selecting a block).
+ * The nested-block list shown under a section's settings: select / reorder
+ * (buttons or drag) / duplicate / delete the blocks, and add a new one. Field
+ * editing of a block happens in BlockSettings (opened by selecting a block).
  */
 export function BlockManager({
   blocks,
@@ -26,8 +29,35 @@ export function BlockManager({
   selectedBlockId,
   onSelect,
   onOp,
+  onMove,
   onAddClick,
 }: BlockManagerProps) {
+  const [drag, setDrag] = useState<{ index: number; id: string } | null>(null);
+  const [dropHint, setDropHint] = useState<number | null>(null);
+
+  const clearDrag = () => {
+    setDrag(null);
+    setDropHint(null);
+  };
+  const onRowDragOver = (index: number) => (e: DragEvent) => {
+    if (!drag) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+    const after = e.clientY - rect.top > rect.height / 2;
+    setDropHint(after ? index + 1 : index);
+  };
+  const onListDragOver = (e: DragEvent) => {
+    if (!drag) return;
+    e.preventDefault();
+    setDropHint(blocks.length);
+  };
+  const onDrop = (e: DragEvent) => {
+    e.preventDefault();
+    if (drag && dropHint != null) onMove(drag.id, dropHint);
+    clearDrag();
+  };
+
   return (
     <div className="pcms-blockmgr">
       <h3 className="pcms-blockmgr__title">{t("block.manage")}</h3>
@@ -35,38 +65,63 @@ export function BlockManager({
       {blocks.length === 0 ? (
         <p className="pcms-empty">{t("block.empty")}</p>
       ) : (
-        <ul className="pcms-blockmgr__list">
-          {blocks.map((b, i) => (
-            <li
-              key={b.id}
-              className={`pcms-blockmgr__row${b.id === selectedBlockId ? " is-active" : ""}`}
-            >
-              <button type="button" className="pcms-blockmgr__name" onClick={() => onSelect(b.id)}>
-                {schemaByType.get(b.type)?.label ?? b.type}
-              </button>
-              <div className="pcms-blockmgr__ops">
-                <button type="button" onClick={() => onOp(b.id, "up")} disabled={i === 0} title={t("block.up")}>
-                  ↑
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onOp(b.id, "down")}
-                  disabled={i === blocks.length - 1}
-                  title={t("block.down")}
+        <ul className="pcms-blockmgr__list" onDragOver={onListDragOver} onDrop={onDrop}>
+          {blocks.map((b, i) => {
+            const isDragging = drag?.index === i;
+            const dropBefore = dropHint === i;
+            return (
+              <li
+                key={b.id}
+                className={
+                  `pcms-blockmgr__row${b.id === selectedBlockId ? " is-active" : ""}` +
+                  `${isDragging ? " is-dragging" : ""}${dropBefore ? " is-drop-before" : ""}`
+                }
+                onDragOver={onRowDragOver(i)}
+                onDrop={onDrop}
+              >
+                <span
+                  className="pcms-columns-mgr__grip"
+                  draggable
+                  title={t("block.drag")}
+                  onDragStart={(e) => {
+                    setDrag({ index: i, id: b.id });
+                    e.dataTransfer.effectAllowed = "move";
+                    e.dataTransfer.setData("text/plain", b.id);
+                  }}
+                  onDragEnd={clearDrag}
                 >
-                  ↓
+                  ⠿
+                </span>
+                <button type="button" className="pcms-blockmgr__name" onClick={() => onSelect(b.id)}>
+                  {schemaByType.get(b.type)?.label ?? b.type}
                 </button>
-                <button
-                  type="button"
-                  className="pcms-blockmgr__del"
-                  onClick={() => onOp(b.id, "del")}
-                  title={t("block.delete")}
-                >
-                  ×
-                </button>
-              </div>
-            </li>
-          ))}
+                <div className="pcms-blockmgr__ops">
+                  <button type="button" onClick={() => onOp(b.id, "up")} disabled={i === 0} title={t("block.up")}>
+                    ↑
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onOp(b.id, "down")}
+                    disabled={i === blocks.length - 1}
+                    title={t("block.down")}
+                  >
+                    ↓
+                  </button>
+                  <button type="button" onClick={() => onOp(b.id, "dup")} title={t("block.duplicate")}>
+                    ⧉
+                  </button>
+                  <button
+                    type="button"
+                    className="pcms-blockmgr__del"
+                    onClick={() => onOp(b.id, "del")}
+                    title={t("block.delete")}
+                  >
+                    ×
+                  </button>
+                </div>
+              </li>
+            );
+          })}
         </ul>
       )}
       <button type="button" className="pcms-blockmgr__add" onClick={onAddClick}>

@@ -1018,6 +1018,7 @@ export function ThemeEditor() {
         selectedBlockId={selectedBlockId}
         onSelect={(blockId) => onSelectBlock(selectedInstance.id, blockId)}
         onOp={(blockId, op) => onBlockOp(editScope, selectedInstance.id, blockId, op)}
+        onMove={(blockId, toIndex) => onBlockMove(editScope, selectedInstance.id, blockId, toIndex)}
         onAddClick={() =>
           setBlockInsertAt({
             scope: editScope,
