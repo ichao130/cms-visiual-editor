@@ -444,7 +444,6 @@ export function PublishFlow({ api }: { api: PcmsApi }) {
         <button type="button" className="pcms-primary" onClick={runPublish} disabled={busy !== ""}>
           {busy === "publish" ? t("publish.running") : t("publish.run")}
         </button>
-        {config && <span className="pcms-publish__targetlabel">{targetLabel(config)}</span>}
         <label className="pcms-publish__fulltoggle" title={t("publish.fullUploadHint")}>
           <input
             type="checkbox"
@@ -454,6 +453,7 @@ export function PublishFlow({ api }: { api: PcmsApi }) {
           />
           {t("publish.fullUpload")}
         </label>
+        {config && <span className="pcms-publish__targetlabel">{targetLabel(config)}</span>}
       </section>
 
       {preview && (
