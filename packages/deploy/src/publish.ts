@@ -28,24 +28,34 @@ async function reconcileWithServer(
   next: PublishManifest,
   transport: Transport,
   opts: PublishOptions,
-): Promise<ManifestDiff> {
-  if (opts.reconcileWithServer === false || typeof transport.list !== "function") return diff;
+): Promise<{ diff: ManifestDiff; listed?: boolean }> {
+  if (opts.reconcileWithServer === false || typeof transport.list !== "function") {
+    return { diff };
+  }
   let serverPaths: Set<string>;
   try {
     serverPaths = new Set(
       await withTimeout(transport.list(), RECONCILE_LIST_TIMEOUT_MS, "サーバーのファイル一覧取得"),
     );
   } catch {
-    return diff; // can't see the server → trust the manifest diff
+    return { diff, listed: false }; // can't see the server → trust the manifest diff
   }
   const present = (p: string) => serverPaths.has(p);
   const missing = diff.unchanged.filter((p) => !present(p) && p in next.files);
-  if (missing.length === 0) return diff;
+  if (missing.length === 0) return { diff, listed: true };
   return {
-    upload: [...diff.upload, ...missing].sort(),
-    delete: diff.delete,
-    unchanged: diff.unchanged.filter(present),
+    diff: {
+      upload: [...diff.upload, ...missing].sort(),
+      delete: diff.delete,
+      unchanged: diff.unchanged.filter(present),
+    },
+    listed: true,
   };
+}
+
+/** A full re-publish: every output file uploaded, manifest-owned removals kept. */
+function fullUploadDiff(base: ManifestDiff, next: PublishManifest): ManifestDiff {
+  return { upload: Object.keys(next.files).sort(), delete: base.delete, unchanged: [] };
 }
 
 /**
@@ -59,15 +69,19 @@ export async function publish(
   opts: PublishOptions = {},
 ): Promise<PublishResult> {
   const next = manifestOf(files);
-  const diff = await reconcileWithServer(
-    diffManifests(opts.previousManifest, next),
-    next,
-    transport,
-    opts,
-  );
+  const base = diffManifests(opts.previousManifest, next);
+  let diff: ManifestDiff;
+  let serverListed: boolean | undefined;
+  if (opts.fullUpload) {
+    diff = fullUploadDiff(base, next);
+  } else {
+    const reconciled = await reconcileWithServer(base, next, transport, opts);
+    diff = reconciled.diff;
+    serverListed = reconciled.listed;
+  }
 
   if (opts.dryRun) {
-    return { ok: true, diff, manifest: next, uploaded: [], deleted: [] };
+    return { ok: true, diff, manifest: next, uploaded: [], deleted: [], serverListed };
   }
 
   const prevFiles: Record<string, FileEntry> = opts.previousManifest?.files ?? {};
@@ -96,7 +110,7 @@ export async function publish(
       await transport.delete(path);
       deleted.push(path);
     }
-    return { ok: true, diff, manifest: next, uploaded, deleted };
+    return { ok: true, diff, manifest: next, uploaded, deleted, serverListed };
   } catch (err) {
     const rolledBack = await rollback(
       transport,
@@ -113,6 +127,7 @@ export async function publish(
       deleted: [],
       error: err instanceof Error ? err.message : String(err),
       rolledBack: rolledBack && canSnapshot,
+      serverListed,
     };
   }
 }

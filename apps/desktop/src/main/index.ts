@@ -195,8 +195,8 @@ function registerIpc(): void {
   ipcMain.handle("pcms:setDeployConfig", (_event, config: DeployConfigInput) =>
     setDeployConfig(config),
   );
-  ipcMain.handle("pcms:previewPublish", () => previewPublish());
-  ipcMain.handle("pcms:publishSite", () => publishSite());
+  ipcMain.handle("pcms:previewPublish", (_event, full?: boolean) => previewPublish(full));
+  ipcMain.handle("pcms:publishSite", (_event, full?: boolean) => publishSite(full));
   ipcMain.handle("pcms:listPublishHistory", () => listPublishHistory());
   ipcMain.handle("pcms:rollbackPublish", (_event, id: string) =>
     rollbackPublish(id),

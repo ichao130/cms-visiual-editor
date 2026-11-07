@@ -169,6 +169,13 @@ const ja = {
   "publish.running": "公開中…",
   "publish.checking": "チェック中…",
   "publish.checkDone": "公開前チェックが完了しました",
+  "publish.fullUpload": "全ファイルを送信（フル公開）",
+  "publish.fullUploadHint":
+    "差分ではなく、サイトの全ファイルを送信します。公開先フォルダを変えたときや、サーバー側を直接変更した後など、差分だと不足する場合に使います。",
+  "publish.fullUploadAsk":
+    "公開先のファイル一覧を確認できませんでした。差分だけだと、公開先に不足が出る可能性があります。全ファイルをアップロードしますか？\n\n「OK」=全ファイルを送信 ／ 「キャンセル」=差分のみ送信",
+  "publish.serverUnknownWarn":
+    "公開先のファイル一覧を取得できなかったため、前回公開との差分で表示しています（実際のサーバー状態とは異なる場合があります）。不足が心配なときは「全ファイルを送信」で公開してください。",
   "publish.history": "公開履歴",
   "publish.rollback": "この版に戻す",
   "publish.noHistory": "まだ公開していません。",

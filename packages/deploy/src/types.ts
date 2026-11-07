@@ -120,6 +120,13 @@ export interface PublishOptions {
    * unreliable). If the listing fails, publish falls back to the manifest diff.
    */
   reconcileWithServer?: boolean;
+  /**
+   * Upload every output file regardless of the diff (a full re-publish), while
+   * still deleting files the previous publish owned but the site no longer has.
+   * For when the operator wants to be sure the destination is complete — e.g.
+   * the server was changed outside the app, or the listing can't be trusted.
+   */
+  fullUpload?: boolean;
 }
 
 export interface PublishResult {
@@ -132,6 +139,13 @@ export interface PublishResult {
   /** Set when the publish failed and the previous state was restored. */
   error?: string;
   rolledBack?: boolean;
+  /**
+   * Whether the destination's file listing was consulted for the diff: true when
+   * reconciled against the real server, false when the listing failed and the
+   * manifest diff stands, undefined when reconciliation did not run (full upload
+   * or disabled). Lets the UI tell the operator the diff may not reflect reality.
+   */
+  serverListed?: boolean;
 }
 
 export interface SftpConfig {

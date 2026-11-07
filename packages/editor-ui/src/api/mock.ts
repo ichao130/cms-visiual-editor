@@ -844,19 +844,23 @@ export function createMockApi(): PcmsApi {
         } satisfies StoredDeploy);
       }
     },
-    async previewPublish(): Promise<PublishPreview> {
-      const diff = publishDiff(loadPublished(), currentManifest());
+    async previewPublish(full = false): Promise<PublishPreview> {
+      const next = currentManifest();
+      const diff = publishDiff(loadPublished(), next);
+      const uploadPaths = full ? Object.keys(next).sort() : diff.upload;
+      const unchanged = full ? 0 : diff.unchanged.length;
       return {
         issues: preflightIssues(),
-        upload: diff.upload.length,
+        upload: uploadPaths.length,
         delete: diff.delete.length,
-        unchanged: diff.unchanged.length,
-        uploadPaths: diff.upload,
+        unchanged,
+        uploadPaths,
         deletePaths: diff.delete,
         target: MOCK_TARGET,
+        serverListed: true, // the mock's simulated store is always readable
       };
     },
-    async publishSite(): Promise<PublishReport> {
+    async publishSite(full = false): Promise<PublishReport> {
       const issues = preflightIssues();
       const blocked = issues.some((i) => i.level === "error");
       if (blocked) {
@@ -907,13 +911,14 @@ export function createMockApi(): PcmsApi {
       // baseline so the next preview shows only what changed since.
       const next = currentManifest();
       const diff = publishDiff(loadPublished(), next);
+      const uploaded = full ? Object.keys(next).length : diff.upload.length;
       saveJson(PUBLISHED_KEY, next);
       return {
         ok: true,
         issues,
-        uploaded: diff.upload.length,
+        uploaded,
         deleted: diff.delete.length,
-        unchanged: diff.unchanged.length,
+        unchanged: full ? 0 : diff.unchanged.length,
         target: MOCK_TARGET,
         publishedAt: new Date().toISOString(),
       };

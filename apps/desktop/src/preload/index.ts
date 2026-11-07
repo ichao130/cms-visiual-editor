@@ -47,8 +47,8 @@ const api: PcmsApi = {
   getDeployConfig: () => ipcRenderer.invoke("pcms:getDeployConfig"),
   setDeployConfig: (config: DeployConfigInput) =>
     ipcRenderer.invoke("pcms:setDeployConfig", config),
-  previewPublish: () => ipcRenderer.invoke("pcms:previewPublish"),
-  publishSite: () => ipcRenderer.invoke("pcms:publishSite"),
+  previewPublish: (full?: boolean) => ipcRenderer.invoke("pcms:previewPublish", full),
+  publishSite: (full?: boolean) => ipcRenderer.invoke("pcms:publishSite", full),
   listPublishHistory: () => ipcRenderer.invoke("pcms:listPublishHistory"),
   rollbackPublish: (id: string) => ipcRenderer.invoke("pcms:rollbackPublish", id),
   listLocalFiles: () => ipcRenderer.invoke("pcms:listLocalFiles"),

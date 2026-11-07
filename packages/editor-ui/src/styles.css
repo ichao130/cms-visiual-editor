@@ -278,6 +278,18 @@ button.pcms-aibtn:hover:not(:disabled) { filter: brightness(1.08); background: v
 .pcms-filebrowser__item.is-new { color: var(--pcms-success); }
 .pcms-filebrowser__item.is-orphan { color: var(--pcms-muted); font-style: italic; }
 
+/* Full-upload toggle in the publish actions row. */
+.pcms-publish__fulltoggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.82rem;
+  color: var(--pcms-text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.pcms-publish__fulltoggle input { margin: 0; }
+
 /* Server folder browser: navigate the server to pick the publish path. */
 .pcms-publish__browsebtn {
   display: inline-flex;

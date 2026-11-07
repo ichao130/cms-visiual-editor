@@ -420,9 +420,16 @@ export interface PublishPreview {
   target: string;
   /** Set when the pre-publish check itself failed (e.g. output generation). */
   error?: string;
+  /**
+   * Whether the destination's files were read to build the diff: true when the
+   * diff reflects the real server, false when the listing failed (the diff is
+   * the manifest estimate), undefined when not applicable (full upload). Lets the
+   * UI warn that the diff may be incomplete and offer a full upload.
+   */
+  serverListed?: boolean;
 }
 
-export async function previewPublish(): Promise<PublishPreview> {
+export async function previewPublish(full = false): Promise<PublishPreview> {
   const { transport, target } = makeTransport(loadRawConfig());
   try {
     const files = assembleOutput();
@@ -430,6 +437,7 @@ export async function previewPublish(): Promise<PublishPreview> {
     const result = await publish(files, transport, {
       previousManifest: loadManifest(),
       dryRun: true,
+      fullUpload: full,
     });
     return {
       issues,
@@ -439,12 +447,13 @@ export async function previewPublish(): Promise<PublishPreview> {
       uploadPaths: result.diff.upload,
       deletePaths: result.diff.delete,
       target,
+      serverListed: result.serverListed,
     };
   } catch (err) {
-    // The pre-publish check runs entirely locally (dry run sends nothing), so a
-    // failure here is a generation / config problem — return it for the UI to
-    // diagnose instead of throwing across the IPC boundary (which the renderer
-    // would surface as an opaque crash).
+    // The dry run sends nothing, so a failure here is a generation / config
+    // problem (the server listing it does for the diff is caught inside publish).
+    // Return it for the UI to diagnose instead of throwing across the IPC
+    // boundary (which the renderer would surface as an opaque crash).
     return {
       issues: [],
       upload: 0,
@@ -460,7 +469,7 @@ export async function previewPublish(): Promise<PublishPreview> {
   }
 }
 
-async function runPublish(files: FileSet): Promise<PublishReport> {
+async function runPublish(files: FileSet, full = false): Promise<PublishReport> {
   const issues = preflight(files);
   const { transport, target } = makeTransport(loadRawConfig());
 
@@ -469,7 +478,10 @@ async function runPublish(files: FileSet): Promise<PublishReport> {
     return { ok: false, blocked: true, issues, uploaded: 0, deleted: 0, unchanged: 0, target };
   }
 
-  const result = await publish(files, transport, { previousManifest: loadManifest() });
+  const result = await publish(files, transport, {
+    previousManifest: loadManifest(),
+    fullUpload: full,
+  });
   await transport.close?.();
 
   if (result.ok) {
@@ -490,8 +502,8 @@ async function runPublish(files: FileSet): Promise<PublishReport> {
   };
 }
 
-export function publishSite(): Promise<PublishReport> {
-  return runPublish(assembleOutput());
+export function publishSite(full = false): Promise<PublishReport> {
+  return runPublish(assembleOutput(), full);
 }
 
 export async function rollbackPublish(id: string): Promise<PublishReport> {

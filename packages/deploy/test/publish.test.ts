@@ -109,6 +109,34 @@ describe("publish", () => {
     expect(res.uploaded).toEqual([]);
   });
 
+  it("fullUpload sends every file even when the server already has them", async () => {
+    const first = await publish({ "index.html": "a", "keep.txt": "k", "gone.txt": "g" }, transport);
+    // Same content minus gone.txt, with fullUpload: everything present is still
+    // re-sent, and the removed file is still deleted.
+    const res = await publish(
+      { "index.html": "a", "keep.txt": "k" },
+      transport,
+      { previousManifest: first.manifest, fullUpload: true },
+    );
+    expect(res.uploaded.sort()).toEqual(["index.html", "keep.txt"]);
+    expect(res.deleted).toEqual(["gone.txt"]);
+    expect(existsSync(join(root, "gone.txt"))).toBe(false);
+  });
+
+  it("reports whether the server listing was consulted", async () => {
+    const listed = await publish({ "index.html": "a" }, transport, { dryRun: true });
+    expect(listed.serverListed).toBe(true); // LocalTransport can list
+
+    const blind: Transport = {
+      put: (p, d) => transport.put(p, d),
+      delete: (p) => transport.delete(p),
+      get: (p) => transport.get(p),
+      list: () => Promise.reject(new Error("nope")),
+    };
+    const unlisted = await publish({ "index.html": "a" }, blind, { dryRun: true });
+    expect(unlisted.serverListed).toBe(false);
+  });
+
   it("computes a diff without sending on a dry run", async () => {
     const res = await publish({ "index.html": "x" }, transport, { dryRun: true });
     expect(res.diff.upload).toEqual(["index.html"]);

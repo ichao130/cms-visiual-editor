@@ -26,6 +26,9 @@ export function PublishFlow({ api }: { api: PcmsApi }) {
   const [preview, setPreview] = useState<PublishPreview | null>(null);
   const [report, setReport] = useState<PublishReport | null>(null);
   const [busy, setBusy] = useState<"" | "check" | "publish">("");
+  // Force a full re-publish (upload every file, not just the diff) — for when
+  // the destination changed or its listing can't be trusted.
+  const [fullUpload, setFullUpload] = useState(false);
 
   const [type, setType] = useState<"local" | "sftp" | "ftp" | "s3">("local");
   const [dir, setDir] = useState("");
@@ -154,7 +157,7 @@ export function PublishFlow({ api }: { api: PcmsApi }) {
     setBusy("check");
     setReport(null);
     try {
-      const p = await api.previewPublish();
+      const p = await api.previewPublish(fullUpload);
       setPreview(p);
       if (p.error) toast(t("publish.failed"), "error");
       else toast(t("publish.checkDone"));
@@ -179,9 +182,17 @@ export function PublishFlow({ api }: { api: PcmsApi }) {
 
   const runPublish = async () => {
     if (!window.confirm(t("publish.confirmRun"))) return;
+    // Decide whether to force a full upload. The explicit checkbox always wins.
+    // Otherwise, if the most recent pre-check could not read the destination
+    // (serverListed === false), the diff may be missing files that aren't on the
+    // server — ask whether to upload everything (the operator's described flow).
+    let full = fullUpload;
+    if (!full && preview && preview.serverListed === false) {
+      full = window.confirm(t("publish.fullUploadAsk"));
+    }
     setBusy("publish");
     try {
-      const r = await api.publishSite();
+      const r = await api.publishSite(full);
       setReport(r);
       setPreview(null);
       setHistory(await api.listPublishHistory());
@@ -434,6 +445,15 @@ export function PublishFlow({ api }: { api: PcmsApi }) {
           {busy === "publish" ? t("publish.running") : t("publish.run")}
         </button>
         {config && <span className="pcms-publish__targetlabel">{targetLabel(config)}</span>}
+        <label className="pcms-publish__fulltoggle" title={t("publish.fullUploadHint")}>
+          <input
+            type="checkbox"
+            checked={fullUpload}
+            onChange={(e) => setFullUpload(e.target.checked)}
+            disabled={busy !== ""}
+          />
+          {t("publish.fullUpload")}
+        </label>
       </section>
 
       {preview && (
@@ -447,6 +467,11 @@ export function PublishFlow({ api }: { api: PcmsApi }) {
                 {t("publish.willDelete")} {preview.delete} / {t("publish.unchanged")}{" "}
                 {preview.unchanged}
               </p>
+              {preview.serverListed === false && (
+                <p className="pcms-filebrowser__warn" role="status">
+                  {t("publish.serverUnknownWarn")}
+                </p>
+              )}
               {(preview.deletePaths ?? []).length > 0 && (
                 <PathList
                   label={`${t("publish.willDelete")}（${preview.deletePaths.length}）`}

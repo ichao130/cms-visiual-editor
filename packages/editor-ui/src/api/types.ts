@@ -76,9 +76,12 @@ export interface PcmsApi {
   getDeployConfig(): Promise<DeployConfigView>;
   setDeployConfig(config: DeployConfigInput): Promise<void>;
   /** Dry run: pre-publish checks and the change counts, nothing sent. */
-  previewPublish(): Promise<PublishPreview>;
-  /** Publish the site (diff upload + delete, with rollback on failure). */
-  publishSite(): Promise<PublishReport>;
+  previewPublish(full?: boolean): Promise<PublishPreview>;
+  /**
+   * Publish the site (diff upload + delete, with rollback on failure). Pass
+   * full=true to upload every file regardless of the diff (a full re-publish).
+   */
+  publishSite(full?: boolean): Promise<PublishReport>;
   listPublishHistory(): Promise<PublishHistoryEntry[]>;
   /** Re-publish a previous snapshot. */
   rollbackPublish(id: string): Promise<PublishReport>;
@@ -287,6 +290,13 @@ export interface PublishPreview {
   target: string;
   /** Set when the pre-publish check itself failed (e.g. output generation). */
   error?: string;
+  /**
+   * Whether the destination's files were read for the diff: true = reflects the
+   * real server, false = listing failed so the diff is the manifest estimate,
+   * undefined = not applicable (full upload). When false, the UI warns the diff
+   * may be incomplete and offers a full upload.
+   */
+  serverListed?: boolean;
 }
 
 export interface PublishReport {
