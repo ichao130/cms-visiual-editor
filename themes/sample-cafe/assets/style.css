@@ -77,3 +77,18 @@ main { max-width: 860px; margin: 0 auto; padding: 2rem 1.5rem; }
 .feature__icon { font-size: 2rem; line-height: 1; margin-bottom: 0.6rem; }
 .feature__title { color: var(--primary); margin: 0 0 0.4rem; font-size: 1.05rem; }
 .feature__text { font-size: 0.9rem; color: var(--text); margin: 0; line-height: 1.6; }
+
+/* Nested block parts (shown inside a section's data-blocks grid). */
+.block-image { margin: 0; background: #fff; border-radius: 12px; overflow: hidden; }
+.block-image__img { display: block; width: 100%; height: auto; }
+.block-image__cap { font-size: 0.82rem; color: var(--text); opacity: 0.75; padding: 0.5rem 0.75rem; text-align: center; }
+.block-button { display: flex; align-items: center; justify-content: center; }
+.block-button .btn { display: inline-block; background: var(--accent); color: #fff; padding: 0.7rem 1.4rem; border-radius: 999px; text-decoration: none; font-weight: 700; }
+.block-quote { margin: 0; background: #fff; border-radius: 12px; padding: 1.5rem; border-left: 3px solid var(--accent); }
+.block-quote__text { font-family: var(--font-heading); color: var(--primary); margin: 0; font-size: 1.05rem; line-height: 1.7; }
+.block-quote__author { margin-top: 0.6rem; font-size: 0.85rem; color: var(--text); opacity: 0.7; }
+.block-quote__author::before { content: "— "; }
+.block-richtext { background: #fff; border-radius: 12px; padding: 1.5rem; }
+.block-richtext__body { color: var(--text); line-height: 1.7; font-size: 0.95rem; }
+.block-richtext__body :first-child { margin-top: 0; }
+.block-richtext__body :last-child { margin-bottom: 0; }

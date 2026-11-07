@@ -70,6 +70,10 @@ import secHeader from "../../../../themes/sample-cafe/sections/header.html?raw";
 import secFooter from "../../../../themes/sample-cafe/sections/footer.html?raw";
 import secFeatures from "../../../../themes/sample-cafe/sections/features.html?raw";
 import blockFeature from "../../../../themes/sample-cafe/blocks/feature.html?raw";
+import blockImage from "../../../../themes/sample-cafe/blocks/image.html?raw";
+import blockButton from "../../../../themes/sample-cafe/blocks/button.html?raw";
+import blockQuote from "../../../../themes/sample-cafe/blocks/quote.html?raw";
+import blockRichtext from "../../../../themes/sample-cafe/blocks/richtext.html?raw";
 
 import themeJson from "../../../../themes/sample-cafe/theme.json";
 import previewCss from "../../../../themes/sample-cafe/assets/style.css?raw";
@@ -695,6 +699,10 @@ const THEME_FILES: Record<string, string> = {
   "sections/footer.html": secFooter,
   "sections/features.html": secFeatures,
   "blocks/feature.html": blockFeature,
+  "blocks/image.html": blockImage,
+  "blocks/button.html": blockButton,
+  "blocks/quote.html": blockQuote,
+  "blocks/richtext.html": blockRichtext,
   "assets/style.css": previewCss,
 };
 
