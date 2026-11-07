@@ -199,3 +199,46 @@ describe("gallery field", () => {
     expect(out).not.toContain("<img");
   });
 });
+
+describe("nested menus", () => {
+  function menuScope(menu: RenderScope["menus"]["x"]): RenderScope {
+    return {
+      site: sampleSite(),
+      theme: theme.config,
+      page: {},
+      menus: { main: menu },
+      collections: {},
+    };
+  }
+  const nested = [
+    { label: "ホーム", url: "/" },
+    {
+      label: "店舗",
+      url: "/shops/",
+      children: [
+        { label: "渋谷店", url: "/shops/shibuya/" },
+        { label: "新宿店", url: "/shops/shinjuku/" },
+      ],
+    },
+  ];
+
+  it("renders a submenu when the loop element is an <li>", () => {
+    const li =
+      '<ul class="nav"><li data-loop="main"><a data-field="item.url" href="#"><span data-field="item.label">x</span></a></li></ul>';
+    const out = renderTemplate(li, menuScope(nested));
+    expect(out).toContain("ホーム");
+    expect(out).toContain('class="pcms-submenu"');
+    expect(out).toContain("渋谷店");
+    expect(out).toContain('href="/shops/shinjuku/"');
+    // one submenu, for the 店舗 item only
+    expect((out.match(/pcms-submenu/g) ?? []).length).toBe(1);
+  });
+
+  it("keeps a flat <a data-loop> menu flat (no submenu)", () => {
+    const flat = '<nav><a data-loop="main" data-field="item.url" href="#"><span data-field="item.label">x</span></a></nav>';
+    const out = renderTemplate(flat, menuScope(nested));
+    expect(out).toContain("店舗");
+    expect(out).not.toContain("pcms-submenu");
+    expect(out).not.toContain("渋谷店");
+  });
+});

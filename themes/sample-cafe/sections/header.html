@@ -1,6 +1,10 @@
 <div class="site-header__bar" data-section="header" data-label="ヘッダー">
   <a class="logo" href="/" data-field="site.name" data-type="text">Sample Cafe</a>
   <nav class="site-nav">
-    <a data-loop="menu" data-field="item.url" href="#"><span data-field="item.label">メニュー</span></a>
+    <ul class="site-nav__list">
+      <li class="site-nav__item" data-loop="menu">
+        <a data-field="item.url" href="#"><span data-field="item.label">メニュー</span></a>
+      </li>
+    </ul>
   </nav>
 </div>

@@ -863,6 +863,9 @@ button.pcms-danger { color: var(--pcms-danger); border-color: var(--pcms-danger-
 
 /* Menu manager */
 .pcms-menuitem { display: flex; gap: 0.4rem; align-items: center; margin-bottom: 0.5rem; }
+.pcms-submenu-edit { margin: 0 0 0.6rem 1.6rem; padding-left: 0.6rem; border-left: 2px solid var(--pcms-border); }
+.pcms-menuitem--child { opacity: 0.95; }
+.pcms-submenu-edit__add { font-size: 0.78rem; color: var(--pcms-muted); background: none; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 0.2rem; padding: 0.1rem 0; }
 /* Drag-and-drop list reordering (shared across menus, sections, blocks, …). */
 .pcms-draghandle { display: inline-flex; align-items: center; flex: 0 0 auto; cursor: grab; user-select: none; color: var(--pcms-muted); padding: 0 0.15rem; line-height: 1; touch-action: none; }
 .pcms-draghandle:hover { color: var(--pcms-text); }

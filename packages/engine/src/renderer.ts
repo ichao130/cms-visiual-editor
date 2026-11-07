@@ -612,6 +612,17 @@ function expandLoop(el: HTMLElement, scope: RenderScope): void {
   const limitRaw = el.getAttribute(ATTR.limit);
   const limit = limitRaw && !Number.isNaN(Number(limitRaw)) ? Number(limitRaw) : undefined;
 
+  // A menu can nest (dropdowns), so it is expanded with a recursive renderer
+  // that keeps the child levels; collections (posts, …) stay flat.
+  const menu = scope.menus[source];
+  if (menu) {
+    const top = limit != null ? menu.slice(0, limit) : menu;
+    const html = top.map((mi) => renderMenuNode(el, mi, scope)).join("");
+    if (html) el.insertAdjacentHTML("afterend", html);
+    el.remove();
+    return;
+  }
+
   const items = loopItems(source, scope);
   const limited = limit != null ? items.slice(0, limit) : items;
 
@@ -626,6 +637,28 @@ function expandLoop(el: HTMLElement, scope: RenderScope): void {
 
   if (htmls.length) el.insertAdjacentHTML("afterend", htmls.join(""));
   el.remove();
+}
+
+/** Tags that must not wrap a submenu `<ul>` (inline/void or heading elements). */
+const NO_SUBMENU_TAGS = new Set(["a", "span", "button", "img", "p", "h1", "h2", "h3", "h4", "h5", "h6"]);
+
+/**
+ * Render one menu item (and, when the loop element can contain them, its
+ * children as a nested `<ul class="pcms-submenu">`). A flat `<a data-loop>`
+ * template stays flat — its children are dropped — so existing themes are
+ * unaffected; dropdowns need an `<li>`-based nav template.
+ */
+function renderMenuNode(template: HTMLElement, mi: MenuItem, scope: RenderScope): string {
+  const clone = template.clone() as HTMLElement;
+  clone.removeAttribute(ATTR.loop);
+  clone.removeAttribute(ATTR.limit);
+  processElement(clone, { ...scope, item: menuToItem(mi), editable: false });
+  const tag = clone.tagName?.toLowerCase() ?? "";
+  if (mi.children && mi.children.length > 0 && tag !== "" && !NO_SUBMENU_TAGS.has(tag)) {
+    const childHtml = mi.children.map((c) => renderMenuNode(template, c, scope)).join("");
+    clone.insertAdjacentHTML("beforeend", `<ul class="pcms-submenu">${childHtml}</ul>`);
+  }
+  return clone.toString();
 }
 
 function expandRepeat(el: HTMLElement, scope: RenderScope): void {

@@ -14,7 +14,13 @@ exports[`generateSite > matches the home page snapshot 1`] = `
     <header class="site-header"><div class="pcms-section pcms-section--header"><div class="site-header__bar">
   <a class="logo" href="/">テスト珈琲店</a>
   <nav class="site-nav">
-    <a href="/"><span>ホーム</span></a><a href="/news/"><span>お知らせ</span></a>
+    <ul class="site-nav__list">
+      <li class="site-nav__item">
+        <a href="/"><span>ホーム</span></a>
+      </li><li class="site-nav__item">
+        <a href="/news/"><span>お知らせ</span></a>
+      </li>
+    </ul>
   </nav>
 </div>
 </div></header>

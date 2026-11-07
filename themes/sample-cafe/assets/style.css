@@ -27,7 +27,30 @@ body {
 }
 
 .logo { font-weight: 700; color: var(--primary); text-decoration: none; }
-.site-nav a { margin-left: 1rem; color: var(--text); text-decoration: none; }
+.site-nav a { color: var(--text); text-decoration: none; }
+.site-nav__list { list-style: none; display: flex; gap: 1rem; margin: 0; padding: 0; }
+.site-nav__item { position: relative; }
+/* Dropdown submenu: hidden until the parent item is hovered/focused. */
+.site-nav .pcms-submenu {
+  list-style: none;
+  margin: 0;
+  padding: 0.4rem 0;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 10rem;
+  background: var(--bg);
+  border: 1px solid color-mix(in srgb, var(--text) 12%, transparent);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  display: none;
+  z-index: 20;
+}
+.site-nav__item:hover > .pcms-submenu,
+.site-nav__item:focus-within > .pcms-submenu { display: block; }
+.site-nav .pcms-submenu li { display: block; }
+.site-nav .pcms-submenu a { display: block; padding: 0.35rem 1rem; white-space: nowrap; }
+.site-nav .pcms-submenu a:hover { background: color-mix(in srgb, var(--accent) 14%, transparent); }
 
 main { max-width: 860px; margin: 0 auto; padding: 2rem 1.5rem; }
 
