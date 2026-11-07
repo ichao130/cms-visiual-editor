@@ -72,6 +72,18 @@ export function SiteSettingsView() {
     update({ analytics: Object.keys(next).length > 0 ? next : undefined });
   };
 
+  const updateBusiness = (patch: Partial<NonNullable<SiteConfig["business"]>>) => {
+    const next: Record<string, unknown> = { ...site.business, ...patch };
+    // Drop empty values so an all-empty business stays undefined.
+    for (const k of Object.keys(next)) {
+      const v = next[k];
+      if (v === "" || v == null || (Array.isArray(v) && v.length === 0)) delete next[k];
+    }
+    update({
+      business: Object.keys(next).length > 0 ? (next as NonNullable<SiteConfig["business"]>) : undefined,
+    });
+  };
+
   return (
     <div className="pcms-settingsview">
       <h1 className="pcms-page__title">{t("site.tab.settings")}</h1>
@@ -155,6 +167,105 @@ export function SiteSettingsView() {
           onChange={(e) => updateVerification("bing", e.target.value)}
         />
       </label>
+
+      <h2 className="pcms-settingsview__section">{t("siteSettings.section.business")}</h2>
+      <p className="pcms-field__hint">{t("siteSettings.businessHint")}</p>
+      <label className="pcms-field">
+        <span className="pcms-field__label">{t("siteSettings.biz.type")}</span>
+        <input
+          value={site.business?.type ?? ""}
+          onChange={(e) => updateBusiness({ type: e.target.value || undefined })}
+          placeholder="CafeOrCoffeeShop"
+        />
+      </label>
+      <label className="pcms-field">
+        <span className="pcms-field__label">{t("siteSettings.biz.postalCode")}</span>
+        <input
+          value={site.business?.postalCode ?? ""}
+          onChange={(e) => updateBusiness({ postalCode: e.target.value || undefined })}
+          placeholder="150-0001"
+        />
+      </label>
+      <label className="pcms-field">
+        <span className="pcms-field__label">{t("siteSettings.biz.region")}</span>
+        <input
+          value={site.business?.addressRegion ?? ""}
+          onChange={(e) => updateBusiness({ addressRegion: e.target.value || undefined })}
+          placeholder="東京都"
+        />
+      </label>
+      <label className="pcms-field">
+        <span className="pcms-field__label">{t("siteSettings.biz.locality")}</span>
+        <input
+          value={site.business?.addressLocality ?? ""}
+          onChange={(e) => updateBusiness({ addressLocality: e.target.value || undefined })}
+          placeholder="渋谷区"
+        />
+      </label>
+      <label className="pcms-field">
+        <span className="pcms-field__label">{t("siteSettings.biz.street")}</span>
+        <input
+          value={site.business?.streetAddress ?? ""}
+          onChange={(e) => updateBusiness({ streetAddress: e.target.value || undefined })}
+        />
+      </label>
+      <label className="pcms-field">
+        <span className="pcms-field__label">{t("siteSettings.biz.tel")}</span>
+        <input
+          value={site.business?.telephone ?? ""}
+          onChange={(e) => updateBusiness({ telephone: e.target.value || undefined })}
+          placeholder="03-1234-5678"
+        />
+      </label>
+      <label className="pcms-field">
+        <span className="pcms-field__label">{t("siteSettings.biz.priceRange")}</span>
+        <input
+          value={site.business?.priceRange ?? ""}
+          onChange={(e) => updateBusiness({ priceRange: e.target.value || undefined })}
+          placeholder="¥¥"
+        />
+      </label>
+      <label className="pcms-field">
+        <span className="pcms-field__label">{t("siteSettings.biz.hours")}</span>
+        <textarea
+          rows={3}
+          value={(site.business?.openingHours ?? []).join("\n")}
+          onChange={(e) =>
+            updateBusiness({
+              openingHours: e.target.value
+                .split("\n")
+                .map((s) => s.trim())
+                .filter((s) => s.length > 0),
+            })
+          }
+          placeholder={"Mo-Fr 09:00-18:00\nSa 10:00-16:00"}
+        />
+      </label>
+      <p className="pcms-field__hint">{t("siteSettings.biz.hoursHint")}</p>
+      <div className="pcms-settingsview__row">
+        <label className="pcms-field">
+          <span className="pcms-field__label">{t("siteSettings.biz.lat")}</span>
+          <input
+            type="number"
+            value={site.business?.latitude ?? ""}
+            onChange={(e) => {
+              const n = Number.parseFloat(e.target.value);
+              updateBusiness({ latitude: Number.isFinite(n) ? n : undefined });
+            }}
+          />
+        </label>
+        <label className="pcms-field">
+          <span className="pcms-field__label">{t("siteSettings.biz.lng")}</span>
+          <input
+            type="number"
+            value={site.business?.longitude ?? ""}
+            onChange={(e) => {
+              const n = Number.parseFloat(e.target.value);
+              updateBusiness({ longitude: Number.isFinite(n) ? n : undefined });
+            }}
+          />
+        </label>
+      </div>
 
       <h2 className="pcms-settingsview__section">{t("siteSettings.section.analytics")}</h2>
       <p className="pcms-field__hint">{t("siteSettings.analyticsHint")}</p>

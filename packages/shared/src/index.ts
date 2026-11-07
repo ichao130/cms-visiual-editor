@@ -60,6 +60,36 @@ export interface SiteConfig {
   verificationTags?: Record<string, string>;
   /** Access-analytics tags injected into every published page's <head>. */
   analytics?: AnalyticsConfig;
+  /** Store / company details for LocalBusiness structured data (NAP). */
+  business?: BusinessInfo;
+}
+
+/**
+ * Name-Address-Phone (NAP) and related details for a physical store or company.
+ * When present, the engine emits schema.org LocalBusiness JSON-LD on every page
+ * — the highest-value local-SEO signal for a shop or clinic.
+ */
+export interface BusinessInfo {
+  /** schema.org type, e.g. "CafeOrCoffeeShop", "Store". Default "LocalBusiness". */
+  type?: string;
+  /** 番地・建物 (street address). */
+  streetAddress?: string;
+  /** 市区町村 (locality). */
+  addressLocality?: string;
+  /** 都道府県 (region). */
+  addressRegion?: string;
+  /** 郵便番号 (postal code). */
+  postalCode?: string;
+  /** ISO country code; default "JP". */
+  addressCountry?: string;
+  /** 電話番号. */
+  telephone?: string;
+  /** 価格帯, e.g. "¥¥" or "500-1500". */
+  priceRange?: string;
+  /** Opening hours in schema.org form, e.g. "Mo-Fr 09:00-18:00". */
+  openingHours?: string[];
+  latitude?: number;
+  longitude?: number;
 }
 
 /**

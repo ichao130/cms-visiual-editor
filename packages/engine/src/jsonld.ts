@@ -15,7 +15,7 @@ function absUrl(url: string, baseUrl: string): string {
   return baseUrl + (url.startsWith("/") ? url : `/${url}`);
 }
 
-/** WebSite + Organization — included on every page. */
+/** WebSite + Organization (+ LocalBusiness when set) — included on every page. */
 export function siteJsonLd(site: SiteConfig): object[] {
   const b = base(site);
   const website: Record<string, unknown> = {
@@ -33,7 +33,49 @@ export function siteJsonLd(site: SiteConfig): object[] {
     org.url = b;
   }
   if (site.logo) org.logo = absUrl(site.logo, b);
-  return [website, org];
+  const local = localBusinessJsonLd(site);
+  return local ? [website, org, local] : [website, org];
+}
+
+/**
+ * schema.org LocalBusiness from the site's NAP details, or null when no useful
+ * business field is set. Emitted site-wide for local-SEO (store/company info).
+ */
+export function localBusinessJsonLd(site: SiteConfig): object | null {
+  const biz = site.business;
+  if (!biz) return null;
+  const b = base(site);
+  const address: Record<string, unknown> = {};
+  if (biz.streetAddress) address.streetAddress = biz.streetAddress;
+  if (biz.addressLocality) address.addressLocality = biz.addressLocality;
+  if (biz.addressRegion) address.addressRegion = biz.addressRegion;
+  if (biz.postalCode) address.postalCode = biz.postalCode;
+  if (biz.addressCountry || Object.keys(address).length > 0) {
+    address.addressCountry = biz.addressCountry || "JP";
+  }
+
+  const hasAddress = Object.keys(address).length > 0;
+  const hasGeo = typeof biz.latitude === "number" && typeof biz.longitude === "number";
+  // Need at least one substantive signal beyond the name to be worth emitting.
+  if (!hasAddress && !biz.telephone && !hasGeo && (biz.openingHours?.length ?? 0) === 0) {
+    return null;
+  }
+
+  const obj: Record<string, unknown> = {
+    "@context": "https://schema.org",
+    "@type": biz.type || "LocalBusiness",
+    name: site.name,
+  };
+  if (b) obj.url = b;
+  if (site.logo) obj.image = absUrl(site.logo, b);
+  if (hasAddress) obj.address = { "@type": "PostalAddress", ...address };
+  if (biz.telephone) obj.telephone = biz.telephone;
+  if (biz.priceRange) obj.priceRange = biz.priceRange;
+  if (biz.openingHours && biz.openingHours.length > 0) obj.openingHours = biz.openingHours;
+  if (hasGeo) {
+    obj.geo = { "@type": "GeoCoordinates", latitude: biz.latitude, longitude: biz.longitude };
+  }
+  return obj;
 }
 
 /** Article structured data for a content item page. */
