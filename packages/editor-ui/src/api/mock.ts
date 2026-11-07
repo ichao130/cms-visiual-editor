@@ -77,6 +77,8 @@ import blockImage from "../../../../themes/sample-cafe/blocks/image.html?raw";
 import blockButton from "../../../../themes/sample-cafe/blocks/button.html?raw";
 import blockQuote from "../../../../themes/sample-cafe/blocks/quote.html?raw";
 import blockRichtext from "../../../../themes/sample-cafe/blocks/richtext.html?raw";
+import blockColumns from "../../../../themes/sample-cafe/blocks/columns.html?raw";
+import blockHeading from "../../../../themes/sample-cafe/blocks/heading.html?raw";
 
 import themeJson from "../../../../themes/sample-cafe/theme.json";
 import previewCss from "../../../../themes/sample-cafe/assets/style.css?raw";
@@ -706,6 +708,8 @@ const THEME_FILES: Record<string, string> = {
   "blocks/button.html": blockButton,
   "blocks/quote.html": blockQuote,
   "blocks/richtext.html": blockRichtext,
+  "blocks/columns.html": blockColumns,
+  "blocks/heading.html": blockHeading,
   "assets/style.css": previewCss,
 };
 

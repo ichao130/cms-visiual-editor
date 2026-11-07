@@ -42,6 +42,12 @@ import {
   removeInstance,
   removeRegionInstance,
   setBlockField,
+  setColumnCount,
+  setColumnsRatio,
+  addColumnChild,
+  removeColumnChild,
+  moveColumnChild,
+  setColumnChildField,
   setField,
   setInstanceField,
   setInstanceRepeat,
@@ -67,6 +73,7 @@ import {
   parseSectionSchema,
   sectionBlockTypes,
   setSectionBlocks,
+  isColumnsBlock,
 } from "@pcms/engine";
 import { SectionFields } from "./SectionFields.js";
 import { renderPreview, schemaForPage } from "../preview/render.js";
@@ -77,6 +84,7 @@ import { Preview } from "./Preview.js";
 import { SettingsPanel } from "./SettingsPanel.js";
 import { SectionCanvas, type InstanceRow } from "./SectionCanvas.js";
 import { BlockManager, BlockSettings, EnableBlocksPrompt } from "./BlockPanel.js";
+import { ColumnsManager } from "./ColumnsManager.js";
 import { ThemeStylePanel } from "./ThemeStylePanel.js";
 import { InlineEditor, type Anchor } from "./InlineEditor.js";
 import { AddSectionModal } from "./AddSectionModal.js";
@@ -319,6 +327,21 @@ export function ThemeEditor() {
     ? blockSchemaByType.get(selectedBlock.type) ?? null
     : null;
 
+  // Whether a block type is a layout (columns) block — its template root has a
+  // `data-columns` container, so it holds child blocks instead of fields.
+  const isLayoutType = useCallback(
+    (type: string): boolean => isColumnsBlock(project?.theme.blocks?.[type] ?? ""),
+    [project],
+  );
+  const selectedBlockIsLayout = selectedBlock ? isLayoutType(selectedBlock.type) : false;
+  // Block types that can go inside a column: the section's allowed blocks minus
+  // layout blocks (no columns-in-columns).
+  const columnChildCatalog = selectedInstance
+    ? blockTypesForSection(selectedInstance.type)
+        .filter((type) => !isLayoutType(type))
+        .map((type) => ({ type, label: blockSchemaByType.get(type)?.label ?? type }))
+    : [];
+
   // Where the currently-edited section instance lives, for block mutations.
   const locFor = useCallback(
     (scope: Scope): InstanceLoc =>
@@ -513,7 +536,9 @@ export function ThemeEditor() {
 
   const onAddBlock = useCallback(
     (scope: Scope, sectionId: string, type: string, at?: number) => {
-      const settings = addBlock(doc.settings, locFor(scope), sectionId, type, at);
+      // A layout (columns) block starts with two empty columns.
+      const seed = isLayoutType(type) ? 2 : undefined;
+      const settings = addBlock(doc.settings, locFor(scope), sectionId, type, at, seed);
       commit({ ...doc, settings });
       const list =
         (scope === "body" ? settings.pages[pageId]?.instances : settings.regions?.[scope])?.find(
@@ -525,7 +550,56 @@ export function ThemeEditor() {
       if (added) setSelectedBlockId(added.id);
       setDirty(true);
     },
-    [commit, doc, pageId, locFor],
+    [commit, doc, pageId, locFor, isLayoutType],
+  );
+
+  // --- Column mutations for a selected layout (columns) block ----------------
+  const onColumnCount = useCallback(
+    (sectionId: string, blockId: string, count: number) => {
+      commit({ ...doc, settings: setColumnCount(doc.settings, locFor(editScope), sectionId, blockId, count) });
+      setDirty(true);
+    },
+    [commit, doc, locFor, editScope],
+  );
+  const onColumnRatio = useCallback(
+    (sectionId: string, blockId: string, ratio: string) => {
+      commit({ ...doc, settings: setColumnsRatio(doc.settings, locFor(editScope), sectionId, blockId, ratio) });
+      setDirty(true);
+    },
+    [commit, doc, locFor, editScope],
+  );
+  const onColumnAddChild = useCallback(
+    (sectionId: string, blockId: string, col: number, type: string) => {
+      commit({ ...doc, settings: addColumnChild(doc.settings, locFor(editScope), sectionId, blockId, col, type) });
+      setDirty(true);
+    },
+    [commit, doc, locFor, editScope],
+  );
+  const onColumnChildOp = useCallback(
+    (sectionId: string, blockId: string, col: number, childId: string, op: "up" | "down" | "del") => {
+      const loc = locFor(editScope);
+      const inst = listFor(editScope).find((i) => i.id === sectionId);
+      const children = inst?.blocks?.find((b) => b.id === blockId)?.columns?.[col] ?? [];
+      const from = children.findIndex((c) => c.id === childId);
+      if (from < 0) return;
+      let settings;
+      if (op === "up") settings = moveColumnChild(doc.settings, loc, sectionId, blockId, col, from, from - 1);
+      else if (op === "down") settings = moveColumnChild(doc.settings, loc, sectionId, blockId, col, from, from + 1);
+      else settings = removeColumnChild(doc.settings, loc, sectionId, blockId, col, childId);
+      commit({ ...doc, settings });
+      setDirty(true);
+    },
+    [commit, doc, locFor, editScope, listFor],
+  );
+  const onColumnChildField = useCallback(
+    (sectionId: string, blockId: string, col: number, childId: string, path: string, value: string) => {
+      commit(
+        { ...doc, settings: setColumnChildField(doc.settings, locFor(editScope), sectionId, blockId, col, childId, path, value) },
+        `col:${editScope}:${sectionId}:${blockId}:${col}:${childId}:${path}`,
+      );
+      setDirty(true);
+    },
+    [commit, doc, locFor, editScope],
   );
 
   const onBlockOp = useCallback(
@@ -1074,6 +1148,26 @@ export function ThemeEditor() {
                   section: selectedInstance!.id,
                   block: selectedBlock.id,
                 })
+              }
+              layout={
+                selectedBlockIsLayout ? (
+                  <ColumnsManager
+                    block={selectedBlock}
+                    childSchemaByType={blockSchemaByType}
+                    childCatalog={columnChildCatalog}
+                    onCount={(n) => onColumnCount(selectedInstance!.id, selectedBlock.id, n)}
+                    onRatio={(r) => onColumnRatio(selectedInstance!.id, selectedBlock.id, r)}
+                    onAddChild={(col, type) =>
+                      onColumnAddChild(selectedInstance!.id, selectedBlock.id, col, type)
+                    }
+                    onChildOp={(col, childId, op) =>
+                      onColumnChildOp(selectedInstance!.id, selectedBlock.id, col, childId, op)
+                    }
+                    onChildField={(col, childId, path, value) =>
+                      onColumnChildField(selectedInstance!.id, selectedBlock.id, col, childId, path, value)
+                    }
+                  />
+                ) : undefined
               }
             />
           ) : selectedInstance ? (

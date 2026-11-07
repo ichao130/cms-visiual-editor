@@ -92,3 +92,13 @@ main { max-width: 860px; margin: 0 auto; padding: 2rem 1.5rem; }
 .block-richtext__body { color: var(--text); line-height: 1.7; font-size: 0.95rem; }
 .block-richtext__body :first-child { margin-top: 0; }
 .block-richtext__body :last-child { margin-bottom: 0; }
+
+/* Layout (columns) block: the engine sets the grid tracks inline from the
+   width ratio; this adds spacing and stacks the columns on narrow screens. */
+.block-columns { margin: 1rem 0; }
+.block-columns .pcms-columns__col { min-width: 0; display: flex; flex-direction: column; gap: 1.2rem; }
+.block-heading h2 { font-family: var(--font-heading); color: var(--primary); margin: 0; }
+.pcms-empty-col { border: 1px dashed var(--accent); border-radius: 8px; padding: 1.4rem; text-align: center; color: var(--text); opacity: 0.6; font-size: 0.85rem; }
+@media (max-width: 640px) {
+  .block-columns .pcms-columns { grid-template-columns: 1fr !important; }
+}

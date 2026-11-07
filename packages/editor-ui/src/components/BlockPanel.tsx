@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { BlockInstance, SectionInstance, SectionSchema } from "@pcms/shared";
 import { SectionFields } from "./SectionFields.js";
 import { t } from "../i18n.js";
@@ -104,10 +105,15 @@ interface BlockSettingsProps {
   onBack: () => void;
   /** Swap this block to a different part (opens the swap picker). */
   onSwap?: () => void;
+  /**
+   * Replaces the field editor for a layout block (whose template has no fields):
+   * the columns manager is rendered here instead of SectionFields.
+   */
+  layout?: ReactNode;
 }
 
 /** Settings panel for one selected nested block, driven by its schema. */
-export function BlockSettings({ block, schema, onFieldChange, onBack, onSwap }: BlockSettingsProps) {
+export function BlockSettings({ block, schema, onFieldChange, onBack, onSwap, layout }: BlockSettingsProps) {
   return (
     <aside className="pcms-settings">
       <button type="button" className="pcms-settings__back" onClick={onBack}>
@@ -123,12 +129,14 @@ export function BlockSettings({ block, schema, onFieldChange, onBack, onSwap }: 
           </button>
         )}
       </div>
-      <SectionFields
-        schema={schema}
-        instance={block as SectionInstance}
-        onFieldChange={onFieldChange}
-        onRepeatChange={() => {}}
-      />
+      {layout ?? (
+        <SectionFields
+          schema={schema}
+          instance={block as SectionInstance}
+          onFieldChange={onFieldChange}
+          onRepeatChange={() => {}}
+        />
+      )}
     </aside>
   );
 }

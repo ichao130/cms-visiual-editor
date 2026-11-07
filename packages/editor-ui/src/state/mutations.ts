@@ -440,14 +440,25 @@ export function newBlockId(type: string): string {
   return `${type}-${Date.now().toString(36)}-${Math.floor(Math.random() * 1000)}`;
 }
 
+/** An equal-width ratio string for `n` columns, e.g. 3 → "1:1:1". */
+export function equalRatio(n: number): string {
+  return Array(Math.max(1, n)).fill("1").join(":");
+}
+
 export function addBlock(
   settings: SiteSettings,
   loc: InstanceLoc,
   sectionId: string,
   type: string,
   at?: number,
+  /** When set, create a layout block seeded with this many empty columns. */
+  seedColumns?: number,
 ): SiteSettings {
   const block: BlockInstance = { id: newBlockId(type), type };
+  if (seedColumns && seedColumns > 0) {
+    block.columns = Array.from({ length: seedColumns }, () => []);
+    block.fields = { ratio: equalRatio(seedColumns) };
+  }
   return withBlocks(settings, loc, sectionId, (list) => {
     const next = [...list];
     next.splice(at ?? next.length, 0, block);
@@ -511,6 +522,129 @@ export function setBlockField(
 ): SiteSettings {
   return withBlocks(settings, loc, sectionId, (list) =>
     list.map((b) => (b.id === blockId ? { ...b, fields: { ...b.fields, [path]: value } } : b)),
+  );
+}
+
+// --- Child blocks inside a layout (columns) block ---------------------------
+// A layout block (a block whose template root has `data-columns`) holds its
+// child blocks per column in `block.columns` (columns[i] is the i-th column's
+// ordered list), with a width ratio in `block.fields.ratio`. These mutations
+// target one such block inside one section instance, reusing withBlocks.
+
+function withColumns(
+  settings: SiteSettings,
+  loc: InstanceLoc,
+  sectionId: string,
+  blockId: string,
+  update: (columns: BlockInstance[][]) => BlockInstance[][],
+): SiteSettings {
+  return withBlocks(settings, loc, sectionId, (list) =>
+    list.map((b) => (b.id === blockId ? { ...b, columns: update(b.columns ?? []) } : b)),
+  );
+}
+
+/** Set the column count: adds empty columns or drops trailing ones, and resets
+ *  the width ratio to equal so the tracks always match the column count. */
+export function setColumnCount(
+  settings: SiteSettings,
+  loc: InstanceLoc,
+  sectionId: string,
+  blockId: string,
+  count: number,
+): SiteSettings {
+  const n = Math.max(1, Math.min(count, 6));
+  return withBlocks(settings, loc, sectionId, (list) =>
+    list.map((b) => {
+      if (b.id !== blockId) return b;
+      const cur = b.columns ?? [];
+      const columns = Array.from({ length: n }, (_, i) => cur[i] ?? []);
+      return { ...b, columns, fields: { ...b.fields, ratio: equalRatio(n) } };
+    }),
+  );
+}
+
+/** Set the width ratio (e.g. "2:1"); the engine maps it to CSS grid tracks. */
+export function setColumnsRatio(
+  settings: SiteSettings,
+  loc: InstanceLoc,
+  sectionId: string,
+  blockId: string,
+  ratio: string,
+): SiteSettings {
+  return withBlocks(settings, loc, sectionId, (list) =>
+    list.map((b) => (b.id === blockId ? { ...b, fields: { ...b.fields, ratio } } : b)),
+  );
+}
+
+export function addColumnChild(
+  settings: SiteSettings,
+  loc: InstanceLoc,
+  sectionId: string,
+  blockId: string,
+  col: number,
+  type: string,
+  at?: number,
+): SiteSettings {
+  const child: BlockInstance = { id: newBlockId(type), type };
+  return withColumns(settings, loc, sectionId, blockId, (columns) => {
+    const next = columns.map((c) => [...c]);
+    while (next.length <= col) next.push([]);
+    const list = next[col]!;
+    list.splice(at ?? list.length, 0, child);
+    return next;
+  });
+}
+
+export function removeColumnChild(
+  settings: SiteSettings,
+  loc: InstanceLoc,
+  sectionId: string,
+  blockId: string,
+  col: number,
+  childId: string,
+): SiteSettings {
+  return withColumns(settings, loc, sectionId, blockId, (columns) =>
+    columns.map((c, i) => (i === col ? c.filter((x) => x.id !== childId) : c)),
+  );
+}
+
+export function moveColumnChild(
+  settings: SiteSettings,
+  loc: InstanceLoc,
+  sectionId: string,
+  blockId: string,
+  col: number,
+  from: number,
+  to: number,
+): SiteSettings {
+  return withColumns(settings, loc, sectionId, blockId, (columns) =>
+    columns.map((c, i) => {
+      if (i !== col) return c;
+      if (from < 0 || from >= c.length || to < 0 || to >= c.length) return c;
+      const next = [...c];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved as BlockInstance);
+      return next;
+    }),
+  );
+}
+
+export function setColumnChildField(
+  settings: SiteSettings,
+  loc: InstanceLoc,
+  sectionId: string,
+  blockId: string,
+  col: number,
+  childId: string,
+  path: string,
+  value: FieldValue,
+): SiteSettings {
+  return withColumns(settings, loc, sectionId, blockId, (columns) =>
+    columns.map((c, i) =>
+      i === col
+        ? c.map((x) => (x.id === childId ? { ...x, fields: { ...x.fields, [path]: value } } : x))
+        : c,
+    ),
   );
 }
 
