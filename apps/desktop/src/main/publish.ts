@@ -413,25 +413,51 @@ export interface PublishPreview {
   upload: number;
   delete: number;
   unchanged: number;
+  /** Paths that will be uploaded (new or changed since the last publish). */
+  uploadPaths: string[];
+  /** Paths that will be deleted (present last publish, gone now). */
+  deletePaths: string[];
   target: string;
+  /** Set when the pre-publish check itself failed (e.g. output generation). */
+  error?: string;
 }
 
 export async function previewPublish(): Promise<PublishPreview> {
-  const files = assembleOutput();
-  const issues = preflight(files);
   const { transport, target } = makeTransport(loadRawConfig());
-  const result = await publish(files, transport, {
-    previousManifest: loadManifest(),
-    dryRun: true,
-  });
-  await transport.close?.();
-  return {
-    issues,
-    upload: result.diff.upload.length,
-    delete: result.diff.delete.length,
-    unchanged: result.diff.unchanged.length,
-    target,
-  };
+  try {
+    const files = assembleOutput();
+    const issues = preflight(files);
+    const result = await publish(files, transport, {
+      previousManifest: loadManifest(),
+      dryRun: true,
+    });
+    return {
+      issues,
+      upload: result.diff.upload.length,
+      delete: result.diff.delete.length,
+      unchanged: result.diff.unchanged.length,
+      uploadPaths: result.diff.upload,
+      deletePaths: result.diff.delete,
+      target,
+    };
+  } catch (err) {
+    // The pre-publish check runs entirely locally (dry run sends nothing), so a
+    // failure here is a generation / config problem — return it for the UI to
+    // diagnose instead of throwing across the IPC boundary (which the renderer
+    // would surface as an opaque crash).
+    return {
+      issues: [],
+      upload: 0,
+      delete: 0,
+      unchanged: 0,
+      uploadPaths: [],
+      deletePaths: [],
+      target,
+      error: err instanceof Error ? err.message : String(err),
+    };
+  } finally {
+    await transport.close?.();
+  }
 }
 
 async function runPublish(files: FileSet): Promise<PublishReport> {

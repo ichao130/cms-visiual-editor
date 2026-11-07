@@ -154,7 +154,23 @@ export function PublishFlow({ api }: { api: PcmsApi }) {
     setBusy("check");
     setReport(null);
     try {
-      setPreview(await api.previewPublish());
+      const p = await api.previewPublish();
+      setPreview(p);
+      if (p.error) toast(t("publish.failed"), "error");
+    } catch (err) {
+      // Shouldn't happen (main returns errors in-band), but never let a failed
+      // check crash the screen — surface it like any other publish error.
+      setPreview({
+        issues: [],
+        upload: 0,
+        delete: 0,
+        unchanged: 0,
+        uploadPaths: [],
+        deletePaths: [],
+        target: "",
+        error: err instanceof Error ? err.message : String(err),
+      });
+      toast(t("publish.failed"), "error");
     } finally {
       setBusy("");
     }
@@ -480,25 +496,32 @@ export function PublishFlow({ api }: { api: PcmsApi }) {
 
       {preview && (
         <section className="pcms-publish__result">
-          <p className="pcms-publish__counts">
-            {t("publish.changes")}: {t("publish.willUpload")} {preview.upload} / {t("publish.willDelete")}{" "}
-            {preview.delete} / {t("publish.unchanged")} {preview.unchanged}
-          </p>
-          {preview.deletePaths.length > 0 && (
-            <PathList
-              label={`${t("publish.willDelete")}（${preview.deletePaths.length}）`}
-              paths={preview.deletePaths}
-              danger
-              open
-            />
+          {preview.error ? (
+            <DeployErrorDiagnosis message={preview.error} />
+          ) : (
+            <>
+              <p className="pcms-publish__counts">
+                {t("publish.changes")}: {t("publish.willUpload")} {preview.upload} /{" "}
+                {t("publish.willDelete")} {preview.delete} / {t("publish.unchanged")}{" "}
+                {preview.unchanged}
+              </p>
+              {(preview.deletePaths ?? []).length > 0 && (
+                <PathList
+                  label={`${t("publish.willDelete")}（${preview.deletePaths.length}）`}
+                  paths={preview.deletePaths}
+                  danger
+                  open
+                />
+              )}
+              {(preview.uploadPaths ?? []).length > 0 && (
+                <PathList
+                  label={`${t("publish.willUpload")}（${preview.uploadPaths.length}）`}
+                  paths={preview.uploadPaths}
+                />
+              )}
+              <IssueList issues={preview.issues} />
+            </>
           )}
-          {preview.uploadPaths.length > 0 && (
-            <PathList
-              label={`${t("publish.willUpload")}（${preview.uploadPaths.length}）`}
-              paths={preview.uploadPaths}
-            />
-          )}
-          <IssueList issues={preview.issues} />
         </section>
       )}
 

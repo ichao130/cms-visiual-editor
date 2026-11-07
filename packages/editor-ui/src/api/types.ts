@@ -285,6 +285,8 @@ export interface PublishPreview {
   /** Paths that will be deleted (present last publish, gone now). */
   deletePaths: string[];
   target: string;
+  /** Set when the pre-publish check itself failed (e.g. output generation). */
+  error?: string;
 }
 
 export interface PublishReport {
