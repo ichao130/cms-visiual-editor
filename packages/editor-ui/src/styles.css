@@ -808,6 +808,9 @@ button.pcms-danger { color: var(--pcms-danger); border-color: var(--pcms-danger-
 .pcms-fielddef input, .pcms-fielddef select { font: inherit; padding: 0.3rem 0.4rem; border: 1px solid var(--pcms-border); border-radius: 6px; }
 .pcms-fielddef__name { width: 110px; font-family: ui-monospace, monospace; }
 .pcms-fielddef__options { flex: 1; min-width: 140px; }
+.pcms-fielddef__default, .pcms-fielddef__desc { flex: 1; min-width: 120px; }
+.pcms-fielddef__showif-label { color: var(--pcms-muted); font-size: 0.75rem; }
+.pcms-fielddef__meta, .pcms-fielddef__showif { padding-left: 1.5rem; }
 .pcms-fielddef__req { display: flex; align-items: center; gap: 0.3rem; font-size: 0.78rem; }
 .pcms-fielddef__req input { width: auto; }
 .pcms-fielddef__actions { margin-left: auto; display: flex; gap: 0.2rem; }

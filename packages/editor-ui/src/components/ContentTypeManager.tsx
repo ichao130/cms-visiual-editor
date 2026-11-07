@@ -227,6 +227,60 @@ export function ContentTypeManager({ types, onCommit }: ContentTypeManagerProps)
                       </button>
                     </div>
                   </div>
+                  <div className="pcms-fielddef__row pcms-fielddef__meta">
+                    <input
+                      className="pcms-fielddef__default"
+                      value={f.default == null ? "" : String(f.default)}
+                      onChange={(e) =>
+                        updateField(i, { default: e.target.value === "" ? undefined : e.target.value })
+                      }
+                      placeholder={t("types.default")}
+                    />
+                    <input
+                      className="pcms-fielddef__desc"
+                      value={f.description ?? ""}
+                      onChange={(e) =>
+                        updateField(i, { description: e.target.value === "" ? undefined : e.target.value })
+                      }
+                      placeholder={t("types.description")}
+                    />
+                  </div>
+                  <div className="pcms-fielddef__row pcms-fielddef__showif">
+                    <span className="pcms-fielddef__showif-label">{t("types.showIf")}</span>
+                    <select
+                      value={f.showIf?.field ?? ""}
+                      onChange={(e) =>
+                        updateField(i, {
+                          showIf: e.target.value
+                            ? { field: e.target.value, equals: f.showIf?.equals }
+                            : undefined,
+                        })
+                      }
+                    >
+                      <option value="">{t("types.showIf.none")}</option>
+                      {current.fields
+                        .filter((o, oi) => oi !== i && o.name)
+                        .map((o) => (
+                          <option key={o.name} value={o.name}>
+                            {o.label || o.name}
+                          </option>
+                        ))}
+                    </select>
+                    {f.showIf?.field && (
+                      <input
+                        value={f.showIf.equals == null ? "" : String(f.showIf.equals)}
+                        onChange={(e) =>
+                          updateField(i, {
+                            showIf: {
+                              field: f.showIf!.field,
+                              equals: e.target.value === "" ? undefined : e.target.value,
+                            },
+                          })
+                        }
+                        placeholder={t("types.showIf.value")}
+                      />
+                    )}
+                  </div>
                 </fieldset>
               ))}
               <button type="button" className="pcms-types__addfield" onClick={addField}>
