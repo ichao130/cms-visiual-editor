@@ -6,11 +6,17 @@ import { css } from "@codemirror/lang-css";
 import { javascript } from "@codemirror/lang-javascript";
 import { oneDark } from "@codemirror/theme-one-dark";
 import type { ThemeFileKind } from "../api/types.js";
+import { pcmsHtmlCompletions, pcmsCssCompletions } from "./code-complete.js";
 
 interface Props {
   value: string;
   kind: ThemeFileKind;
   onChange: (value: string) => void;
+  /**
+   * CSS custom-property names the theme defines (without the leading `--`), used
+   * to suggest `var(--…)` while editing CSS. Changing it re-creates the editor.
+   */
+  cssVars?: readonly string[];
 }
 
 /** Track the OS/app colour scheme so the editor theme can match the UI. */
@@ -28,12 +34,12 @@ function usePrefersDark(): boolean {
   return dark;
 }
 
-function languageExt(kind: ThemeFileKind): Extension[] {
+function languageExt(kind: ThemeFileKind, cssVars: readonly string[]): Extension[] {
   switch (kind) {
     case "html":
-      return [html()];
+      return [html(), pcmsHtmlCompletions()];
     case "css":
-      return [css()];
+      return [css(), pcmsCssCompletions(cssVars)];
     case "js":
     case "json":
       return [javascript()];
@@ -48,13 +54,15 @@ function languageExt(kind: ThemeFileKind): Extension[] {
  * external value changes (switching files) reset the document without firing a
  * spurious onChange.
  */
-export function CodeEditor({ value, kind, onChange }: Props) {
+export function CodeEditor({ value, kind, onChange, cssVars }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
   const external = useRef(false);
   const dark = usePrefersDark();
   onChangeRef.current = onChange;
+  // Stable key so the editor only re-creates when the var set actually changes.
+  const varsKey = (cssVars ?? []).join(",");
 
   useEffect(() => {
     if (!host.current) return;
@@ -65,7 +73,7 @@ export function CodeEditor({ value, kind, onChange }: Props) {
         // one-dark in dark mode; CodeMirror's light default in light mode, so
         // the editor matches the surrounding UI instead of always being dark.
         ...(dark ? [oneDark] : []),
-        ...languageExt(kind),
+        ...languageExt(kind, cssVars ?? []),
         EditorView.updateListener.of((u) => {
           if (u.docChanged && !external.current) onChangeRef.current(u.state.doc.toString());
         }),
@@ -77,9 +85,9 @@ export function CodeEditor({ value, kind, onChange }: Props) {
       v.destroy();
       view.current = null;
     };
-    // Recreate on kind/theme change; value is read at creation time (the
+    // Recreate on kind/theme/vars change; value is read at creation time (the
     // separate effect below syncs later external value changes).
-  }, [kind, dark]);
+  }, [kind, dark, varsKey]);
 
   // Reset the document when the file (value) changes from outside.
   useEffect(() => {

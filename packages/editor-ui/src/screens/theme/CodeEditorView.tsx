@@ -3,6 +3,7 @@ import { blockPartTemplate, diagnoseThemeHtml, type AiDiagnosis } from "@pcms/en
 import type { PcmsApi, ThemeFileKind, ThemeFileNode } from "../../api/types.js";
 import { useSiteWorkspace } from "../../state/SiteWorkspace.js";
 import { CodeEditor } from "../../components/CodeEditor.js";
+import { cssVarNames } from "../../components/code-complete.js";
 import { PartPreview } from "../../components/PartPreview.js";
 import { t, type MessageKey } from "../../i18n.js";
 import { Icon } from "../../components/Icon.js";
@@ -91,6 +92,8 @@ export function CodeEditorView({ api }: Props) {
   // stay correct after a save/delete/reset refresh.
   const active = files.find((f) => f.path === activePath) ?? null;
   const issues = useMemo(() => validateFile(content, active?.kind), [content, active?.kind]);
+  // CSS variables the theme defines, so the editor can suggest `var(--…)`.
+  const cssVars = useMemo(() => cssVarNames(project.previewCss ?? ""), [project.previewCss]);
   const isSection = active?.kind === "html" && active.path.startsWith("sections/");
 
   const refreshFiles = useCallback(async () => {
@@ -355,6 +358,7 @@ export function CodeEditorView({ api }: Props) {
                 key={active.path}
                 value={content}
                 kind={active.kind}
+                cssVars={cssVars}
                 onChange={(v) => {
                   setContent(v);
                   setDirty(true);
