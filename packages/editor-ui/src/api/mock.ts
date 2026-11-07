@@ -68,6 +68,8 @@ import secGallery from "../../../../themes/sample-cafe/sections/gallery.html?raw
 import secText from "../../../../themes/sample-cafe/sections/text.html?raw";
 import secHeader from "../../../../themes/sample-cafe/sections/header.html?raw";
 import secFooter from "../../../../themes/sample-cafe/sections/footer.html?raw";
+import secFeatures from "../../../../themes/sample-cafe/sections/features.html?raw";
+import blockFeature from "../../../../themes/sample-cafe/blocks/feature.html?raw";
 
 import themeJson from "../../../../themes/sample-cafe/theme.json";
 import previewCss from "../../../../themes/sample-cafe/assets/style.css?raw";
@@ -187,6 +189,16 @@ const defaultSettings: SiteSettings = {
               { image: "media/sample-cup.svg" },
             ],
           },
+        },
+        {
+          id: "features-1",
+          type: "features",
+          fields: { title: "選ばれる理由" },
+          blocks: [
+            { id: "feat-a", type: "feature", fields: { icon: "☕", title: "自家焙煎", text: "毎朝、店内で焙煎した新鮮な豆を使います。" } },
+            { id: "feat-b", type: "feature", fields: { icon: "🥐", title: "手づくり", text: "焼き菓子はすべて手づくり。日替わりで並びます。" } },
+            { id: "feat-c", type: "feature", fields: { icon: "📶", title: "Wi-Fi完備", text: "電源・Wi-Fiあり。お仕事や読書にもどうぞ。" } },
+          ],
         },
       ],
     },
@@ -681,6 +693,8 @@ const THEME_FILES: Record<string, string> = {
   "sections/text.html": secText,
   "sections/header.html": secHeader,
   "sections/footer.html": secFooter,
+  "sections/features.html": secFeatures,
+  "blocks/feature.html": blockFeature,
   "assets/style.css": previewCss,
 };
 
@@ -719,11 +733,17 @@ function mergedThemeFiles(): Record<string, string> {
 function buildTheme(): ThemeBundle {
   const files = mergedThemeFiles();
   const sections: Record<string, string> = {};
+  const blocks: Record<string, string> = {};
   const templates: Record<string, string> = {};
   for (const [path, content] of Object.entries(files)) {
     const sec = /^sections\/(.+)\.html$/.exec(path);
     if (sec?.[1]) {
       sections[sec[1]] = content;
+      continue;
+    }
+    const blk = /^blocks\/(.+)\.html$/.exec(path);
+    if (blk?.[1]) {
+      blocks[blk[1]] = content;
       continue;
     }
     const tpl = /^templates\/(.+)\.html$/.exec(path);
@@ -740,6 +760,7 @@ function buildTheme(): ThemeBundle {
     layout: files["layout.html"] ?? layout,
     templates,
     sections,
+    blocks,
     assets: ["assets/style.css"],
   };
 }

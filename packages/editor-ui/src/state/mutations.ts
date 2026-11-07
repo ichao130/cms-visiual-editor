@@ -1,4 +1,5 @@
 import type {
+  BlockInstance,
   FieldValue,
   PageSettings,
   RegionName,
@@ -398,4 +399,116 @@ export function setRegionInstanceStyle(
   patch: Partial<SectionStyle>,
 ): SiteSettings {
   return withRegionInstance(settings, region, id, (inst) => applyStylePatch(inst, patch));
+}
+
+// --- Nested blocks inside a section instance --------------------------------
+// A block operation targets one section instance, which lives either in a page
+// body or in a site-wide region. `InstanceLoc` names where, so one set of block
+// mutations serves both (no body/region duplication). Blocks mirror the section
+// instance model but carry only id/type/fields.
+
+/** Where a section instance lives: a page body, or a site-wide region. */
+export type InstanceLoc =
+  | { kind: "body"; pageId: string }
+  | { kind: "region"; region: RegionName };
+
+function withInstanceAt(
+  settings: SiteSettings,
+  loc: InstanceLoc,
+  sectionId: string,
+  update: (inst: SectionInstance) => SectionInstance,
+): SiteSettings {
+  return loc.kind === "body"
+    ? withInstance(settings, loc.pageId, sectionId, update)
+    : withRegionInstance(settings, loc.region, sectionId, update);
+}
+
+function withBlocks(
+  settings: SiteSettings,
+  loc: InstanceLoc,
+  sectionId: string,
+  update: (blocks: BlockInstance[]) => BlockInstance[],
+): SiteSettings {
+  return withInstanceAt(settings, loc, sectionId, (inst) => ({
+    ...inst,
+    blocks: update(inst.blocks ?? []),
+  }));
+}
+
+export function newBlockId(type: string): string {
+  return `${type}-${Date.now().toString(36)}-${Math.floor(Math.random() * 1000)}`;
+}
+
+export function addBlock(
+  settings: SiteSettings,
+  loc: InstanceLoc,
+  sectionId: string,
+  type: string,
+  at?: number,
+): SiteSettings {
+  const block: BlockInstance = { id: newBlockId(type), type };
+  return withBlocks(settings, loc, sectionId, (list) => {
+    const next = [...list];
+    next.splice(at ?? next.length, 0, block);
+    return next;
+  });
+}
+
+export function removeBlock(
+  settings: SiteSettings,
+  loc: InstanceLoc,
+  sectionId: string,
+  blockId: string,
+): SiteSettings {
+  return withBlocks(settings, loc, sectionId, (list) => list.filter((b) => b.id !== blockId));
+}
+
+export function moveBlock(
+  settings: SiteSettings,
+  loc: InstanceLoc,
+  sectionId: string,
+  from: number,
+  to: number,
+): SiteSettings {
+  return withBlocks(settings, loc, sectionId, (list) => {
+    if (from < 0 || from >= list.length || to < 0 || to >= list.length) return list;
+    const next = [...list];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved as BlockInstance);
+    return next;
+  });
+}
+
+export function duplicateBlock(
+  settings: SiteSettings,
+  loc: InstanceLoc,
+  sectionId: string,
+  blockId: string,
+): SiteSettings {
+  return withBlocks(settings, loc, sectionId, (list) => {
+    const idx = list.findIndex((b) => b.id === blockId);
+    const src = list[idx];
+    if (idx < 0 || !src) return list;
+    const copy: BlockInstance = {
+      ...src,
+      id: newBlockId(src.type),
+      fields: src.fields ? { ...src.fields } : undefined,
+    };
+    const next = [...list];
+    next.splice(idx + 1, 0, copy);
+    return next;
+  });
+}
+
+export function setBlockField(
+  settings: SiteSettings,
+  loc: InstanceLoc,
+  sectionId: string,
+  blockId: string,
+  path: string,
+  value: FieldValue,
+): SiteSettings {
+  return withBlocks(settings, loc, sectionId, (list) =>
+    list.map((b) => (b.id === blockId ? { ...b, fields: { ...b.fields, [path]: value } } : b)),
+  );
 }

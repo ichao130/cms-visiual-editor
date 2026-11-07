@@ -30,13 +30,20 @@ body.pcms-dragging .pcms-insert{height:18px;outline:1px dashed #9db6ef;}
 .pcms-section.pcms-hide-mobile::after,.pcms-section.pcms-hide-desktop::after{position:absolute;top:4px;left:4px;z-index:9;background:#111;color:#fff;font-size:11px;font-family:sans-serif;padding:2px 6px;border-radius:4px;}
 .pcms-section.pcms-hide-mobile::after{content:"📱 スマホで非表示";}
 .pcms-section.pcms-hide-desktop::after{content:"💻 PCで非表示";}
+.pcms-block{position:relative;}
+.pcms-block-tools{position:absolute;top:2px;right:2px;z-index:11;display:flex;gap:2px;background:rgba(255,255,255,.96);border:1px solid #d0d7de;border-radius:6px;padding:2px;opacity:0;transition:opacity .1s;box-shadow:0 1px 4px rgba(0,0,0,.15);}
+.pcms-block:hover>.pcms-block-tools{opacity:1;}
+.pcms-block-tools button{font:inherit;font-size:12px;line-height:1;border:none;background:transparent;cursor:pointer;padding:3px 5px;border-radius:4px;color:#333;}
+.pcms-block-tools button:hover{background:#eef0f2;}
+.pcms-empty-blocks{margin:1rem;padding:1.5rem 1rem;border:2px dashed #c0c6cf;border-radius:10px;text-align:center;color:#6b7280;font-family:sans-serif;line-height:1.7;font-size:13px;}
 `;
 
 export const EDITOR_RUNTIME = `
 (function(){
-  var SEL='[data-pcms-section],[data-pcms-field]';
+  var SEL='[data-pcms-section],[data-pcms-block],[data-pcms-field]';
   var hovered=null, selected=null, dragId=null, editing=null, clickTimer=null;
   function closestEditable(t){ return (t && t.closest) ? t.closest(SEL) : null; }
+  function blockOf(el){ return (el&&el.closest)?el.closest('[data-pcms-block]'):null; }
   // Which group (header / footer / body) an element belongs to, so the editor
   // routes add / reorder / edit to the right instance list.
   function regionOf(el){ var r=(el&&el.closest)?el.closest('[data-pcms-region]'):null; return r?r.getAttribute('data-pcms-region'):'body'; }
@@ -92,8 +99,10 @@ export const EDITOR_RUNTIME = `
     var type=el.getAttribute('data-pcms-fieldtype');
     var value=(type==='richtext') ? el.innerHTML : (el.innerText||'').replace(/\\n+$/,'');
     var sectionEl=el.closest('[data-pcms-section]');
+    var blockEl=blockOf(el);
     post({type:'edit',
       section: sectionEl?sectionEl.getAttribute('data-pcms-section'):null,
+      block: blockEl?blockEl.getAttribute('data-pcms-block'):null,
       field: el.getAttribute('data-pcms-field'), value:value, region:regionOf(el)});
   }
 
@@ -120,6 +129,15 @@ export const EDITOR_RUNTIME = `
   }, true);
 
   document.addEventListener('click', function(e){
+    // Block tools / insert take priority over section ones (distinct attrs).
+    var bop=e.target.closest ? e.target.closest('[data-pcms-blockop]') : null;
+    if(bop){ e.preventDefault(); e.stopPropagation();
+      post({type:'blockop', op:bop.getAttribute('data-pcms-blockop'), id:bop.getAttribute('data-pcms-blockid'),
+        section:bop.getAttribute('data-pcms-blocksection'), region:regionOf(bop)}); return; }
+    var bins=e.target.closest ? e.target.closest('[data-pcms-blockinsert]') : null;
+    if(bins){ e.preventDefault(); e.stopPropagation();
+      post({type:'blockinsert', index:Number(bins.getAttribute('data-pcms-blockinsert')),
+        section:bins.getAttribute('data-pcms-blocksection'), region:regionOf(bins)}); return; }
     var op=e.target.closest ? e.target.closest('[data-pcms-op]') : null;
     if(op){ e.preventDefault(); e.stopPropagation();
       post({type:'op', op:op.getAttribute('data-pcms-op'), id:op.getAttribute('data-pcms-id'), region:regionOf(op)}); return; }
@@ -135,21 +153,24 @@ export const EDITOR_RUNTIME = `
     if(!el) return;
     e.preventDefault(); e.stopPropagation();
     var sectionEl=el.closest('[data-pcms-section]');
+    var blockEl=blockOf(el);
     var fieldEl=e.target.closest ? e.target.closest('[data-pcms-field]') : null;
     var section = sectionEl?sectionEl.getAttribute('data-pcms-section'):null;
+    var block = blockEl?blockEl.getAttribute('data-pcms-block'):null;
     var field = fieldEl?fieldEl.getAttribute('data-pcms-field'):null;
     var ftype = fieldEl?fieldEl.getAttribute('data-pcms-fieldtype'):null;
     var region=regionOf(sectionEl || el);
-    setSelected(sectionEl || el);
-    post({type:'select', section:section, field:null, region:region});
+    // Outline the block when one is clicked, else the section.
+    setSelected(blockEl || sectionEl || el);
+    post({type:'select', section:section, block:block, field:null, region:region});
     if(field && ftype==='image'){
       // Clicking an image opens the media picker to replace it.
-      post({type:'pickimage', section:section, field:field, region:region});
+      post({type:'pickimage', section:section, block:block, field:field, region:region});
     } else if(field){
       // Focus the panel field after a delay, so a double-click (inline edit)
       // can cancel it instead of stealing focus from the contenteditable.
       if(clickTimer) clearTimeout(clickTimer);
-      clickTimer=setTimeout(function(){ clickTimer=null; post({type:'focusfield', section:section, field:field, region:region}); }, 220);
+      clickTimer=setTimeout(function(){ clickTimer=null; post({type:'focusfield', section:section, block:block, field:field, region:region}); }, 220);
     }
   }, true);
 

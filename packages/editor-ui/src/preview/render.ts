@@ -91,6 +91,7 @@ export function renderPreview(
     markEditable: true,
     regions: state.settings.regions,
     sections: project.theme.sections,
+    blocks: project.theme.blocks,
   };
 
   let html: string;
@@ -152,12 +153,14 @@ export function renderHomeThumbnail(
   if (page.instances && page.instances.length > 0) {
     html = renderComposedPage(page.instances, project.theme.sections ?? {}, base, {
       layout: project.theme.layout,
+      blocks: project.theme.blocks,
     });
   } else {
     const scope: RenderScope = { ...base, page };
     const name = pageTemplateName(project, "index");
     html = renderTemplate(templateHtml(project, name), scope, {
       layout: project.theme.layout,
+      blocks: project.theme.blocks,
     });
   }
 

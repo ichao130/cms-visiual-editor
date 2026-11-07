@@ -210,6 +210,28 @@ export interface SectionInstance {
   repeats?: Record<string, Array<Record<string, FieldValue>>>;
   /** Visual overrides (background, text color, spacing). */
   style?: SectionStyle;
+  /**
+   * Nested blocks (Shopify-style): an ordered list of block instances placed
+   * into the section's `data-blocks` container. When absent (older data, or a
+   * section whose template has no `data-blocks`) the section renders without
+   * blocks, so this is backward compatible. Block types come from the theme's
+   * `blocks/<type>.html`.
+   */
+  blocks?: BlockInstance[];
+}
+
+/**
+ * One block placed inside a section instance's `data-blocks` container. Blocks
+ * reuse the same field model as sections but are intentionally lighter — no
+ * nested blocks, repeats or style in this version (can be added later).
+ */
+export interface BlockInstance {
+  /** Unique block id (stable across edits), unique within the whole site. */
+  id: string;
+  /** Block type — the file name in the theme's `blocks/`. */
+  type: string;
+  /** Field values, keyed by the block template's `data-field` paths. */
+  fields?: Record<string, FieldValue>;
 }
 
 export type FieldValue = string | number | boolean | null | FieldValue[];

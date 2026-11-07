@@ -33,6 +33,11 @@ export interface RenderOptions {
   regions?: SiteRegions;
   /** Theme sections (`sections/<type>`), needed to compose the regions. */
   sections?: Record<string, string>;
+  /**
+   * Theme block templates (`blocks/<type>`), used to render a section
+   * instance's nested blocks into its `data-blocks` container.
+   */
+  blocks?: Record<string, string>;
 }
 
 /**
@@ -84,6 +89,7 @@ function fillLayout(
       const inner = renderInstances(instances, options.sections ?? {}, scope, {
         editable,
         region,
+        blockTemplates: options.blocks,
         emptyLabel: editable
           ? `この${region === "header" ? "ヘッダー" : "フッター"}にはセクションがありません。<br>「＋」から追加できます。`
           : undefined,
@@ -128,7 +134,11 @@ export function renderComposedPage(
   const editable = options.markEditable === true;
   const emptyLabel =
     "このページにはまだセクションがありません。<br>下の「＋」からセクションを追加できます。";
-  const body = renderInstances(instances, sections, scope, { editable, emptyLabel });
+  const body = renderInstances(instances, sections, scope, {
+    editable,
+    blockTemplates: options.blocks,
+    emptyLabel,
+  });
 
   if (options.layout == null) {
     return editable ? wrapRegion("body", body) : body;
@@ -143,6 +153,8 @@ interface InstancesOptions {
   region?: RegionName | "body";
   /** Editor-only message shown when the list is empty. */
   emptyLabel?: string;
+  /** Block templates (`blocks/<type>`), for sections that have nested blocks. */
+  blockTemplates?: Record<string, string>;
 }
 
 /**
@@ -175,6 +187,9 @@ function renderInstances(
         sections: inst.repeats ? [{ id: inst.id, repeats: inst.repeats }] : [],
       },
       editable: editable ? true : undefined,
+      blocks: inst.blocks,
+      blockTemplates: options.blockTemplates,
+      blockSectionId: inst.id,
     };
     const inner = renderFragment(tpl, instScope);
     const styleAttr = sectionStyleAttr(inst.style);
@@ -290,6 +305,75 @@ function sectionTools(id: string): string {
   );
 }
 
+/**
+ * Fill a section's `data-blocks` container with the current instance's nested
+ * blocks. Each block is rendered from `blocks/<type>` against its own fields.
+ * Published output is clean (block fragments only); editable preview wraps each
+ * block with `data-pcms-block` + tools and "+" insert markers so the editor can
+ * select / reorder / add. The container's own template children are replaced.
+ */
+function expandBlocks(el: HTMLElement, scope: RenderScope): void {
+  const blocks = scope.blocks ?? [];
+  const templates = scope.blockTemplates ?? {};
+  const editable = scope.editable === true;
+  const sectionId = scope.blockSectionId ?? "";
+  const parts: string[] = [];
+  for (let i = 0; i < blocks.length; i++) {
+    const b = blocks[i];
+    if (!b) continue;
+    const tpl = templates[b.type];
+    if (tpl == null) continue;
+    // A block binds its own fields; it never inherits the section's blocks,
+    // loop item, or repeats, so reset those on the child scope.
+    const blockScope: RenderScope = {
+      ...scope,
+      page: { fields: b.fields },
+      item: undefined,
+      blocks: undefined,
+      blockTemplates: undefined,
+      blockSectionId: undefined,
+    };
+    const inner = renderFragment(tpl, blockScope);
+    if (editable) {
+      parts.push(blockInsertMarker(sectionId, i));
+      parts.push(
+        `<div class="pcms-block pcms-block--${b.type}" data-pcms-block="${b.id}" data-pcms-blocksection="${sectionId}">${blockTools(sectionId, b.id)}${inner}</div>`,
+      );
+    } else {
+      parts.push(inner);
+    }
+  }
+  if (editable) {
+    if (blocks.length === 0) {
+      parts.push(
+        `<div class="pcms-empty-blocks">ブロックがありません。<br>「＋」から追加できます。</div>`,
+      );
+    }
+    parts.push(blockInsertMarker(sectionId, blocks.length));
+  }
+  el.set_content(parts.join("\n"));
+  // The container keeps its own tag/classes; drop the block markers from it.
+  el.removeAttribute(ATTR.blocks);
+  el.removeAttribute(ATTR.block);
+}
+
+/** Editor-only "+" marker inserted at a gap between nested blocks. */
+function blockInsertMarker(sectionId: string, index: number): string {
+  return `<div class="pcms-insert pcms-blockinsert" data-pcms-blockinsert="${index}" data-pcms-blocksection="${sectionId}"><button type="button" class="pcms-insert__btn" title="ここにブロックを追加">＋</button></div>`;
+}
+
+/** Editor-only per-block toolbar (up/down/duplicate/delete). */
+function blockTools(sectionId: string, id: string): string {
+  return (
+    `<div class="pcms-block-tools" contenteditable="false">` +
+    `<button type="button" class="pcms-sec-op" data-pcms-blockop="up" data-pcms-blockid="${id}" data-pcms-blocksection="${sectionId}" title="上へ">↑</button>` +
+    `<button type="button" class="pcms-sec-op" data-pcms-blockop="down" data-pcms-blockid="${id}" data-pcms-blocksection="${sectionId}" title="下へ">↓</button>` +
+    `<button type="button" class="pcms-sec-op" data-pcms-blockop="dup" data-pcms-blockid="${id}" data-pcms-blocksection="${sectionId}" title="複製">⧉</button>` +
+    `<button type="button" class="pcms-sec-op" data-pcms-blockop="del" data-pcms-blockid="${id}" data-pcms-blocksection="${sectionId}" title="削除">×</button>` +
+    `</div>`
+  );
+}
+
 function processTree(root: HTMLElement, scope: RenderScope): void {
   for (const child of [...root.childNodes]) {
     if (isElement(child)) processElement(child, scope);
@@ -318,6 +402,13 @@ function processElement(el: HTMLElement, scope: RenderScope): void {
   // 3. data-repeat — repeat for each operator-added item.
   if (el.getAttribute(ATTR.repeat) != null) {
     expandRepeat(el, scope);
+    return;
+  }
+
+  // 3.5 data-blocks — fill the container with the section instance's nested
+  //     blocks (Shopify-style), then stop (children are the rendered blocks).
+  if (el.getAttribute(ATTR.blocks) != null) {
+    expandBlocks(el, scope);
     return;
   }
 

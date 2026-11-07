@@ -182,6 +182,16 @@ const defaultSettings: SiteSettings = {
           },
         },
         { id: "gallery-1", type: "gallery", fields: { title: "店内のようす" } },
+        {
+          id: "features-1",
+          type: "features",
+          fields: { title: "選ばれる理由" },
+          blocks: [
+            { id: "feat-a", type: "feature", fields: { icon: "☕", title: "自家焙煎", text: "毎朝、店内で焙煎した新鮮な豆を使います。" } },
+            { id: "feat-b", type: "feature", fields: { icon: "🥐", title: "手づくり", text: "焼き菓子はすべて手づくり。日替わりで並びます。" } },
+            { id: "feat-c", type: "feature", fields: { icon: "📶", title: "Wi-Fi完備", text: "電源・Wi-Fiあり。お仕事や読書にもどうぞ。" } },
+          ],
+        },
       ],
     },
   },
@@ -199,7 +209,17 @@ function readTheme(rel: string): string {
 
 /** Load the theme's reusable sections (sections/<type>.html) for composed pages. */
 function readSections(): Record<string, string> {
-  const dir = join(themeDir(), "sections");
+  return readHtmlDir("sections");
+}
+
+/** Load the theme's nested block templates (blocks/<type>.html). */
+function readBlocks(): Record<string, string> {
+  return readHtmlDir("blocks");
+}
+
+/** Read every <type>.html in a theme subfolder into a { type: html } map. */
+function readHtmlDir(sub: string): Record<string, string> {
+  const dir = join(themeDir(), sub);
   if (!existsSync(dir)) return {};
   const out: Record<string, string> = {};
   for (const file of readdirSync(dir)) {
@@ -352,6 +372,7 @@ export function loadProject(): ProjectData {
         archive: readTheme("templates/archive.html"),
       },
       sections: readSections(),
+      blocks: readBlocks(),
       assets: ["assets/style.css"],
     },
     content: loadContent(),

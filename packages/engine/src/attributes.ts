@@ -14,6 +14,14 @@ export const ATTR = {
   repeat: "data-repeat",
   if: "data-if",
   slot: "data-slot",
+  /**
+   * Marks a container inside a section template where nested blocks go
+   * (Shopify-style). Its value is a space-separated allow-list of block types;
+   * empty = any block type the theme provides.
+   */
+  blocks: "data-blocks",
+  /** Optional marker on a block template's root (symmetry with data-section). */
+  block: "data-block",
 } as const;
 
 /**
@@ -30,4 +38,6 @@ export const EDITOR_ATTRS: readonly string[] = [
   ATTR.repeat,
   ATTR.if,
   ATTR.slot,
+  ATTR.blocks,
+  ATTR.block,
 ];

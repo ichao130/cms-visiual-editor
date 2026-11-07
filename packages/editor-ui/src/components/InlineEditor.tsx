@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { FieldValue, SectionInstance, SectionSchema, SectionStyle } from "@pcms/shared";
 import { SectionFields } from "./SectionFields.js";
 import { t } from "../i18n.js";
@@ -20,6 +20,8 @@ interface InlineEditorProps {
   onStyleChange: (patch: Partial<SectionStyle>) => void;
   onCopy: () => void;
   onClose: () => void;
+  /** Optional nested-block manager, shown under the section's fields. */
+  blocks?: ReactNode;
 }
 
 const CARD_W = 300;
@@ -42,6 +44,7 @@ export function InlineEditor({
   onStyleChange,
   onCopy,
   onClose,
+  blocks,
 }: InlineEditorProps) {
   // A manual position set by dragging overrides the anchored position until the
   // selection changes (then we re-anchor to the new section).
@@ -160,6 +163,7 @@ export function InlineEditor({
             onRepeatChange={onRepeatChange}
             onStyleChange={onStyleChange}
           />
+          {blocks}
         </div>
       </div>
     </>

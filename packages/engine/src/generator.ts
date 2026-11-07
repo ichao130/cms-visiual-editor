@@ -35,6 +35,8 @@ export interface ThemeBundle {
   templates: Record<string, string>;
   /** Reusable section type → HTML (theme `sections/`), for composed pages. */
   sections?: Record<string, string>;
+  /** Reusable block type → HTML (theme `blocks/`), for sections' nested blocks. */
+  blocks?: Record<string, string>;
   /** Relative asset paths the caller should copy into the output. */
   assets?: string[];
 }
@@ -103,6 +105,7 @@ export function generateSite(input: SiteInput): GeneratedSite {
     layout,
     regions: input.settings.regions,
     sections: input.theme.sections,
+    blocks: input.theme.blocks,
   };
   const pageSize = input.site.archivePageSize ?? 10;
 

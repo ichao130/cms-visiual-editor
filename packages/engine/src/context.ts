@@ -1,4 +1,5 @@
 import type {
+  BlockInstance,
   ContentItem,
   FieldValue,
   MediaItem,
@@ -55,6 +56,16 @@ export interface RenderScope {
    * published output. Turned off inside loops/repeats (those are content).
    */
   editable?: boolean;
+  /**
+   * The current section instance's nested blocks, expanded into the section
+   * template's `data-blocks` container. Set only while rendering a section
+   * instance; absent elsewhere.
+   */
+  blocks?: BlockInstance[];
+  /** Block templates (`blocks/<type>`), used to render the nested blocks. */
+  blockTemplates?: Record<string, string>;
+  /** The owning section instance's id, for the editor's block markers. */
+  blockSectionId?: string;
 }
 
 /**

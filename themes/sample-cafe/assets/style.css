@@ -66,3 +66,11 @@ main { max-width: 860px; margin: 0 auto; padding: 2rem 1.5rem; }
 
 .site-footer { text-align: center; padding: 2rem; color: var(--primary); }
 .copyright { font-size: 0.85rem; opacity: 0.7; }
+
+.features { padding: 2.5rem 0; }
+.features > h2 { font-family: "Hiragino Mincho ProN", serif; color: var(--primary); text-align: center; margin-bottom: 1.5rem; }
+.features__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.2rem; }
+.feature { background: #fff; border-radius: 12px; padding: 1.5rem; text-align: center; }
+.feature__icon { font-size: 2rem; line-height: 1; margin-bottom: 0.6rem; }
+.feature__title { color: var(--primary); margin: 0 0 0.4rem; font-size: 1.05rem; }
+.feature__text { font-size: 0.9rem; color: var(--text); margin: 0; line-height: 1.6; }

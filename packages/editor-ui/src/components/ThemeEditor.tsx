@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { FieldValue, SectionInstance, SectionSchema, SectionStyle } from "@pcms/shared";
+import type {
+  BlockInstance,
+  FieldValue,
+  SectionInstance,
+  SectionSchema,
+  SectionStyle,
+} from "@pcms/shared";
 import { useSiteWorkspace } from "../state/SiteWorkspace.js";
 import type { ContentTypeDef, MenuItem, TaxonomyDef } from "@pcms/shared";
 import {
@@ -19,16 +25,21 @@ import {
   type EditorTarget,
 } from "../state/editorState.js";
 import {
+  addBlock,
   addInstance,
   addRegionInstance,
+  duplicateBlock,
   duplicateInstance,
   duplicateRegionInstance,
+  moveBlock,
   moveInstance,
   moveRegionInstance,
   pasteInstance,
   pasteRegionInstance,
+  removeBlock,
   removeInstance,
   removeRegionInstance,
+  setBlockField,
   setField,
   setInstanceField,
   setInstanceRepeat,
@@ -41,9 +52,11 @@ import {
   toggleInstanceHidden,
   toggleRegionInstanceHidden,
   toggleSectionHidden,
+  type InstanceLoc,
 } from "../state/mutations.js";
 import type { RegionName } from "@pcms/shared";
-import { parseSectionSchema } from "@pcms/engine";
+import { parseSectionSchema, sectionBlockTypes } from "@pcms/engine";
+import { SectionFields } from "./SectionFields.js";
 import { renderPreview, schemaForPage } from "../preview/render.js";
 import { MediaContext, useMediaLibrary } from "../media/MediaContext.js";
 import { Toolbar } from "./Toolbar.js";
@@ -51,7 +64,7 @@ import { SectionList, type SectionRow } from "./SectionList.js";
 import { Preview } from "./Preview.js";
 import { SettingsPanel } from "./SettingsPanel.js";
 import { SectionCanvas, type InstanceRow } from "./SectionCanvas.js";
-import { InstanceSettings } from "./InstanceSettings.js";
+import { BlockManager, BlockSettings } from "./BlockPanel.js";
 import { InlineEditor, type Anchor } from "./InlineEditor.js";
 import { AddSectionModal } from "./AddSectionModal.js";
 import { ContentForm } from "./ContentForm.js";
@@ -83,6 +96,12 @@ export function ThemeEditor() {
   const [clipboard, setClipboard] = useState<SectionInstance | null>(null);
   // Which region the canvas / inline editor act on: page body, header or footer.
   const [editScope, setEditScope] = useState<Scope>("body");
+  // A nested block selected inside the selected section (null = the section itself).
+  const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
+  // Where a new block will be inserted (section + index), while the picker is open.
+  const [blockInsertAt, setBlockInsertAt] = useState<
+    { scope: Scope; section: string; index: number } | null
+  >(null);
   const mediaLib = useMediaLibrary(api);
 
   // Select the first target once the project is loaded.
@@ -207,6 +226,27 @@ export function ThemeEditor() {
     return m;
   }, [catalog]);
 
+  // Nested blocks: the theme's block templates (`blocks/<type>`) parsed into
+  // schemas, and the allow-list a section declares via its `data-blocks`.
+  const blockSchemaByType = useMemo(() => {
+    const m = new Map<string, SectionSchema>();
+    for (const [type, html] of Object.entries(project?.theme.blocks ?? {})) {
+      m.set(type, parseSectionSchema(type, html));
+    }
+    return m;
+  }, [project]);
+
+  const blockTypesForSection = useCallback(
+    (sectionType: string): string[] => {
+      const html = project?.theme.sections?.[sectionType];
+      const allowed = html ? sectionBlockTypes(html) : null;
+      if (allowed == null) return []; // section has no blocks container
+      const all = [...blockSchemaByType.keys()];
+      return allowed.length === 0 ? all : allowed.filter((t) => blockSchemaByType.has(t));
+    },
+    [project, blockSchemaByType],
+  );
+
   // The page body is "composed" when it has an instances list (vs a fixed
   // template). Header/footer always use the composed region model.
   const pageComposed = target?.kind === "page" && page.instances != null;
@@ -233,14 +273,42 @@ export function ThemeEditor() {
     ? schemaByType.get(selectedInstance.type) ?? null
     : null;
 
-  // The inline (on-preview) editor is showing — collapse the right panel.
+  // Block types this section accepts (empty = the section has no block container).
+  const sectionBlockCatalog: { type: string; label: string }[] = selectedInstance
+    ? blockTypesForSection(selectedInstance.type).map((type) => ({
+        type,
+        label: blockSchemaByType.get(type)?.label ?? type,
+      }))
+    : [];
+  const sectionSupportsBlocks = sectionBlockCatalog.length > 0;
+  const selectedBlock: BlockInstance | null =
+    (selectedBlockId && selectedInstance?.blocks?.find((b) => b.id === selectedBlockId)) || null;
+  const selectedBlockSchema = selectedBlock
+    ? blockSchemaByType.get(selectedBlock.type) ?? null
+    : null;
+
+  // Where the currently-edited section instance lives, for block mutations.
+  const locFor = useCallback(
+    (scope: Scope): InstanceLoc =>
+      scope === "body" ? { kind: "body", pageId } : { kind: "region", region: scope },
+    [pageId],
+  );
+
+  // The inline (on-preview) editor is showing — collapse the right panel. When
+  // a nested block is selected, the right panel shows the block instead.
   const inlineActive = Boolean(
-    activeComposed && selectedInstance && selectedInstanceSchema && anchor && inlineOpen,
+    activeComposed &&
+      selectedInstance &&
+      selectedInstanceSchema &&
+      anchor &&
+      inlineOpen &&
+      !selectedBlockId,
   );
 
   // Selecting a section (from a list or the preview) opens its inline card.
   const onSelectSection = useCallback((id: string | null) => {
     setSelectedId(id);
+    setSelectedBlockId(null);
     if (id) setInlineOpen(true);
   }, []);
 
@@ -391,6 +459,85 @@ export function ThemeEditor() {
     [commit, doc, pageId, pageComposed],
   );
 
+  // --- Nested blocks (within a section instance) ---------------------------
+
+  const blocksOf = useCallback(
+    (scope: Scope, sectionId: string): BlockInstance[] => {
+      const list =
+        scope === "body"
+          ? doc.settings.pages[pageId]?.instances ?? []
+          : doc.settings.regions?.[scope] ?? [];
+      return list.find((i) => i.id === sectionId)?.blocks ?? [];
+    },
+    [doc, pageId],
+  );
+
+  const onSelectBlock = useCallback((sectionId: string, blockId: string | null) => {
+    setSelectedId(sectionId);
+    setSelectedBlockId(blockId);
+    if (blockId) setInlineOpen(false);
+  }, []);
+
+  const onAddBlock = useCallback(
+    (scope: Scope, sectionId: string, type: string, at?: number) => {
+      const settings = addBlock(doc.settings, locFor(scope), sectionId, type, at);
+      commit({ ...doc, settings });
+      const list =
+        (scope === "body" ? settings.pages[pageId]?.instances : settings.regions?.[scope])?.find(
+          (i) => i.id === sectionId,
+        )?.blocks ?? [];
+      const added = list[at ?? list.length - 1];
+      setEditScope(scope);
+      setSelectedId(sectionId);
+      if (added) setSelectedBlockId(added.id);
+      setDirty(true);
+    },
+    [commit, doc, pageId, locFor],
+  );
+
+  const onBlockOp = useCallback(
+    (scope: Scope, sectionId: string, blockId: string, op: string) => {
+      const list = blocksOf(scope, sectionId);
+      const from = list.findIndex((b) => b.id === blockId);
+      if (from < 0) return;
+      const loc = locFor(scope);
+      let settings;
+      if (op === "up") settings = moveBlock(doc.settings, loc, sectionId, from, from - 1);
+      else if (op === "down") settings = moveBlock(doc.settings, loc, sectionId, from, from + 1);
+      else if (op === "dup") settings = duplicateBlock(doc.settings, loc, sectionId, blockId);
+      else if (op === "del") settings = removeBlock(doc.settings, loc, sectionId, blockId);
+      else return;
+      commit({ ...doc, settings });
+      if (op === "del") setSelectedBlockId((cur) => (cur === blockId ? null : cur));
+      setDirty(true);
+    },
+    [commit, doc, locFor, blocksOf],
+  );
+
+  const applyBlockFieldEdit = useCallback(
+    (scope: Scope, section: string, block: string, field: string, value: string, key?: string) => {
+      const settings = setBlockField(doc.settings, locFor(scope), section, block, field, value);
+      commit({ ...doc, settings }, key);
+      setDirty(true);
+    },
+    [commit, doc, locFor],
+  );
+
+  const onBlockField = useCallback(
+    (path: string, value: string) => {
+      if (!selectedId || !selectedBlockId) return;
+      applyBlockFieldEdit(
+        editScope,
+        selectedId,
+        selectedBlockId,
+        path,
+        value,
+        `block:${editScope}:${selectedId}:${selectedBlockId}:${path}`,
+      );
+    },
+    [applyBlockFieldEdit, selectedId, selectedBlockId, editScope],
+  );
+
   // --- Content-target editing ----------------------------------------------
 
   const onContentChange = useCallback(
@@ -445,6 +592,7 @@ export function ThemeEditor() {
   const onSelectTarget = useCallback((key: string) => {
     setCurrentKey(key);
     setSelectedId(null);
+    setSelectedBlockId(null);
     setEditScope("body");
   }, []);
 
@@ -452,6 +600,7 @@ export function ThemeEditor() {
   const onSelectScope = useCallback((scope: Scope) => {
     setEditScope(scope);
     setSelectedId(null);
+    setSelectedBlockId(null);
   }, []);
 
   // Messages from the preview runtime: select, reorder (op/move), insert. Each
@@ -464,6 +613,7 @@ export function ThemeEditor() {
             source?: string;
             type?: string;
             section?: string | null;
+            block?: string | null;
             field?: string | null;
             value?: string;
             op?: string;
@@ -486,8 +636,20 @@ export function ThemeEditor() {
         if (d.section) {
           setEditScope(region);
           setSelectedId(d.section);
-          setInlineOpen(true);
+          // A block click selects the block; a section click clears the block.
+          setSelectedBlockId(d.block ?? null);
+          setInlineOpen(!d.block);
         }
+        return;
+      }
+      if (d.type === "blockop" && d.section && d.id && d.op) {
+        onBlockOp(region, d.section, d.id, d.op);
+        return;
+      }
+      if (d.type === "blockinsert" && d.section && d.index != null) {
+        setEditScope(region);
+        setSelectedId(d.section);
+        setBlockInsertAt({ scope: region, section: d.section, index: d.index });
         return;
       }
       if (d.type === "rect") {
@@ -499,19 +661,40 @@ export function ThemeEditor() {
         if (d.section) {
           setEditScope(region);
           setSelectedId(d.section);
+          setSelectedBlockId(d.block ?? null);
         }
-        setFocusTarget(regionComposed ? `inst-${d.section}-${d.field}` : `field-${d.field}`);
+        setFocusTarget(
+          d.block
+            ? `inst-${d.block}-${d.field}`
+            : regionComposed
+              ? `inst-${d.section}-${d.field}`
+              : `field-${d.field}`,
+        );
         return;
       }
       if (d.type === "edit" && d.field) {
-        applyFieldEdit(region, d.section, d.field, d.value ?? "", `edit:${region}:${d.section}:${d.field}`);
+        if (d.block && d.section) {
+          applyBlockFieldEdit(
+            region,
+            d.section,
+            d.block,
+            d.field,
+            d.value ?? "",
+            `blockedit:${region}:${d.section}:${d.block}:${d.field}`,
+          );
+        } else {
+          applyFieldEdit(region, d.section, d.field, d.value ?? "", `edit:${region}:${d.section}:${d.field}`);
+        }
         return;
       }
       if (d.type === "pickimage" && d.field) {
         const section = d.section;
+        const block = d.block;
         const field = d.field;
         void mediaLib.value.pickImage().then((path) => {
-          if (path) applyFieldEdit(region, section, field, path);
+          if (!path) return;
+          if (block && section) applyBlockFieldEdit(region, section, block, field, path);
+          else applyFieldEdit(region, section, field, path);
         });
         return;
       }
@@ -539,7 +722,9 @@ export function ThemeEditor() {
     onMoveInstance,
     onDeleteInstance,
     onDuplicateInstance,
+    onBlockOp,
     applyFieldEdit,
+    applyBlockFieldEdit,
     mediaLib.value,
   ]);
 
@@ -675,20 +860,68 @@ export function ThemeEditor() {
                 onStyleChange={onInstanceStyle}
                 onCopy={onCopyInstance}
                 onClose={() => setInlineOpen(false)}
+                blocks={
+                  sectionSupportsBlocks ? (
+                    <BlockManager
+                      blocks={selectedInstance.blocks ?? []}
+                      schemaByType={blockSchemaByType}
+                      selectedBlockId={selectedBlockId}
+                      onSelect={(blockId) => onSelectBlock(selectedInstance.id, blockId)}
+                      onOp={(blockId, op) => onBlockOp(editScope, selectedInstance.id, blockId, op)}
+                      onAddClick={() =>
+                        setBlockInsertAt({
+                          scope: editScope,
+                          section: selectedInstance.id,
+                          index: selectedInstance.blocks?.length ?? 0,
+                        })
+                      }
+                    />
+                  ) : null
+                }
               />
             ) : null
           }
         />
 
         {inlineActive ? null : target.kind === "page" && activeComposed ? (
-          selectedInstance ? (
-            <InstanceSettings
-              schema={selectedInstanceSchema}
-              instance={selectedInstance}
-              onFieldChange={onInstanceField}
-              onRepeatChange={onInstanceRepeat}
-              onStyleChange={onInstanceStyle}
+          selectedBlock && selectedBlockSchema ? (
+            <BlockSettings
+              block={selectedBlock}
+              schema={selectedBlockSchema}
+              onFieldChange={onBlockField}
+              onBack={() => setSelectedBlockId(null)}
             />
+          ) : selectedInstance ? (
+            <aside className="pcms-settings">
+              <h2 className="pcms-col__title">
+                {t("settings.title")}：{selectedInstanceSchema?.label ?? selectedInstance.type}
+              </h2>
+              {selectedInstanceSchema && (
+                <SectionFields
+                  schema={selectedInstanceSchema}
+                  instance={selectedInstance}
+                  onFieldChange={onInstanceField}
+                  onRepeatChange={onInstanceRepeat}
+                  onStyleChange={onInstanceStyle}
+                />
+              )}
+              {sectionSupportsBlocks && (
+                <BlockManager
+                  blocks={selectedInstance.blocks ?? []}
+                  schemaByType={blockSchemaByType}
+                  selectedBlockId={selectedBlockId}
+                  onSelect={(blockId) => onSelectBlock(selectedInstance.id, blockId)}
+                  onOp={(blockId, op) => onBlockOp(editScope, selectedInstance.id, blockId, op)}
+                  onAddClick={() =>
+                    setBlockInsertAt({
+                      scope: editScope,
+                      section: selectedInstance.id,
+                      index: selectedInstance.blocks?.length ?? 0,
+                    })
+                  }
+                />
+              )}
+            </aside>
           ) : (
             <aside className="pcms-settings">
               <h2 className="pcms-col__title">{t("settings.title")}</h2>
@@ -741,6 +974,18 @@ export function ThemeEditor() {
             setInsertAt(null);
           }}
           onClose={() => setInsertAt(null)}
+        />
+      )}
+      {blockInsertAt != null && (
+        <AddSectionModal
+          catalog={blockTypesForSection(
+            listFor(blockInsertAt.scope).find((i) => i.id === blockInsertAt.section)?.type ?? "",
+          ).map((type) => ({ type, label: blockSchemaByType.get(type)?.label ?? type }))}
+          onPick={(type) => {
+            onAddBlock(blockInsertAt.scope, blockInsertAt.section, type, blockInsertAt.index);
+            setBlockInsertAt(null);
+          }}
+          onClose={() => setBlockInsertAt(null)}
         />
       )}
     </MediaContext.Provider>

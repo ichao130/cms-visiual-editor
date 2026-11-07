@@ -7,7 +7,7 @@
  */
 
 export { ATTR, EDITOR_ATTRS } from "./attributes.js";
-export { parseTemplate, parseSectionSchema } from "./parser.js";
+export { parseTemplate, parseSectionSchema, sectionBlockTypes } from "./parser.js";
 export { renameSection } from "./section.js";
 export {
   renderTemplate,

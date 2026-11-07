@@ -84,6 +84,7 @@ my-theme/
   layout.html      任意。共通のヘッダー・フッター（中身は data-slot="content" に入る）
   templates/       index.html / page.html / post.html / archive.html / <投稿タイプ>.html など
   sections/        任意。再利用できるセクション
+  blocks/          任意。セクション内に入れ子で並べる「ブロック」（Shopify風）
   assets/          CSS、JS、画像
 ```
 
@@ -97,6 +98,8 @@ my-theme/
 | `data-repeat` | 運用者が増減できる繰り返し（FAQ、スライドなど） |
 | `data-if` | 値が空なら要素ごと出さない |
 | `data-slot` | layout.html で各ページの中身が入る場所 |
+| `data-blocks` | セクション内で入れ子ブロックを並べる場所。値は許可するブロック型の空白区切り（空＝全ブロック可）。中身は instance の `blocks` から描画（Shopify風の blocks） |
+| `data-block` | `blocks/<型>.html` のルート要素に付ける目印（任意。`data-label` でエディタ表示名） |
 
 - 投稿やカスタムフィールドの値は `data-field="post.title"`、`data-field="post.price"` のように参照する
 - 繰り返しや条件分岐で属性だけでは足りない場合に限り、Liquid風の最小限の記法を検討する（導入前に相談）

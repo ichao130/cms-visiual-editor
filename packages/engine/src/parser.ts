@@ -39,6 +39,19 @@ export function parseSectionSchema(type: string, html: string): SectionSchema {
   return section;
 }
 
+/**
+ * Read a section template's nested-block support: returns the allow-list of
+ * block types from its `data-blocks` container, or `null` when the section has
+ * no such container. An empty array means "any block type the theme provides".
+ */
+export function sectionBlockTypes(html: string): string[] | null {
+  const root = parse(html, { comment: false });
+  const container = root.querySelector(`[${ATTR.blocks}]`);
+  if (!container) return null;
+  const raw = container.getAttribute(ATTR.blocks) ?? "";
+  return raw.split(/\s+/).filter(Boolean);
+}
+
 export function parseTemplate(name: string, html: string): ThemeTemplateSchema {
   const root = parse(html, { comment: false });
 
