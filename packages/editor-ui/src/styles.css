@@ -521,6 +521,11 @@ button.pcms-themebtn:hover:not(:disabled) { background: var(--pcms-hover); }
 .pcms-blockmgr__ops button:disabled { opacity: 0.35; cursor: default; }
 .pcms-blockmgr__del:hover:not(:disabled) { color: var(--pcms-danger) !important; }
 .pcms-blockmgr__add { width: 100%; padding: 0.4rem; }
+.pcms-blockhelp { font-size: 0.78rem; color: var(--pcms-muted); margin: 0 0 0.5rem; line-height: 1.6; }
+.pcms-sectionpalette__new { width: 100%; margin-top: 0.5rem; padding: 0.45rem; border: 1px dashed var(--pcms-border); border-radius: 6px; background: none; cursor: pointer; color: var(--pcms-text); }
+.pcms-sectionpalette__new:hover { background: var(--pcms-hover); }
+.pcms-sectionpalette__newbox { display: flex; gap: 0.4rem; margin-top: 0.5rem; }
+.pcms-sectionpalette__newbox input { flex: 1; min-width: 0; }
 .pcms-settings__back {
   background: transparent;
   border: none;

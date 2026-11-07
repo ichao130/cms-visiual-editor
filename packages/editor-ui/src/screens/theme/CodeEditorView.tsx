@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { diagnoseThemeHtml, type AiDiagnosis } from "@pcms/engine";
+import { blockPartTemplate, diagnoseThemeHtml, type AiDiagnosis } from "@pcms/engine";
 import type { PcmsApi, ThemeFileKind, ThemeFileNode } from "../../api/types.js";
 import { useSiteWorkspace } from "../../state/SiteWorkspace.js";
 import { CodeEditor } from "../../components/CodeEditor.js";
@@ -69,6 +69,7 @@ export function CodeEditorView({ api }: Props) {
   const [content, setContent] = useState("");
   const [dirty, setDirty] = useState(false);
   const [newName, setNewName] = useState<string | null>(null);
+  const [newKind, setNewKind] = useState<"section" | "block">("section");
   const [newTemplate, setNewTemplate] = useState<string>(PART_TEMPLATES[0]!.id);
   const [rename, setRename] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<"delete" | "reset" | null>(null);
@@ -126,9 +127,12 @@ export function CodeEditorView({ api }: Props) {
       setNewName(null);
       return;
     }
-    const path = `sections/${safe}.html`;
-    const tpl = PART_TEMPLATES.find((p) => p.id === newTemplate) ?? PART_TEMPLATES[0]!;
-    await api.writeThemeFile(path, tpl.make(safe));
+    const path = newKind === "block" ? `blocks/${safe}.html` : `sections/${safe}.html`;
+    const content =
+      newKind === "block"
+        ? blockPartTemplate(safe, safe)
+        : (PART_TEMPLATES.find((p) => p.id === newTemplate) ?? PART_TEMPLATES[0]!).make(safe);
+    await api.writeThemeFile(path, content);
     await refreshFiles();
     setActivePath(path);
     setNewName(null);
@@ -214,15 +218,25 @@ export function CodeEditorView({ api }: Props) {
             </div>
             <select
               className="pcms-filetree__tplselect"
-              value={newTemplate}
-              onChange={(e) => setNewTemplate(e.target.value)}
+              value={newKind}
+              onChange={(e) => setNewKind(e.target.value as "section" | "block")}
             >
-              {PART_TEMPLATES.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {t(p.label)}
-                </option>
-              ))}
+              <option value="section">{t("code.kind.section")}</option>
+              <option value="block">{t("code.kind.block")}</option>
             </select>
+            {newKind === "section" && (
+              <select
+                className="pcms-filetree__tplselect"
+                value={newTemplate}
+                onChange={(e) => setNewTemplate(e.target.value)}
+              >
+                {PART_TEMPLATES.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {t(p.label)}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
         )}
         {grouped.map(([dir, nodes]) => (

@@ -52,6 +52,51 @@ export function sectionBlockTypes(html: string): string[] | null {
   return raw.split(/\s+/).filter(Boolean);
 }
 
+/**
+ * Enable, update or remove a section template's nested-block support by editing
+ * its `data-blocks` container. `allowed` is the list of block types to accept
+ * (empty array = any block type); `null` removes the container (disables parts).
+ * Pure string→string, so it is snapshot-tested and never touches disk — the
+ * caller persists the result to the theme working copy (CLAUDE.md).
+ */
+export function setSectionBlocks(html: string, allowed: string[] | null): string {
+  const root = parse(html, { comment: false });
+  const existing = root.querySelector(`[${ATTR.blocks}]`);
+  if (allowed === null) {
+    existing?.remove();
+    return root.toString();
+  }
+  const value = allowed.join(" ");
+  if (existing) {
+    existing.setAttribute(ATTR.blocks, value);
+    return root.toString();
+  }
+  // No container yet: append one to the section's root element so blocks render
+  // inside the section (Shopify-style). `class` is a hook for theme styling.
+  const rootEl = root.childNodes.find(
+    (n) => (n as HTMLElement).tagName != null,
+  ) as HTMLElement | undefined;
+  const container = `<div class="pcms-blocks" ${ATTR.blocks}="${value}"></div>`;
+  if (rootEl) rootEl.insertAdjacentHTML("beforeend", `\n  ${container}\n`);
+  else root.insertAdjacentHTML("beforeend", container);
+  return root.toString();
+}
+
+/**
+ * A starter `blocks/<type>.html` for a new block part: a `data-block` root with
+ * a couple of editable fields. Readable by `parseSectionSchema` / rendered by
+ * the engine's `expandBlocks`.
+ */
+export function blockPartTemplate(type: string, label?: string): string {
+  const lbl = label ?? type;
+  return (
+    `<div class="block block--${type}" ${ATTR.block} data-label="${lbl}">\n` +
+    `  <h3 data-field="title" data-type="text" data-label="見出し">${lbl}</h3>\n` +
+    `  <p data-field="text" data-type="text" data-label="説明">ここに説明が入ります。</p>\n` +
+    `</div>\n`
+  );
+}
+
 export function parseTemplate(name: string, html: string): ThemeTemplateSchema {
   const root = parse(html, { comment: false });
 

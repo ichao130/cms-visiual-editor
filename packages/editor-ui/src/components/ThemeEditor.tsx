@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import type {
   BlockInstance,
   FieldValue,
@@ -58,7 +58,13 @@ import {
   type ThemeTokenGroup,
 } from "../state/mutations.js";
 import type { RegionName } from "@pcms/shared";
-import { mergeThemeConfig, parseSectionSchema, sectionBlockTypes } from "@pcms/engine";
+import {
+  blockPartTemplate,
+  mergeThemeConfig,
+  parseSectionSchema,
+  sectionBlockTypes,
+  setSectionBlocks,
+} from "@pcms/engine";
 import { SectionFields } from "./SectionFields.js";
 import { renderPreview, schemaForPage } from "../preview/render.js";
 import { MediaContext, useMediaLibrary } from "../media/MediaContext.js";
@@ -67,7 +73,7 @@ import { SectionList, type SectionRow } from "./SectionList.js";
 import { Preview } from "./Preview.js";
 import { SettingsPanel } from "./SettingsPanel.js";
 import { SectionCanvas, type InstanceRow } from "./SectionCanvas.js";
-import { BlockManager, BlockSettings } from "./BlockPanel.js";
+import { BlockManager, BlockSettings, EnableBlocksPrompt } from "./BlockPanel.js";
 import { ThemeStylePanel } from "./ThemeStylePanel.js";
 import { InlineEditor, type Anchor } from "./InlineEditor.js";
 import { AddSectionModal } from "./AddSectionModal.js";
@@ -85,8 +91,20 @@ type Scope = "body" | RegionName;
  * history and save all live in the workspace.
  */
 export function ThemeEditor() {
-  const { api, project, doc, commit, undo, redo, canUndo, canRedo, dirty, setDirty, save: onSave } =
-    useSiteWorkspace();
+  const {
+    api,
+    project,
+    doc,
+    commit,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+    dirty,
+    setDirty,
+    save: onSave,
+    reloadProject,
+  } = useSiteWorkspace();
   const [currentKey, setCurrentKey] = useState<string>("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [aiOpen, setAiOpen] = useState(false);
@@ -561,6 +579,46 @@ export function ThemeEditor() {
     [applyBlockFieldEdit, selectedId, selectedBlockId, editScope],
   );
 
+  // Make a section type accept parts: add a `data-blocks` slot (allow any) to
+  // its theme template, in the working copy. Applies to all sections of this
+  // type; after reload the BlockManager appears for it.
+  const onEnableSectionParts = useCallback(
+    (sectionType: string) => {
+      const html = project?.theme.sections?.[sectionType];
+      if (html == null) return;
+      void api.writeThemeFile(`sections/${sectionType}.html`, setSectionBlocks(html, [])).then(() => {
+        reloadProject();
+      });
+    },
+    [api, project, reloadProject],
+  );
+
+  // Author a brand-new block part (blocks/<type>.html), add it to the section's
+  // allow-list when the section restricts types, then place one in the section.
+  const onCreateBlockPart = useCallback(
+    (scope: Scope, sectionId: string, rawName: string, at?: number) => {
+      const type = safePartName(rawName);
+      if (!type || project == null) return;
+      const secType = listFor(scope).find((i) => i.id === sectionId)?.type ?? "";
+      const secHtml = project.theme.sections?.[secType];
+      const writes: Promise<void>[] = [];
+      if (project.theme.blocks?.[type] == null) {
+        writes.push(api.writeThemeFile(`blocks/${type}.html`, blockPartTemplate(type, rawName.trim())));
+      }
+      const allowed = secHtml ? sectionBlockTypes(secHtml) : null;
+      if (secHtml && allowed != null && allowed.length > 0 && !allowed.includes(type)) {
+        writes.push(
+          api.writeThemeFile(`sections/${secType}.html`, setSectionBlocks(secHtml, [...allowed, type])),
+        );
+      }
+      void Promise.all(writes).then(() => {
+        reloadProject();
+        onAddBlock(scope, sectionId, type, at);
+      });
+    },
+    [api, project, listFor, reloadProject, onAddBlock],
+  );
+
   // --- Site-wide theme style (colors / fonts / spacing) --------------------
   // Overrides live in settings.theme and are merged over the theme's presets.
   // The live preview re-renders from doc.settings.theme, so edits show at once.
@@ -816,6 +874,30 @@ export function ThemeEditor() {
     return () => window.removeEventListener("keydown", onKey);
   }, [undo, redo, onSave]);
 
+  // The nested-parts area under a selected section: the block manager when the
+  // section accepts parts, else a prompt to make it accept parts. Reused by the
+  // inline card and the right-hand settings panel.
+  const blocksArea: ReactNode = selectedInstance ? (
+    sectionSupportsBlocks ? (
+      <BlockManager
+        blocks={selectedInstance.blocks ?? []}
+        schemaByType={blockSchemaByType}
+        selectedBlockId={selectedBlockId}
+        onSelect={(blockId) => onSelectBlock(selectedInstance.id, blockId)}
+        onOp={(blockId, op) => onBlockOp(editScope, selectedInstance.id, blockId, op)}
+        onAddClick={() =>
+          setBlockInsertAt({
+            scope: editScope,
+            section: selectedInstance.id,
+            index: selectedInstance.blocks?.length ?? 0,
+          })
+        }
+      />
+    ) : (
+      <EnableBlocksPrompt onEnable={() => onEnableSectionParts(selectedInstance.type)} />
+    )
+  ) : null;
+
   if (!target) {
     return <div className="pcms-loading">読み込み中…</div>;
   }
@@ -917,24 +999,7 @@ export function ThemeEditor() {
                 onStyleChange={onInstanceStyle}
                 onCopy={onCopyInstance}
                 onClose={() => setInlineOpen(false)}
-                blocks={
-                  sectionSupportsBlocks ? (
-                    <BlockManager
-                      blocks={selectedInstance.blocks ?? []}
-                      schemaByType={blockSchemaByType}
-                      selectedBlockId={selectedBlockId}
-                      onSelect={(blockId) => onSelectBlock(selectedInstance.id, blockId)}
-                      onOp={(blockId, op) => onBlockOp(editScope, selectedInstance.id, blockId, op)}
-                      onAddClick={() =>
-                        setBlockInsertAt({
-                          scope: editScope,
-                          section: selectedInstance.id,
-                          index: selectedInstance.blocks?.length ?? 0,
-                        })
-                      }
-                    />
-                  ) : null
-                }
+                blocks={blocksArea}
               />
             ) : null
           }
@@ -970,22 +1035,7 @@ export function ThemeEditor() {
                   onStyleChange={onInstanceStyle}
                 />
               )}
-              {sectionSupportsBlocks && (
-                <BlockManager
-                  blocks={selectedInstance.blocks ?? []}
-                  schemaByType={blockSchemaByType}
-                  selectedBlockId={selectedBlockId}
-                  onSelect={(blockId) => onSelectBlock(selectedInstance.id, blockId)}
-                  onOp={(blockId, op) => onBlockOp(editScope, selectedInstance.id, blockId, op)}
-                  onAddClick={() =>
-                    setBlockInsertAt({
-                      scope: editScope,
-                      section: selectedInstance.id,
-                      index: selectedInstance.blocks?.length ?? 0,
-                    })
-                  }
-                />
-              )}
+              {blocksArea}
             </aside>
           ) : (
             <aside className="pcms-settings">
@@ -1043,6 +1093,8 @@ export function ThemeEditor() {
       )}
       {blockInsertAt != null && (
         <AddSectionModal
+          heading={t("block.pick")}
+          emptyHint={t("block.noneYet")}
           catalog={blockTypesForSection(
             listFor(blockInsertAt.scope).find((i) => i.id === blockInsertAt.section)?.type ?? "",
           ).map((type) => ({ type, label: blockSchemaByType.get(type)?.label ?? type }))}
@@ -1050,11 +1102,20 @@ export function ThemeEditor() {
             onAddBlock(blockInsertAt.scope, blockInsertAt.section, type, blockInsertAt.index);
             setBlockInsertAt(null);
           }}
+          onCreateNew={(name) => {
+            onCreateBlockPart(blockInsertAt.scope, blockInsertAt.section, name, blockInsertAt.index);
+            setBlockInsertAt(null);
+          }}
           onClose={() => setBlockInsertAt(null)}
         />
       )}
     </MediaContext.Provider>
   );
+}
+
+/** A filesystem-safe part name (matches the code view's safeName). */
+function safePartName(raw: string): string {
+  return raw.trim().replace(/[^a-z0-9-]/gi, "-").toLowerCase();
 }
 
 /** Apply the operator's section order; unlisted sections keep template order. */

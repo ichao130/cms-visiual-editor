@@ -30,6 +30,7 @@ export function BlockManager({
   return (
     <div className="pcms-blockmgr">
       <h3 className="pcms-blockmgr__title">{t("block.manage")}</h3>
+      <p className="pcms-blockhelp">{t("block.help.enabled")}</p>
       {blocks.length === 0 ? (
         <p className="pcms-empty">{t("block.empty")}</p>
       ) : (
@@ -69,6 +70,28 @@ export function BlockManager({
       )}
       <button type="button" className="pcms-blockmgr__add" onClick={onAddClick}>
         ＋ {t("block.add")}
+      </button>
+    </div>
+  );
+}
+
+interface EnableBlocksPromptProps {
+  /** Make this section accept parts (edits its theme template). */
+  onEnable: () => void;
+}
+
+/**
+ * Shown under a section that has no `data-blocks` slot: explains the rule and
+ * offers to make the section accept parts (which edits its theme template, so
+ * it applies to every section of this type).
+ */
+export function EnableBlocksPrompt({ onEnable }: EnableBlocksPromptProps) {
+  return (
+    <div className="pcms-blockmgr">
+      <h3 className="pcms-blockmgr__title">{t("block.manage")}</h3>
+      <p className="pcms-blockhelp">{t("block.help.disabled")}</p>
+      <button type="button" className="pcms-blockmgr__add" onClick={onEnable}>
+        ＋ {t("block.enable")}
       </button>
     </div>
   );
