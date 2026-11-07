@@ -10,7 +10,7 @@ import {
   byOrderThenDate,
   type ItemRef,
 } from "../../state/editorState.js";
-import type { ContentItem } from "@pcms/shared";
+import type { ContentItem, FieldValue } from "@pcms/shared";
 import { NewContentModal } from "../../components/NewContentModal.js";
 import { ContentEditorPanel } from "./ContentEditorPanel.js";
 import { useDragReorder } from "../../state/useDragReorder.js";
@@ -18,6 +18,13 @@ import { useToast } from "../../state/ToastContext.js";
 import { t } from "../../i18n.js";
 import { isScheduled } from "@pcms/engine";
 import { Icon } from "../../components/Icon.js";
+
+/** A content item's assigned terms for one taxonomy, as a string list. */
+function termsOf(value: FieldValue | undefined): string[] {
+  if (Array.isArray(value)) return value.map(String);
+  if (value == null || value === "") return [];
+  return [String(value)];
+}
 
 /** Posts (and custom post types). Pages live in their own view. */
 export function PostsView() {
@@ -27,16 +34,38 @@ export function PostsView() {
   const [newOpen, setNewOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<"all" | "published" | "draft">("all");
+  // Taxonomy-term filter, encoded as "<taxonomy>::<term>" ("" = off).
+  const [termFilter, setTermFilter] = useState("");
   const [checked, setChecked] = useState<Set<string>>(new Set());
 
   const postTypes = doc.contentTypes.filter((tp) => tp.name !== "page");
+  const postTypeNames = new Set(postTypes.map((p) => p.name));
   const now = Date.now();
   const q = query.trim().toLowerCase();
-  const filtering = q !== "" || status !== "all";
+
+  // Taxonomies that apply to a post type, each with its usable terms (the
+  // predefined ones plus any free-form terms actually assigned to an item).
+  const termGroups = doc.taxonomies
+    .filter((tx) => tx.types.some((tn) => postTypeNames.has(tn)))
+    .map((tx) => {
+      const terms = new Set<string>(tx.terms ?? []);
+      for (const i of doc.content) {
+        if (postTypeNames.has(i.type)) for (const term of termsOf(i.fields[tx.name])) terms.add(term);
+      }
+      return { tx, terms: [...terms] };
+    })
+    .filter((g) => g.terms.length > 0);
+
+  const sep = termFilter.indexOf("::");
+  const filterTax = sep >= 0 ? termFilter.slice(0, sep) : "";
+  const filterTerm = sep >= 0 ? termFilter.slice(sep + 2) : "";
+
+  const filtering = q !== "" || status !== "all" || termFilter !== "";
   const posts = doc.content.filter((i) => {
     if (i.type === "page") return false;
     const itemStatus = i.status ?? "published";
     if (status !== "all" && itemStatus !== status) return false;
+    if (termFilter && !termsOf(i.fields[filterTax]).includes(filterTerm)) return false;
     if (!q) return true;
     const title = String(i.fields.title ?? "").toLowerCase();
     return title.includes(q) || i.slug.toLowerCase().includes(q);
@@ -137,6 +166,25 @@ export function PostsView() {
             <option value="published">{t("content.status.published")}</option>
             <option value="draft">{t("content.status.draft")}</option>
           </select>
+          {termGroups.length > 0 && (
+            <select
+              className="pcms-listsearch__status"
+              value={termFilter}
+              onChange={(e) => setTermFilter(e.target.value)}
+              aria-label={t("content.filterTax")}
+            >
+              <option value="">{t("content.filterTax.all")}</option>
+              {termGroups.map((g) => (
+                <optgroup key={g.tx.name} label={g.tx.label}>
+                  {g.terms.map((term) => (
+                    <option key={term} value={`${g.tx.name}::${term}`}>
+                      {term}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          )}
           {filtering && (
             <span className="pcms-listsearch__count">
               {t("content.matchCount").replace("{count}", String(matchCount))}

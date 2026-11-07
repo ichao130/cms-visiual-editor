@@ -428,6 +428,8 @@ const ja = {
   "content.status.all": "すべて",
   "content.status.published": "公開",
   "content.status.draft": "下書き",
+  "content.filterTax": "分類で絞り込み",
+  "content.filterTax.all": "すべての分類",
   "content.scheduled": "予約投稿",
   "content.preview": "プレビュー",
   "blocks.empty": "まだブロックがありません。「＋ ブロックを追加」から始めましょう。",
