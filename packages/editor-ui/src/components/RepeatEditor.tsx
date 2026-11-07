@@ -49,6 +49,7 @@ export function RepeatEditor({ repeat, rows, onChange }: RepeatEditorProps) {
               id={`repeat-${repeat.name}-${i}-${f.path}`}
               label={f.label ?? f.path}
               type={f.type}
+              options={f.options}
               value={row[f.path]}
               onChange={(v) => update(i, f.path, v)}
             />

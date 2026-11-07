@@ -7,7 +7,7 @@ import type {
   ThemeTemplateSchema,
 } from "@pcms/shared";
 import { ATTR } from "./attributes.js";
-import { detectFieldType } from "./field-type.js";
+import { detectFieldType, fieldOptions } from "./field-type.js";
 
 /**
  * Parse a theme template (ordinary HTML + data-* attributes) into a schema
@@ -170,6 +170,10 @@ function collectFields(
     const schema: FieldSchema = { path, type: detectFieldType(el) };
     const label = el.getAttribute(ATTR.label);
     if (label) schema.label = label;
+    if (schema.type === "select") {
+      const options = fieldOptions(el);
+      if (options) schema.options = options;
+    }
     fields.push(schema);
   }
   return fields;

@@ -28,6 +28,12 @@ export const ATTR = {
    * child blocks, with widths from the instance's `ratio` field.
    */
   columns: "data-columns",
+  /**
+   * Choices for a `select` field, as a comma- or `|`-separated list
+   * (e.g. `data-options="S,M,L"`). A `<select>` element's `<option>` children
+   * are read instead when this attribute is absent.
+   */
+  options: "data-options",
 } as const;
 
 /**
@@ -47,4 +53,5 @@ export const EDITOR_ATTRS: readonly string[] = [
   ATTR.blocks,
   ATTR.block,
   ATTR.columns,
+  ATTR.options,
 ];

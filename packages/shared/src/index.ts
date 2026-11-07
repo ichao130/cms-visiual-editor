@@ -436,6 +436,8 @@ export interface FieldSchema {
   path: string;
   type: InlineFieldType;
   label?: string;
+  /** Choices for a `select` field (from `data-options` or `<option>`s). */
+  options?: string[];
 }
 
 export interface LoopSchema {

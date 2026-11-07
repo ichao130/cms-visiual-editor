@@ -36,3 +36,27 @@ export function detectFieldType(el: HTMLElement): InlineFieldType {
 
   return "text";
 }
+
+/**
+ * The choices offered by a `select` field, or undefined when none are declared.
+ * Read from `data-options` (comma- or `|`-separated) first, else from the
+ * `<option>` children of a `<select>` element (their value, else their text).
+ */
+export function fieldOptions(el: HTMLElement): string[] | undefined {
+  const attr = el.getAttribute(ATTR.options);
+  if (attr != null) {
+    const list = attr
+      .split(/[,|]/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+    return list.length > 0 ? list : undefined;
+  }
+  if ((el.tagName?.toLowerCase() ?? "") === "select") {
+    const list = el
+      .querySelectorAll("option")
+      .map((o) => (o.getAttribute("value") ?? o.text ?? "").trim())
+      .filter((s) => s.length > 0);
+    return list.length > 0 ? list : undefined;
+  }
+  return undefined;
+}

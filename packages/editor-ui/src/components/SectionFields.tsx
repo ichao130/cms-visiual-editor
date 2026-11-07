@@ -34,6 +34,7 @@ export function SectionFields({
           id={`inst-${instance.id}-${f.path}`}
           label={f.label ?? f.path}
           type={f.type}
+          options={f.options}
           value={fields[f.path]}
           onChange={(v) => onFieldChange(f.path, v)}
         />

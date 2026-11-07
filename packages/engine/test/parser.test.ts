@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseTemplate } from "../src/index.js";
+import { parseSectionSchema, parseTemplate } from "../src/index.js";
 import { sampleTheme } from "./fixtures.js";
 
 describe("parseTemplate", () => {
@@ -51,5 +51,43 @@ describe("parseTemplate", () => {
       "price",
       "note",
     ]);
+  });
+});
+
+describe("select field options", () => {
+  it("reads data-options (comma or pipe separated)", () => {
+    const s = parseSectionSchema(
+      "box",
+      `<section data-section="box">
+        <span data-field="box.size" data-type="select" data-options="S, M, L"></span>
+      </section>`,
+    );
+    const f = s.fields.find((f) => f.path === "box.size")!;
+    expect(f.type).toBe("select");
+    expect(f.options).toEqual(["S", "M", "L"]);
+  });
+
+  it("reads <option> children of a <select> field", () => {
+    const s = parseSectionSchema(
+      "box",
+      `<section data-section="box">
+        <select data-field="box.plan" data-type="select">
+          <option value="free">無料</option>
+          <option value="pro">プロ</option>
+        </select>
+      </section>`,
+    );
+    const f = s.fields.find((f) => f.path === "box.plan")!;
+    expect(f.options).toEqual(["free", "pro"]);
+  });
+
+  it("leaves options undefined when none are declared", () => {
+    const s = parseSectionSchema(
+      "box",
+      `<section data-section="box">
+        <span data-field="box.x" data-type="select"></span>
+      </section>`,
+    );
+    expect(s.fields.find((f) => f.path === "box.x")!.options).toBeUndefined();
   });
 });

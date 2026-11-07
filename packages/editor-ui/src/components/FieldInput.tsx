@@ -9,13 +9,15 @@ interface FieldInputProps {
   type: InlineFieldType;
   value: FieldValue | undefined;
   onChange: (value: string) => void;
+  /** Choices for a `select` field. */
+  options?: string[];
 }
 
 /**
  * One editable field. Image fields use the media library picker; richtext is a
  * markdown textarea for now (a rich-text editor comes later — CLAUDE.md 要相談).
  */
-export function FieldInput({ id, label, type, value, onChange }: FieldInputProps) {
+export function FieldInput({ id, label, type, value, onChange, options }: FieldInputProps) {
   const str = value == null ? "" : String(value);
 
   return (
@@ -26,7 +28,7 @@ export function FieldInput({ id, label, type, value, onChange }: FieldInputProps
       ) : type === "richtext" ? (
         <RichTextEditor value={str} onChange={onChange} />
       ) : (
-        renderControl(id, type, str, onChange)
+        renderControl(id, type, str, onChange, options)
       )}
     </label>
   );
@@ -77,6 +79,7 @@ function renderControl(
   type: InlineFieldType,
   str: string,
   onChange: (value: string) => void,
+  options?: string[],
 ) {
   switch (type) {
     case "number":
@@ -92,8 +95,25 @@ function renderControl(
           onChange={(e) => onChange(e.target.value)}
         />
       );
-    case "link":
     case "select":
+      // With declared choices, offer a dropdown; without, fall back to text
+      // (a select field with no options source is just a free value).
+      if (options && options.length > 0) {
+        return (
+          <select id={id} value={str} onChange={(e) => onChange(e.target.value)}>
+            <option value="">{t("field.selectEmpty")}</option>
+            {options.map((o) => (
+              <option key={o} value={o}>
+                {o}
+              </option>
+            ))}
+          </select>
+        );
+      }
+      return (
+        <input id={id} type="text" value={str} onChange={(e) => onChange(e.target.value)} />
+      );
+    case "link":
     case "text":
     default:
       return (
