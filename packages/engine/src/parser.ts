@@ -97,6 +97,17 @@ export function blockPartTemplate(type: string, label?: string): string {
   );
 }
 
+/**
+ * Whether a block template is a layout block — its root (or a descendant)
+ * carries `data-columns`, meaning its instances hold child blocks arranged in
+ * columns rather than plain fields. The editor uses this to show a column
+ * manager instead of an (empty) field panel. Pure string→boolean.
+ */
+export function isColumnsBlock(html: string): boolean {
+  const root = parse(html, { comment: false });
+  return root.querySelector(`[${ATTR.columns}]`) != null;
+}
+
 export function parseTemplate(name: string, html: string): ThemeTemplateSchema {
   const root = parse(html, { comment: false });
 

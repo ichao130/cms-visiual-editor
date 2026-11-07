@@ -22,6 +22,12 @@ export const ATTR = {
   blocks: "data-blocks",
   /** Optional marker on a block template's root (symmetry with data-section). */
   block: "data-block",
+  /**
+   * Marks a layout block's root as a column container. The engine generates one
+   * column per entry in the block instance's `columns`, each holding its own
+   * child blocks, with widths from the instance's `ratio` field.
+   */
+  columns: "data-columns",
 } as const;
 
 /**
@@ -40,4 +46,5 @@ export const EDITOR_ATTRS: readonly string[] = [
   ATTR.slot,
   ATTR.blocks,
   ATTR.block,
+  ATTR.columns,
 ];

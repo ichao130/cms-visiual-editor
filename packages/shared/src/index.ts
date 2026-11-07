@@ -232,6 +232,14 @@ export interface BlockInstance {
   type: string;
   /** Field values, keyed by the block template's `data-field` paths. */
   fields?: Record<string, FieldValue>;
+  /**
+   * Layout blocks only (a block template with a `data-columns` root): child
+   * blocks per column. `columns[i]` is the ordered block list of the i-th
+   * column. The column count is `columns.length`; the per-column widths come
+   * from `fields.ratio` (e.g. "2:1"). Absent for ordinary (content) blocks, so
+   * this is backward compatible.
+   */
+  columns?: BlockInstance[][];
 }
 
 export type FieldValue = string | number | boolean | null | FieldValue[];

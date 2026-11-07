@@ -66,6 +66,15 @@ export interface RenderScope {
   blockTemplates?: Record<string, string>;
   /** The owning section instance's id, for the editor's block markers. */
   blockSectionId?: string;
+  /**
+   * Set only while rendering a layout block (a block whose template root has
+   * `data-columns`): the child-block lists per column, and the width ratio. The
+   * `data-columns` container expands into one column per entry.
+   */
+  blockColumns?: BlockInstance[][];
+  blockColumnRatio?: string;
+  /** The owning layout block's id, for the editor's column markers. */
+  blockColumnsId?: string;
 }
 
 /**

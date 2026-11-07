@@ -13,6 +13,7 @@ export {
   sectionBlockTypes,
   setSectionBlocks,
   blockPartTemplate,
+  isColumnsBlock,
 } from "./parser.js";
 export { renameSection } from "./section.js";
 export { cssColor, cssValue } from "./css.js";

@@ -330,14 +330,21 @@ function expandBlocks(el: HTMLElement, scope: RenderScope): void {
     const tpl = templates[b.type];
     if (tpl == null) continue;
     // A block binds its own fields; it never inherits the section's blocks,
-    // loop item, or repeats, so reset those on the child scope.
+    // loop item, or repeats, so reset those on the child scope. A layout block
+    // (one carrying `columns`) instead keeps the block templates so its own
+    // child blocks can render, and passes its columns + width ratio down.
+    const isLayout = Array.isArray(b.columns);
+    const ratio = typeof b.fields?.ratio === "string" ? b.fields.ratio : undefined;
     const blockScope: RenderScope = {
       ...scope,
       page: { fields: b.fields },
       item: undefined,
       blocks: undefined,
-      blockTemplates: undefined,
+      blockTemplates: isLayout ? scope.blockTemplates : undefined,
       blockSectionId: undefined,
+      blockColumns: isLayout ? b.columns : undefined,
+      blockColumnRatio: isLayout ? ratio : undefined,
+      blockColumnsId: isLayout ? b.id : undefined,
     };
     const inner = renderFragment(tpl, blockScope);
     if (editable) {
@@ -361,6 +368,65 @@ function expandBlocks(el: HTMLElement, scope: RenderScope): void {
   // The container keeps its own tag/classes; drop the block markers from it.
   el.removeAttribute(ATTR.blocks);
   el.removeAttribute(ATTR.block);
+}
+
+/**
+ * Expand a layout block's `data-columns` container: one column per entry in the
+ * instance's `columns`, each holding its own child blocks, laid out on a grid
+ * whose track widths come from the `ratio` field. Child blocks render clean
+ * (their own fields only); they are managed from the block's settings panel, so
+ * the preview needs no per-child tools. Columns-in-columns are not expanded (a
+ * nested layout block renders empty), which also bounds the recursion.
+ */
+function expandColumns(el: HTMLElement, scope: RenderScope): void {
+  const columns = scope.blockColumns ?? [];
+  const templates = scope.blockTemplates ?? {};
+  const editable = scope.editable === true;
+  const tracks = ratioToTracks(scope.blockColumnRatio, columns.length);
+  const parts: string[] = [];
+  for (let c = 0; c < columns.length; c++) {
+    const childBlocks = columns[c] ?? [];
+    const inner: string[] = [];
+    for (const cb of childBlocks) {
+      const tpl = templates[cb.type];
+      if (tpl == null) continue;
+      const childScope: RenderScope = {
+        ...scope,
+        page: { fields: cb.fields },
+        item: undefined,
+        blocks: undefined,
+        blockTemplates: undefined,
+        blockSectionId: undefined,
+        blockColumns: undefined,
+        blockColumnRatio: undefined,
+        blockColumnsId: undefined,
+      };
+      inner.push(renderFragment(tpl, childScope));
+    }
+    if (editable && inner.length === 0) {
+      inner.push(`<div class="pcms-empty-col">空のカラム</div>`);
+    }
+    parts.push(`<div class="pcms-columns__col">${inner.join("\n")}</div>`);
+  }
+  el.set_content(parts.join("\n"));
+  const grid = `display:grid;grid-template-columns:${tracks};gap:1.2rem`;
+  const prev = el.getAttribute("style");
+  el.setAttribute("style", prev ? `${prev};${grid}` : grid);
+  el.removeAttribute(ATTR.columns);
+  el.removeAttribute(ATTR.block);
+}
+
+/** Parse a width ratio ("2:1", "1 2 1") into CSS grid tracks ("2fr 1fr"). */
+function ratioToTracks(ratio: string | undefined, count: number): string {
+  const n = Math.max(count, 1);
+  if (ratio) {
+    const nums = ratio
+      .split(/[\s:/,]+/)
+      .map((x) => Number.parseFloat(x))
+      .filter((x) => Number.isFinite(x) && x > 0);
+    if (nums.length === n) return nums.map((x) => `${x}fr`).join(" ");
+  }
+  return Array(n).fill("1fr").join(" ");
 }
 
 /** Editor-only "+" marker inserted at a gap between nested blocks. */
@@ -416,6 +482,13 @@ function processElement(el: HTMLElement, scope: RenderScope): void {
   //     blocks (Shopify-style), then stop (children are the rendered blocks).
   if (el.getAttribute(ATTR.blocks) != null) {
     expandBlocks(el, scope);
+    return;
+  }
+
+  // 3.6 data-columns — a layout block: generate one column per entry in the
+  //     block instance's `columns`, each holding its own child blocks.
+  if (el.getAttribute(ATTR.columns) != null) {
+    expandColumns(el, scope);
     return;
   }
 
