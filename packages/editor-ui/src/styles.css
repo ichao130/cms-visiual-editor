@@ -773,6 +773,9 @@ button.pcms-danger { color: var(--pcms-danger); border-color: var(--pcms-danger-
 .pcms-field__req { color: var(--pcms-danger); font-style: normal; font-size: 0.7rem; margin-left: 0.3rem; }
 .pcms-field__desc { color: var(--pcms-muted); font-size: 0.72rem; }
 .pcms-field__checkbox { width: auto; }
+.pcms-multiselect { display: flex; flex-wrap: wrap; gap: 0.25rem 0.75rem; }
+.pcms-multiselect__opt { display: flex; align-items: center; gap: 0.3rem; font-size: 0.8rem; }
+.pcms-multiselect__opt input { width: auto; }
 .pcms-field select { width: 100%; font: inherit; padding: 0.4rem 0.5rem; border: 1px solid var(--pcms-border); border-radius: 6px; }
 
 .pcms-modal__panel--narrow { width: min(420px, 92vw); }

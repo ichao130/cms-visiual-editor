@@ -2,6 +2,7 @@ import type { FieldDef, FieldValue } from "@pcms/shared";
 import { ImageField } from "./FieldInput.js";
 import { BlockEditor } from "./BlockEditor.js";
 import { AiRewriteAssist } from "./AiRewriteAssist.js";
+import { t } from "../i18n.js";
 
 interface ContentFieldProps {
   field: FieldDef;
@@ -61,6 +62,20 @@ function control(
       return (
         <input id={id} type="date" value={str} onChange={(e) => onChange(e.target.value)} />
       );
+    case "datetime":
+      return (
+        <input
+          id={id}
+          type="datetime-local"
+          value={str}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      );
+    case "file":
+      // Reuse the media picker; the stored value is the file's path.
+      return <ImageField id={id} value={str} onChange={onChange} />;
+    case "multiselect":
+      return <MultiSelectField id={id} value={str} options={field.options ?? []} onChange={onChange} />;
     case "checkbox":
       return (
         <input
@@ -87,4 +102,47 @@ function control(
         <input id={id} type="text" value={str} onChange={(e) => onChange(e.target.value)} />
       );
   }
+}
+
+/**
+ * Multiple-choice field: a checkbox per option. The value is stored as a
+ * comma-separated string (so it stringifies the same way an array would when
+ * a theme renders the field).
+ */
+function MultiSelectField({
+  id,
+  value,
+  options,
+  onChange,
+}: {
+  id: string;
+  value: string;
+  options: string[];
+  onChange: (value: string) => void;
+}) {
+  const selected = value
+    .split(",")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+  const toggle = (opt: string) => {
+    const next = selected.includes(opt)
+      ? selected.filter((s) => s !== opt)
+      : [...selected, opt];
+    // Keep the option order stable regardless of click order.
+    onChange(options.filter((o) => next.includes(o)).join(", "));
+  };
+  return (
+    <div id={id} className="pcms-multiselect">
+      {options.length === 0 ? (
+        <small className="pcms-field__desc">{t("fieldtype.multiselect.empty")}</small>
+      ) : (
+        options.map((opt) => (
+          <label key={opt} className="pcms-multiselect__opt">
+            <input type="checkbox" checked={selected.includes(opt)} onChange={() => toggle(opt)} />
+            {opt}
+          </label>
+        ))
+      )}
+    </div>
+  );
 }

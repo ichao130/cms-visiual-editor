@@ -303,8 +303,12 @@ const ja = {
   "fieldtype.richtext": "リッチテキスト",
   "fieldtype.number": "数値",
   "fieldtype.date": "日付",
+  "fieldtype.datetime": "日時",
   "fieldtype.image": "画像",
+  "fieldtype.file": "ファイル",
   "fieldtype.select": "選択",
+  "fieldtype.multiselect": "複数選択",
+  "fieldtype.multiselect.empty": "選択肢を設定してください。",
   "fieldtype.checkbox": "チェック",
   "fieldtype.link": "リンク",
 

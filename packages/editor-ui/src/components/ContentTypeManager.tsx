@@ -18,8 +18,11 @@ const FIELD_TYPES: FieldType[] = [
   "richtext",
   "number",
   "date",
+  "datetime",
   "image",
+  "file",
   "select",
+  "multiselect",
   "checkbox",
   "link",
 ];
@@ -31,8 +34,11 @@ const FIELD_TYPE_LABEL: Partial<Record<FieldType, MessageKey>> = {
   richtext: "fieldtype.richtext",
   number: "fieldtype.number",
   date: "fieldtype.date",
+  datetime: "fieldtype.datetime",
   image: "fieldtype.image",
+  file: "fieldtype.file",
   select: "fieldtype.select",
+  multiselect: "fieldtype.multiselect",
   checkbox: "fieldtype.checkbox",
   link: "fieldtype.link",
 };
@@ -190,7 +196,7 @@ export function ContentTypeManager({ types, onCommit }: ContentTypeManagerProps)
                       />
                       {t("types.required")}
                     </label>
-                    {f.type === "select" && (
+                    {(f.type === "select" || f.type === "multiselect") && (
                       <CommaListInput
                         className="pcms-fielddef__options"
                         value={f.options ?? []}
