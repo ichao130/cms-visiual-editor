@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { DragEvent } from "react";
 import type { BlockInstance, SectionInstance, SectionSchema } from "@pcms/shared";
 import { SectionFields } from "./SectionFields.js";
 import { t } from "../i18n.js";
@@ -17,6 +18,8 @@ interface Props {
   onAddChild: (col: number, type: string) => void;
   onChildOp: (col: number, childId: string, op: ChildOp) => void;
   onChildField: (col: number, childId: string, path: string, value: string) => void;
+  /** Drag-and-drop move: within a column or across columns. */
+  onChildMove: (fromCol: number, fromIndex: number, toCol: number, toIndex: number) => void;
 }
 
 /** Width-ratio presets offered for a given column count. */
@@ -27,11 +30,13 @@ function ratioPresets(count: number): string[] {
   return ["1"];
 }
 
+type DragRef = { col: number; index: number };
+
 /**
  * Edits a layout (columns) block: the column count and width ratio, and the
- * child blocks inside each column (add / reorder / delete / edit fields). The
- * columns template itself has no fields, so this stands in for the normal field
- * panel when a layout block is selected.
+ * child blocks inside each column (add / reorder / delete / edit fields, plus
+ * drag-and-drop within and between columns). The columns template itself has no
+ * fields, so this stands in for the normal field panel for a layout block.
  */
 export function ColumnsManager({
   block,
@@ -42,15 +47,43 @@ export function ColumnsManager({
   onAddChild,
   onChildOp,
   onChildField,
+  onChildMove,
 }: Props) {
   const columns = block.columns ?? [];
   const count = columns.length || 1;
   const ratio = typeof block.fields?.ratio === "string" ? block.fields.ratio : "";
   const [open, setOpen] = useState<{ col: number; id: string } | null>(null);
   const [picking, setPicking] = useState<number | null>(null);
+  const [drag, setDrag] = useState<DragRef | null>(null);
+  const [dropHint, setDropHint] = useState<{ col: number; index: number } | null>(null);
 
   const presets = ratioPresets(count);
   const ratioOptions = presets.includes(ratio) || ratio === "" ? presets : [ratio, ...presets];
+
+  const clearDrag = () => {
+    setDrag(null);
+    setDropHint(null);
+  };
+
+  // Drop onto a child row: insert before or after it depending on the pointer.
+  const onRowDragOver = (col: number, index: number) => (e: DragEvent) => {
+    if (!drag) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+    const after = e.clientY - rect.top > rect.height / 2;
+    setDropHint({ col, index: after ? index + 1 : index });
+  };
+  const onColDragOver = (col: number, length: number) => (e: DragEvent) => {
+    if (!drag) return;
+    e.preventDefault();
+    setDropHint({ col, index: length });
+  };
+  const onDrop = (e: DragEvent) => {
+    e.preventDefault();
+    if (drag && dropHint) onChildMove(drag.col, drag.index, dropHint.col, dropHint.index);
+    clearDrag();
+  };
 
   return (
     <div className="pcms-columns-mgr">
@@ -85,104 +118,135 @@ export function ColumnsManager({
         </label>
       </div>
 
-      {columns.map((children, col) => (
-        <div key={col} className="pcms-columns-mgr__col">
-          <div className="pcms-columns-mgr__colhead">
-            {t("columns.col")} {col + 1}
-          </div>
-          {children.length === 0 ? (
-            <p className="pcms-empty">{t("columns.empty")}</p>
-          ) : (
-            <ul className="pcms-blockmgr__list">
-              {children.map((child, i) => {
-                const isOpen = open?.col === col && open?.id === child.id;
-                const schema = childSchemaByType.get(child.type);
-                return (
-                  <li key={child.id} className={`pcms-blockmgr__row${isOpen ? " is-active" : ""}`}>
-                    <div className="pcms-columns-mgr__childrow">
-                      <button
-                        type="button"
-                        className="pcms-blockmgr__name"
-                        onClick={() => setOpen(isOpen ? null : { col, id: child.id })}
-                      >
-                        {schema?.label ?? child.type}
-                      </button>
-                      <div className="pcms-blockmgr__ops">
-                        <button
-                          type="button"
-                          onClick={() => onChildOp(col, child.id, "up")}
-                          disabled={i === 0}
-                          title={t("block.up")}
-                        >
-                          ↑
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onChildOp(col, child.id, "down")}
-                          disabled={i === children.length - 1}
-                          title={t("block.down")}
-                        >
-                          ↓
-                        </button>
-                        <button
-                          type="button"
-                          className="pcms-blockmgr__del"
-                          onClick={() => {
-                            if (isOpen) setOpen(null);
-                            onChildOp(col, child.id, "del");
-                          }}
-                          title={t("block.delete")}
-                        >
-                          ×
-                        </button>
-                      </div>
-                    </div>
-                    {isOpen && schema && (
-                      <div className="pcms-columns-mgr__fields">
-                        <SectionFields
-                          schema={schema}
-                          instance={child as SectionInstance}
-                          onFieldChange={(path, value) => onChildField(col, child.id, path, value)}
-                          onRepeatChange={() => {}}
-                        />
-                      </div>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-
-          {picking === col ? (
-            <div className="pcms-columns-mgr__pick">
-              {childCatalog.map((c) => (
-                <button
-                  key={c.type}
-                  type="button"
-                  onClick={() => {
-                    onAddChild(col, c.type);
-                    setPicking(null);
-                  }}
-                >
-                  {c.label}
-                </button>
-              ))}
-              <button type="button" className="pcms-columns-mgr__pickcancel" onClick={() => setPicking(null)}>
-                {t("columns.close")}
-              </button>
+      {columns.map((children, col) => {
+        const dropEnd = dropHint?.col === col && dropHint.index === children.length;
+        return (
+          <div
+            key={col}
+            className={`pcms-columns-mgr__col${dropEnd ? " is-drop-end" : ""}`}
+            onDragOver={onColDragOver(col, children.length)}
+            onDrop={onDrop}
+          >
+            <div className="pcms-columns-mgr__colhead">
+              {t("columns.col")} {col + 1}
             </div>
-          ) : (
-            <button
-              type="button"
-              className="pcms-blockmgr__add"
-              onClick={() => setPicking(col)}
-              disabled={childCatalog.length === 0}
-            >
-              ＋ {t("columns.addChild")}
-            </button>
-          )}
-        </div>
-      ))}
+            {children.length === 0 ? (
+              <p className="pcms-empty">{t("columns.empty")}</p>
+            ) : (
+              <ul className="pcms-blockmgr__list">
+                {children.map((child, i) => {
+                  const isOpen = open?.col === col && open?.id === child.id;
+                  const schema = childSchemaByType.get(child.type);
+                  const isDragging = drag?.col === col && drag.index === i;
+                  const dropBefore = dropHint?.col === col && dropHint.index === i;
+                  return (
+                    <li
+                      key={child.id}
+                      className={
+                        `pcms-blockmgr__row${isOpen ? " is-active" : ""}` +
+                        `${isDragging ? " is-dragging" : ""}${dropBefore ? " is-drop-before" : ""}`
+                      }
+                      onDragOver={onRowDragOver(col, i)}
+                      onDrop={onDrop}
+                    >
+                      <div className="pcms-columns-mgr__childrow">
+                        <span
+                          className="pcms-columns-mgr__grip"
+                          draggable
+                          title={t("columns.drag")}
+                          onDragStart={(e) => {
+                            setDrag({ col, index: i });
+                            e.dataTransfer.effectAllowed = "move";
+                            e.dataTransfer.setData("text/plain", child.id);
+                          }}
+                          onDragEnd={clearDrag}
+                        >
+                          ⠿
+                        </span>
+                        <button
+                          type="button"
+                          className="pcms-blockmgr__name"
+                          onClick={() => setOpen(isOpen ? null : { col, id: child.id })}
+                        >
+                          {schema?.label ?? child.type}
+                        </button>
+                        <div className="pcms-blockmgr__ops">
+                          <button
+                            type="button"
+                            onClick={() => onChildOp(col, child.id, "up")}
+                            disabled={i === 0}
+                            title={t("block.up")}
+                          >
+                            ↑
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onChildOp(col, child.id, "down")}
+                            disabled={i === children.length - 1}
+                            title={t("block.down")}
+                          >
+                            ↓
+                          </button>
+                          <button
+                            type="button"
+                            className="pcms-blockmgr__del"
+                            onClick={() => {
+                              if (isOpen) setOpen(null);
+                              onChildOp(col, child.id, "del");
+                            }}
+                            title={t("block.delete")}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      </div>
+                      {isOpen && schema && (
+                        <div className="pcms-columns-mgr__fields">
+                          <SectionFields
+                            schema={schema}
+                            instance={child as SectionInstance}
+                            onFieldChange={(path, value) => onChildField(col, child.id, path, value)}
+                            onRepeatChange={() => {}}
+                          />
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+
+            {picking === col ? (
+              <div className="pcms-columns-mgr__pick">
+                {childCatalog.map((c) => (
+                  <button
+                    key={c.type}
+                    type="button"
+                    onClick={() => {
+                      onAddChild(col, c.type);
+                      setPicking(null);
+                    }}
+                  >
+                    {c.label}
+                  </button>
+                ))}
+                <button type="button" className="pcms-columns-mgr__pickcancel" onClick={() => setPicking(null)}>
+                  {t("columns.close")}
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="pcms-blockmgr__add"
+                onClick={() => setPicking(col)}
+                disabled={childCatalog.length === 0}
+              >
+                ＋ {t("columns.addChild")}
+              </button>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

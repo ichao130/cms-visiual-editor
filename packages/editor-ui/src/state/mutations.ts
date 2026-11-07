@@ -629,6 +629,34 @@ export function moveColumnChild(
   );
 }
 
+/** Move a child block within a column or across columns (drag-and-drop). */
+export function moveColumnChildTo(
+  settings: SiteSettings,
+  loc: InstanceLoc,
+  sectionId: string,
+  blockId: string,
+  fromCol: number,
+  fromIndex: number,
+  toCol: number,
+  toIndex: number,
+): SiteSettings {
+  return withColumns(settings, loc, sectionId, blockId, (columns) => {
+    if (fromCol < 0 || fromCol >= columns.length || toCol < 0 || toCol >= columns.length) {
+      return columns;
+    }
+    const src = columns[fromCol] ?? [];
+    if (fromIndex < 0 || fromIndex >= src.length) return columns;
+    const next = columns.map((c) => [...c]);
+    const [moved] = next[fromCol]!.splice(fromIndex, 1);
+    if (!moved) return columns;
+    // Removing an earlier item in the same column shifts later targets left.
+    let dest = fromCol === toCol && fromIndex < toIndex ? toIndex - 1 : toIndex;
+    dest = Math.max(0, Math.min(dest, next[toCol]!.length));
+    next[toCol]!.splice(dest, 0, moved);
+    return next;
+  });
+}
+
 export function setColumnChildField(
   settings: SiteSettings,
   loc: InstanceLoc,

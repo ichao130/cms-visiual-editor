@@ -47,6 +47,7 @@ import {
   addColumnChild,
   removeColumnChild,
   moveColumnChild,
+  moveColumnChildTo,
   setColumnChildField,
   setField,
   setInstanceField,
@@ -590,6 +591,17 @@ export function ThemeEditor() {
       setDirty(true);
     },
     [commit, doc, locFor, editScope, listFor],
+  );
+  const onColumnChildMove = useCallback(
+    (sectionId: string, blockId: string, fromCol: number, fromIndex: number, toCol: number, toIndex: number) => {
+      if (fromCol === toCol && (toIndex === fromIndex || toIndex === fromIndex + 1)) return; // no-op drop
+      commit({
+        ...doc,
+        settings: moveColumnChildTo(doc.settings, locFor(editScope), sectionId, blockId, fromCol, fromIndex, toCol, toIndex),
+      });
+      setDirty(true);
+    },
+    [commit, doc, locFor, editScope],
   );
   const onColumnChildField = useCallback(
     (sectionId: string, blockId: string, col: number, childId: string, path: string, value: string) => {
@@ -1165,6 +1177,9 @@ export function ThemeEditor() {
                     }
                     onChildField={(col, childId, path, value) =>
                       onColumnChildField(selectedInstance!.id, selectedBlock.id, col, childId, path, value)
+                    }
+                    onChildMove={(fromCol, fromIndex, toCol, toIndex) =>
+                      onColumnChildMove(selectedInstance!.id, selectedBlock.id, fromCol, fromIndex, toCol, toIndex)
                     }
                   />
                 ) : undefined

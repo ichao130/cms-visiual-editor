@@ -53,6 +53,7 @@ const ja = {
   "columns.empty": "まだブロックがありません。",
   "columns.edit": "編集",
   "columns.close": "閉じる",
+  "columns.drag": "ドラッグでカラム内・カラム間を移動",
   "columns.help": "各カラムに画像・見出し・テキストなどのブロックを入れられます。幅の比率はプレビューに反映されます。",
   "swap.short": "差し替え",
   "swap.section": "別のパーツに差し替え",

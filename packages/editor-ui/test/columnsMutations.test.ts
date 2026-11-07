@@ -5,6 +5,7 @@ import {
   addColumnChild,
   equalRatio,
   moveColumnChild,
+  moveColumnChildTo,
   removeColumnChild,
   setColumnChildField,
   setColumnCount,
@@ -109,6 +110,37 @@ describe("column child mutations", () => {
     const start = base([[{ id: "a", type: "text" }, { id: "b", type: "heading" }], []]);
     const s = moveColumnChild(start, loc, "sec-1", "col-1", 0, 0, 1);
     expect(layoutBlock(s).columns![0]!.map((c) => c.id)).toEqual(["b", "a"]);
+  });
+
+  it("moves a child to another column at a given index", () => {
+    const start = base([
+      [{ id: "a", type: "text" }, { id: "b", type: "heading" }],
+      [{ id: "c", type: "text" }],
+    ]);
+    const s = moveColumnChildTo(start, loc, "sec-1", "col-1", 0, 0, 1, 1);
+    expect(layoutBlock(s).columns![0]!.map((c) => c.id)).toEqual(["b"]);
+    expect(layoutBlock(s).columns![1]!.map((c) => c.id)).toEqual(["c", "a"]);
+  });
+
+  it("reorders within a column, accounting for the removal shift", () => {
+    const start = base([[{ id: "a", type: "text" }, { id: "b", type: "heading" }, { id: "c", type: "text" }], []]);
+    // move "a" (index 0) to the end (index 3) of the same column
+    const s = moveColumnChildTo(start, loc, "sec-1", "col-1", 0, 0, 0, 3);
+    expect(layoutBlock(s).columns![0]!.map((c) => c.id)).toEqual(["b", "c", "a"]);
+  });
+
+  it("clamps an out-of-range destination to the column end", () => {
+    const start = base([[{ id: "a", type: "text" }], []]);
+    const s = moveColumnChildTo(start, loc, "sec-1", "col-1", 0, 0, 1, 99);
+    expect(layoutBlock(s).columns![1]!.map((c) => c.id)).toEqual(["a"]);
+  });
+
+  it("ignores a move from an invalid column/index", () => {
+    const start = base([[{ id: "a", type: "text" }], []]);
+    const badCol = moveColumnChildTo(start, loc, "sec-1", "col-1", 5, 0, 1, 0);
+    expect(layoutBlock(badCol).columns).toEqual([[{ id: "a", type: "text" }], []]);
+    const badIdx = moveColumnChildTo(start, loc, "sec-1", "col-1", 0, 9, 1, 0);
+    expect(layoutBlock(badIdx).columns).toEqual([[{ id: "a", type: "text" }], []]);
   });
 
   it("edits a child's field", () => {

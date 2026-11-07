@@ -522,6 +522,26 @@ button.pcms-themebtn:hover:not(:disabled) { background: var(--pcms-hover); }
 .pcms-blockmgr__del:hover:not(:disabled) { color: var(--pcms-danger) !important; }
 .pcms-blockmgr__add { width: 100%; padding: 0.4rem; }
 .pcms-blockhelp { font-size: 0.78rem; color: var(--pcms-muted); margin: 0 0 0.5rem; line-height: 1.6; }
+
+/* Columns (layout block) manager */
+.pcms-columns-mgr__ctrls { display: flex; flex-wrap: wrap; gap: 0.8rem; margin-bottom: 0.8rem; }
+.pcms-columns-mgr__ctrl { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.78rem; color: var(--pcms-muted); }
+.pcms-columns-mgr__counts { display: flex; gap: 0.25rem; }
+.pcms-columns-mgr__counts button { min-width: 2rem; padding: 0.25rem 0.5rem; border: 1px solid var(--pcms-border); border-radius: 5px; background: var(--pcms-bg); cursor: pointer; font: inherit; color: var(--pcms-text); }
+.pcms-columns-mgr__counts button.is-active { border-color: var(--pcms-accent-border); background: var(--pcms-accent-weak); color: var(--pcms-accent); font-weight: 600; }
+.pcms-columns-mgr__col { border: 1px solid var(--pcms-border); border-radius: 8px; padding: 0.5rem; margin-bottom: 0.6rem; }
+.pcms-columns-mgr__col.is-drop-end { border-color: var(--pcms-accent-border); box-shadow: inset 0 -3px 0 var(--pcms-accent); }
+.pcms-columns-mgr__colhead { font-size: 0.74rem; font-weight: 600; color: var(--pcms-muted); margin-bottom: 0.4rem; }
+.pcms-columns-mgr__col .pcms-blockmgr__row { flex-direction: column; align-items: stretch; }
+.pcms-columns-mgr__childrow { display: flex; align-items: center; gap: 0.3rem; width: 100%; }
+.pcms-columns-mgr__grip { cursor: grab; color: var(--pcms-muted); padding: 0 0.2rem; user-select: none; line-height: 1; }
+.pcms-columns-mgr__grip:active { cursor: grabbing; }
+.pcms-columns-mgr__fields { margin-top: 0.4rem; padding-top: 0.4rem; border-top: 1px dashed var(--pcms-border); }
+.pcms-columns-mgr__pick { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.pcms-columns-mgr__pick button { padding: 0.3rem 0.6rem; border: 1px solid var(--pcms-border); border-radius: 5px; background: var(--pcms-bg); cursor: pointer; font: inherit; color: var(--pcms-text); }
+.pcms-columns-mgr__pickcancel { color: var(--pcms-muted); }
+.pcms-blockmgr__row.is-dragging { opacity: 0.45; }
+.pcms-blockmgr__row.is-drop-before { box-shadow: inset 0 3px 0 var(--pcms-accent); }
 .pcms-sectionpalette__new { width: 100%; margin-top: 0.5rem; padding: 0.45rem; border: 1px dashed var(--pcms-border); border-radius: 6px; background: none; cursor: pointer; color: var(--pcms-text); }
 .pcms-sectionpalette__new:hover { background: var(--pcms-hover); }
 .pcms-sectionpalette__newbox { display: flex; gap: 0.4rem; margin-top: 0.5rem; }
