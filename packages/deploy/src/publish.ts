@@ -1,12 +1,52 @@
 import { manifestOf } from "./hash.js";
 import { diffManifests } from "./diff.js";
+import { withTimeout } from "./timeout.js";
 import type {
   FileEntry,
   FileSet,
+  ManifestDiff,
+  PublishManifest,
   PublishOptions,
   PublishResult,
   Transport,
 } from "./types.js";
+
+/** Hard ceiling on the reconciliation listing, mirroring listServerFiles. */
+const RECONCILE_LIST_TIMEOUT_MS = 25000;
+
+/**
+ * Augment the manifest diff with the destination's *actual* contents: any output
+ * file that is not present on the server is forced into the upload set, even if
+ * the manifest considered it unchanged. This keeps a changed remote directory, a
+ * server wiped behind our back, or a lost/stale manifest from publishing only a
+ * partial diff onto an incomplete destination. Deletes are left as the manifest
+ * computed them, so files this app never placed are still never touched
+ * (CLAUDE.md). If the listing is unavailable, the manifest-only diff stands.
+ */
+async function reconcileWithServer(
+  diff: ManifestDiff,
+  next: PublishManifest,
+  transport: Transport,
+  opts: PublishOptions,
+): Promise<ManifestDiff> {
+  if (opts.reconcileWithServer === false || typeof transport.list !== "function") return diff;
+  let serverPaths: Set<string>;
+  try {
+    serverPaths = new Set(
+      await withTimeout(transport.list(), RECONCILE_LIST_TIMEOUT_MS, "サーバーのファイル一覧取得"),
+    );
+  } catch {
+    return diff; // can't see the server → trust the manifest diff
+  }
+  const present = (p: string) => serverPaths.has(p);
+  const missing = diff.unchanged.filter((p) => !present(p) && p in next.files);
+  if (missing.length === 0) return diff;
+  return {
+    upload: [...diff.upload, ...missing].sort(),
+    delete: diff.delete,
+    unchanged: diff.unchanged.filter(present),
+  };
+}
 
 /**
  * Publish a file set over a transport, sending only what changed and deleting
@@ -19,7 +59,12 @@ export async function publish(
   opts: PublishOptions = {},
 ): Promise<PublishResult> {
   const next = manifestOf(files);
-  const diff = diffManifests(opts.previousManifest, next);
+  const diff = await reconcileWithServer(
+    diffManifests(opts.previousManifest, next),
+    next,
+    transport,
+    opts,
+  );
 
   if (opts.dryRun) {
     return { ok: true, diff, manifest: next, uploaded: [], deleted: [] };

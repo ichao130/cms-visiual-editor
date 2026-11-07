@@ -110,6 +110,16 @@ export interface PublishOptions {
   previousManifest?: PublishManifest;
   /** When true, compute the diff but send nothing. */
   dryRun?: boolean;
+  /**
+   * Reconcile the diff against the destination's actual file listing, so any
+   * output file missing on the server is (re)uploaded even if the manifest
+   * thought it was unchanged — this is what makes a changed remote directory, a
+   * wiped server, or a lost manifest publish the whole site instead of only the
+   * manifest diff. Defaults to on when the transport can list; set false to
+   * force a manifest-only diff (tests, or when a listing is known to be
+   * unreliable). If the listing fails, publish falls back to the manifest diff.
+   */
+  reconcileWithServer?: boolean;
 }
 
 export interface PublishResult {

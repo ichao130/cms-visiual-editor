@@ -44,6 +44,71 @@ describe("publish", () => {
     expect(read("keep.txt")).toBe("k"); // untouched (not re-uploaded)
   });
 
+  it("re-uploads everything when the destination is empty, even if the manifest says unchanged", async () => {
+    // Publish once to record a manifest, then publish the SAME output to a fresh
+    // empty destination (as when the remote directory is changed). The manifest
+    // alone would say "nothing changed"; reconciling against the empty server
+    // must force a full upload so the new directory isn't left incomplete.
+    const first = await publish({ "index.html": "a", "assets/x.css": "b" }, transport);
+
+    const rootB = mkdtempSync(join(tmpdir(), "pcms-deploy-b-"));
+    try {
+      const tB = new LocalTransport(rootB);
+      const res = await publish(
+        { "index.html": "a", "assets/x.css": "b" },
+        tB,
+        { previousManifest: first.manifest },
+      );
+      expect(res.uploaded.sort()).toEqual(["assets/x.css", "index.html"]);
+      expect(readFileSync(join(rootB, "index.html"), "utf8")).toBe("a");
+    } finally {
+      rmSync(rootB, { recursive: true, force: true });
+    }
+  });
+
+  it("does not re-upload files already present on the server", async () => {
+    const first = await publish({ "index.html": "a", "keep.txt": "k" }, transport);
+    // Same output again; both files are still on the server → nothing to send.
+    const res = await publish(
+      { "index.html": "a", "keep.txt": "k" },
+      transport,
+      { previousManifest: first.manifest },
+    );
+    expect(res.uploaded).toEqual([]);
+    expect(res.diff.unchanged.sort()).toEqual(["index.html", "keep.txt"]);
+  });
+
+  it("re-uploads only the file missing from the server", async () => {
+    const first = await publish({ "index.html": "a", "keep.txt": "k" }, transport);
+    // keep.txt vanishes from the server behind our back; manifest is unchanged.
+    await transport.delete("keep.txt");
+    const res = await publish(
+      { "index.html": "a", "keep.txt": "k" },
+      transport,
+      { previousManifest: first.manifest },
+    );
+    expect(res.uploaded).toEqual(["keep.txt"]);
+    expect(read("keep.txt")).toBe("k");
+  });
+
+  it("falls back to the manifest diff when the server listing fails", async () => {
+    const first = await publish({ "index.html": "a", "keep.txt": "k" }, transport);
+    // A transport whose listing throws must not break publishing: it just means
+    // we cannot reconcile, so the manifest diff stands (here: nothing changed).
+    const blindList: Transport = {
+      put: (p, d) => transport.put(p, d),
+      delete: (p) => transport.delete(p),
+      get: (p) => transport.get(p),
+      list: () => Promise.reject(new Error("listing unavailable")),
+    };
+    const res = await publish(
+      { "index.html": "a", "keep.txt": "k" },
+      blindList,
+      { previousManifest: first.manifest },
+    );
+    expect(res.uploaded).toEqual([]);
+  });
+
   it("computes a diff without sending on a dry run", async () => {
     const res = await publish({ "index.html": "x" }, transport, { dryRun: true });
     expect(res.diff.upload).toEqual(["index.html"]);
