@@ -2,6 +2,7 @@ import { parse, type HTMLElement, type Node } from "node-html-parser";
 import type {
   ContentItem,
   FieldValue,
+  MediaItem,
   MenuItem,
   RegionName,
   SectionInstance,
@@ -533,6 +534,23 @@ function applyField(el: HTMLElement, scope: RenderScope): boolean {
   const value = resolveField(path, scope);
   if (value === undefined) return false; // keep theme default content
 
+  // Gallery is a content-only field type (not an inline type), marked with an
+  // explicit data-type="gallery". Its value is a list of image paths (an array,
+  // or a comma-separated string) rendered as one <img> per image.
+  if (el.getAttribute(ATTR.type) === "gallery") {
+    const paths = Array.isArray(value)
+      ? value.map((v) => stringify(v)).map((s) => s.trim())
+      : stringify(value)
+          .split(",")
+          .map((s) => s.trim());
+    const imgs = paths
+      .filter((p) => p.length > 0)
+      .map((src) => galleryImg(src, scope.media?.[src]))
+      .join("");
+    el.set_content(imgs);
+    return true;
+  }
+
   const type = detectFieldType(el);
   switch (type) {
     case "image": {
@@ -576,6 +594,17 @@ function applyField(el: HTMLElement, scope: RenderScope): boolean {
       el.set_content(escapeHtml(stringify(value)));
       return true;
   }
+}
+
+/** One gallery `<img>`, with the same CLS/perf hints as a single image field. */
+function galleryImg(src: string, record: MediaItem | undefined): string {
+  const attrs = [`src="${escapeHtml(src)}"`];
+  attrs.push(`alt="${escapeHtml(record?.alt ?? "")}"`);
+  if (record?.width && record?.height) {
+    attrs.push(`width="${record.width}"`, `height="${record.height}"`);
+  }
+  attrs.push(`loading="lazy"`, `decoding="async"`);
+  return `<img ${attrs.join(" ")}>`;
 }
 
 function expandLoop(el: HTMLElement, scope: RenderScope): void {

@@ -2,6 +2,7 @@ import type { FieldDef, FieldValue } from "@pcms/shared";
 import { ImageField } from "./FieldInput.js";
 import { BlockEditor } from "./BlockEditor.js";
 import { AiRewriteAssist } from "./AiRewriteAssist.js";
+import { useMedia } from "../media/MediaContext.js";
 import { t } from "../i18n.js";
 
 interface ContentFieldProps {
@@ -74,6 +75,8 @@ function control(
     case "file":
       // Reuse the media picker; the stored value is the file's path.
       return <ImageField id={id} value={str} onChange={onChange} />;
+    case "gallery":
+      return <GalleryField id={id} value={str} onChange={onChange} />;
     case "multiselect":
       return <MultiSelectField id={id} value={str} options={field.options ?? []} onChange={onChange} />;
     case "checkbox":
@@ -102,6 +105,74 @@ function control(
         <input id={id} type="text" value={str} onChange={(e) => onChange(e.target.value)} />
       );
   }
+}
+
+/**
+ * Image gallery field: pick several images, reorder, remove. Stored as a
+ * comma-separated list of media paths (the engine renders one <img> each).
+ */
+function GalleryField({
+  id,
+  value,
+  onChange,
+}: {
+  id: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const { pickImage, resolveUrl } = useMedia();
+  const paths = value
+    .split(",")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+  const commit = (list: string[]) => onChange(list.join(", "));
+  const add = async () => {
+    const path = await pickImage();
+    if (path != null) commit([...paths, path]);
+  };
+  const removeAt = (i: number) => commit(paths.filter((_, idx) => idx !== i));
+  const move = (i: number, dir: -1 | 1) => {
+    const to = i + dir;
+    if (to < 0 || to >= paths.length) return;
+    const next = [...paths];
+    [next[i], next[to]] = [next[to]!, next[i]!];
+    commit(next);
+  };
+  return (
+    <div id={id} className="pcms-gallery">
+      <div className="pcms-gallery__grid">
+        {paths.map((p, i) => (
+          <div className="pcms-gallery__item" key={`${p}-${i}`}>
+            <img src={resolveUrl(p)} alt="" />
+            <div className="pcms-gallery__ops">
+              <button type="button" onClick={() => move(i, -1)} disabled={i === 0} title={t("sections.up")}>
+                ←
+              </button>
+              <button
+                type="button"
+                onClick={() => move(i, 1)}
+                disabled={i === paths.length - 1}
+                title={t("sections.down")}
+              >
+                →
+              </button>
+              <button
+                type="button"
+                className="pcms-gallery__del"
+                onClick={() => removeAt(i)}
+                title={t("media.clear")}
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+      <button type="button" className="pcms-gallery__add" onClick={add}>
+        ＋ {t("gallery.add")}
+      </button>
+    </div>
+  );
 }
 
 /**

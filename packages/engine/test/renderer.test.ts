@@ -160,3 +160,42 @@ describe("image field alt text", () => {
     expect(out).toContain('decoding="async"');
   });
 });
+
+describe("gallery field", () => {
+  function galleryScope(value: unknown, media?: RenderScope["media"]): RenderScope {
+    return {
+      site: sampleSite(),
+      theme: theme.config,
+      page: { fields: { "g.photos": value as never } },
+      menus: {},
+      collections: {},
+      media,
+    };
+  }
+  const tmpl = '<div class="gallery" data-field="g.photos" data-type="gallery"></div>';
+  const media = {
+    "media/a.webp": { id: "a", fileName: "a.webp", path: "media/a.webp", width: 800, height: 600, alt: "写真A" },
+  };
+
+  it("renders one <img> per image with alt/size from the media record", () => {
+    const out = renderTemplate(tmpl, galleryScope(["media/a.webp", "media/b.webp"], media));
+    expect((out.match(/<img /g) ?? []).length).toBe(2);
+    expect(out).toContain('src="media/a.webp"');
+    expect(out).toContain('alt="写真A"');
+    expect(out).toContain('width="800"');
+    expect(out).toContain('src="media/b.webp"');
+    expect(out).toContain('loading="lazy"');
+    expect(out).not.toMatch(/data-(field|type)=/);
+  });
+
+  it("accepts a comma-separated string value", () => {
+    const out = renderTemplate(tmpl, galleryScope("media/a.webp, media/b.webp"));
+    expect((out.match(/<img /g) ?? []).length).toBe(2);
+  });
+
+  it("renders nothing inside the container when empty", () => {
+    const out = renderTemplate(tmpl, galleryScope(""));
+    expect(out).toContain('class="gallery"');
+    expect(out).not.toContain("<img");
+  });
+});

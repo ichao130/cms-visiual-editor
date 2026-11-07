@@ -776,6 +776,13 @@ button.pcms-danger { color: var(--pcms-danger); border-color: var(--pcms-danger-
 .pcms-multiselect { display: flex; flex-wrap: wrap; gap: 0.25rem 0.75rem; }
 .pcms-multiselect__opt { display: flex; align-items: center; gap: 0.3rem; font-size: 0.8rem; }
 .pcms-multiselect__opt input { width: auto; }
+.pcms-gallery__grid { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.pcms-gallery__item { position: relative; width: 84px; }
+.pcms-gallery__item img { width: 84px; height: 84px; object-fit: cover; border-radius: 6px; border: 1px solid var(--pcms-border); display: block; }
+.pcms-gallery__ops { display: flex; gap: 0.1rem; margin-top: 0.15rem; }
+.pcms-gallery__ops button { flex: 1; font-size: 0.7rem; padding: 0.1rem; }
+.pcms-gallery__del { color: var(--pcms-danger, #c0392b); }
+.pcms-gallery__add { margin-top: 0.4rem; }
 .pcms-field select { width: 100%; font: inherit; padding: 0.4rem 0.5rem; border: 1px solid var(--pcms-border); border-radius: 6px; }
 
 .pcms-modal__panel--narrow { width: min(420px, 92vw); }

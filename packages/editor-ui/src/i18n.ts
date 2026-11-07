@@ -106,6 +106,7 @@ const ja = {
   "repeat.duplicate": "複製",
   "repeat.item": "項目",
   "field.selectEmpty": "未選択",
+  "gallery.add": "画像を追加",
   "preview.title": "プレビュー",
   "content.title": "コンテンツ",
   "content.field.title": "タイトル",
