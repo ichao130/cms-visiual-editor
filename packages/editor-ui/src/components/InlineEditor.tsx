@@ -20,6 +20,8 @@ interface InlineEditorProps {
   onStyleChange: (patch: Partial<SectionStyle>) => void;
   onCopy: () => void;
   onClose: () => void;
+  /** Swap this section to a different part (opens the swap picker). */
+  onSwap?: () => void;
   /** Optional nested-block manager, shown under the section's fields. */
   blocks?: ReactNode;
 }
@@ -44,6 +46,7 @@ export function InlineEditor({
   onStyleChange,
   onCopy,
   onClose,
+  onSwap,
   blocks,
 }: InlineEditorProps) {
   // A manual position set by dragging overrides the anchored position until the
@@ -136,6 +139,17 @@ export function InlineEditor({
           onMouseDown={onHeaderDown}
         >
           <span className="pcms-inline__title">{schema.label ?? schema.id}</span>
+          {onSwap && (
+            <button
+              type="button"
+              className="pcms-inline__swap"
+              onClick={onSwap}
+              onMouseDown={(e) => e.stopPropagation()}
+              title={t("swap.section")}
+            >
+              ⇄ {t("swap.short")}
+            </button>
+          )}
           <button
             type="button"
             className="pcms-inline__copy"

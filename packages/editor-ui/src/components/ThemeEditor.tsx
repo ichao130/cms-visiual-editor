@@ -28,6 +28,8 @@ import {
   addBlock,
   addInstance,
   addRegionInstance,
+  changeBlockType,
+  changeInstanceType,
   duplicateBlock,
   duplicateInstance,
   duplicateRegionInstance,
@@ -56,6 +58,7 @@ import {
   toggleSectionHidden,
   type InstanceLoc,
   type ThemeTokenGroup,
+  type TypeChange,
 } from "../state/mutations.js";
 import type { RegionName } from "@pcms/shared";
 import {
@@ -126,6 +129,11 @@ export function ThemeEditor() {
   >(null);
   // The site-wide theme style panel (colors / fonts / spacing) is open.
   const [themeStyleOpen, setThemeStyleOpen] = useState(false);
+  // A swap picker is open: for a placed section, or a placed nested block.
+  const [swapAt, setSwapAt] = useState<{ scope: Scope; section: string } | null>(null);
+  const [blockSwapAt, setBlockSwapAt] = useState<
+    { scope: Scope; section: string; block: string } | null
+  >(null);
   const mediaLib = useMediaLibrary(api);
 
   // Select the first target once the project is loaded.
@@ -619,6 +627,45 @@ export function ThemeEditor() {
     [api, project, listFor, reloadProject, onAddBlock],
   );
 
+  // --- Swap a placed section / block to another part (in-place type change) --
+  // The instance keeps its id (position, selection); values are carried over
+  // where the new part still has a place for them (see changeInstanceType).
+
+  const onSwapSection = useCallback(
+    (scope: Scope, sectionId: string, newType: string) => {
+      const schema = schemaByType.get(newType);
+      const secHtml = project?.theme.sections?.[newType];
+      const change: TypeChange = {
+        type: newType,
+        fieldPaths: schema ? schema.fields.map((f) => f.path) : [],
+        repeatNames: schema ? schema.repeats.map((r) => r.name) : [],
+        blockTypes: secHtml ? sectionBlockTypes(secHtml) : null,
+      };
+      commit({ ...doc, settings: changeInstanceType(doc.settings, locFor(scope), sectionId, change) });
+      setEditScope(scope);
+      setSelectedId(sectionId);
+      setSelectedBlockId(null);
+      setDirty(true);
+    },
+    [commit, doc, project, schemaByType, locFor, setDirty],
+  );
+
+  const onSwapBlock = useCallback(
+    (scope: Scope, sectionId: string, blockId: string, newType: string) => {
+      const schema = blockSchemaByType.get(newType);
+      const paths = schema ? schema.fields.map((f) => f.path) : [];
+      commit({
+        ...doc,
+        settings: changeBlockType(doc.settings, locFor(scope), sectionId, blockId, newType, paths),
+      });
+      setEditScope(scope);
+      setSelectedId(sectionId);
+      setSelectedBlockId(blockId);
+      setDirty(true);
+    },
+    [commit, doc, blockSchemaByType, locFor, setDirty],
+  );
+
   // --- Site-wide theme style (colors / fonts / spacing) --------------------
   // Overrides live in settings.theme and are merged over the theme's presets.
   // The live preview re-renders from doc.settings.theme, so edits show at once.
@@ -999,6 +1046,7 @@ export function ThemeEditor() {
                 onStyleChange={onInstanceStyle}
                 onCopy={onCopyInstance}
                 onClose={() => setInlineOpen(false)}
+                onSwap={() => setSwapAt({ scope: editScope, section: selectedInstance.id })}
                 blocks={blocksArea}
               />
             ) : null
@@ -1020,12 +1068,29 @@ export function ThemeEditor() {
               schema={selectedBlockSchema}
               onFieldChange={onBlockField}
               onBack={() => setSelectedBlockId(null)}
+              onSwap={() =>
+                setBlockSwapAt({
+                  scope: editScope,
+                  section: selectedInstance!.id,
+                  block: selectedBlock.id,
+                })
+              }
             />
           ) : selectedInstance ? (
             <aside className="pcms-settings">
-              <h2 className="pcms-col__title">
-                {t("settings.title")}：{selectedInstanceSchema?.label ?? selectedInstance.type}
-              </h2>
+              <div className="pcms-settings__titlerow">
+                <h2 className="pcms-col__title">
+                  {t("settings.title")}：{selectedInstanceSchema?.label ?? selectedInstance.type}
+                </h2>
+                <button
+                  type="button"
+                  className="pcms-swapbtn"
+                  onClick={() => setSwapAt({ scope: editScope, section: selectedInstance.id })}
+                  title={t("swap.section")}
+                >
+                  ⇄ {t("swap.short")}
+                </button>
+              </div>
               {selectedInstanceSchema && (
                 <SectionFields
                   schema={selectedInstanceSchema}
@@ -1109,6 +1174,43 @@ export function ThemeEditor() {
           onClose={() => setBlockInsertAt(null)}
         />
       )}
+      {swapAt != null &&
+        (() => {
+          const curType = listFor(swapAt.scope).find((i) => i.id === swapAt.section)?.type;
+          return (
+            <AddSectionModal
+              heading={t("swap.pickSection")}
+              emptyHint={t("swap.none")}
+              catalog={catalog
+                .filter((c) => c.id !== curType)
+                .map((c) => ({ type: c.id, label: c.label ?? c.id }))}
+              onPick={(type) => {
+                onSwapSection(swapAt.scope, swapAt.section, type);
+                setSwapAt(null);
+              }}
+              onClose={() => setSwapAt(null)}
+            />
+          );
+        })()}
+      {blockSwapAt != null &&
+        (() => {
+          const section = listFor(blockSwapAt.scope).find((i) => i.id === blockSwapAt.section);
+          const curType = section?.blocks?.find((b) => b.id === blockSwapAt.block)?.type;
+          return (
+            <AddSectionModal
+              heading={t("swap.pickBlock")}
+              emptyHint={t("swap.none")}
+              catalog={blockTypesForSection(section?.type ?? "")
+                .filter((ty) => ty !== curType)
+                .map((ty) => ({ type: ty, label: blockSchemaByType.get(ty)?.label ?? ty }))}
+              onPick={(type) => {
+                onSwapBlock(blockSwapAt.scope, blockSwapAt.section, blockSwapAt.block, type);
+                setBlockSwapAt(null);
+              }}
+              onClose={() => setBlockSwapAt(null)}
+            />
+          );
+        })()}
     </MediaContext.Provider>
   );
 }

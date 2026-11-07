@@ -102,18 +102,27 @@ interface BlockSettingsProps {
   schema: SectionSchema;
   onFieldChange: (path: string, value: string) => void;
   onBack: () => void;
+  /** Swap this block to a different part (opens the swap picker). */
+  onSwap?: () => void;
 }
 
 /** Settings panel for one selected nested block, driven by its schema. */
-export function BlockSettings({ block, schema, onFieldChange, onBack }: BlockSettingsProps) {
+export function BlockSettings({ block, schema, onFieldChange, onBack, onSwap }: BlockSettingsProps) {
   return (
     <aside className="pcms-settings">
       <button type="button" className="pcms-settings__back" onClick={onBack}>
         ← {t("block.backToSection")}
       </button>
-      <h2 className="pcms-col__title">
-        {t("block.settings")}：{schema.label ?? schema.id}
-      </h2>
+      <div className="pcms-settings__titlerow">
+        <h2 className="pcms-col__title">
+          {t("block.settings")}：{schema.label ?? schema.id}
+        </h2>
+        {onSwap && (
+          <button type="button" className="pcms-swapbtn" onClick={onSwap} title={t("swap.block")}>
+            ⇄ {t("swap.short")}
+          </button>
+        )}
+      </div>
       <SectionFields
         schema={schema}
         instance={block as SectionInstance}

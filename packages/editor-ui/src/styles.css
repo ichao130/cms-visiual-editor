@@ -537,6 +537,21 @@ button.pcms-themebtn:hover:not(:disabled) { background: var(--pcms-hover); }
   margin-bottom: 0.5rem;
 }
 .pcms-settings__back:hover { text-decoration: underline; }
+.pcms-settings__titlerow { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; }
+.pcms-swapbtn {
+  flex: none;
+  border: 1px solid var(--pcms-border);
+  background: var(--pcms-panel);
+  color: var(--pcms-text);
+  font-size: 0.74rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.pcms-swapbtn:hover { background: var(--pcms-hover); }
+.pcms-inline__swap { border: none; background: none; color: var(--pcms-accent); font-size: 0.78rem; padding: 0.1rem 0.4rem; cursor: pointer; white-space: nowrap; }
+.pcms-inline__swap:hover { text-decoration: underline; }
 
 /* Section list */
 .pcms-sections ul { list-style: none; margin: 0; padding: 0; }

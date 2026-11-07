@@ -514,6 +514,100 @@ export function setBlockField(
   );
 }
 
+// --- Swap a placed section or block to a different part (type) ---------------
+// Changing an instance's `type` re-renders it with another theme part, in place.
+// Values are carried over where they still fit: a field is kept when the new
+// type declares a field with the same path, a repeat group when the new type
+// declares it, and nested blocks when the new section still accepts that block
+// type. Everything else is dropped — the new part has no place for it. The
+// instance id (so its position and selection) stays the same, and the change is
+// reversible via undo. The renderer tolerates missing/unknown fields, so no
+// engine change is needed.
+
+/** What the new type can hold, so a swap keeps only values that still fit. */
+export interface TypeChange {
+  type: string;
+  /** Field paths the new type declares; values at other paths are dropped. */
+  fieldPaths: string[];
+  /** Repeat group names the new type declares; others are dropped. */
+  repeatNames?: string[];
+  /**
+   * Block types the new section accepts: null = the new type has no blocks slot
+   * (drop all blocks), [] = any type (keep all), [..] = keep only these types.
+   */
+  blockTypes?: string[] | null;
+}
+
+/** Keep only the entries whose key is allowed; undefined when nothing remains. */
+function keepByKey<T>(
+  bag: Record<string, T> | undefined,
+  allow: Set<string>,
+): Record<string, T> | undefined {
+  if (!bag) return undefined;
+  const next: Record<string, T> = {};
+  for (const [k, v] of Object.entries(bag)) if (allow.has(k)) next[k] = v;
+  return Object.keys(next).length ? next : undefined;
+}
+
+/** Re-type one section instance, carrying over values that still fit. */
+export function migrateInstanceType(inst: SectionInstance, change: TypeChange): SectionInstance {
+  const fields = keepByKey(inst.fields, new Set(change.fieldPaths));
+  const repeats = keepByKey(inst.repeats, new Set(change.repeatNames ?? []));
+  let blocks: BlockInstance[] | undefined;
+  if (change.blockTypes == null) blocks = undefined;
+  else if (change.blockTypes.length === 0) blocks = inst.blocks;
+  else {
+    const allow = new Set(change.blockTypes);
+    blocks = inst.blocks?.filter((b) => allow.has(b.type));
+  }
+  if (blocks && blocks.length === 0) blocks = undefined;
+  const next: SectionInstance = { ...inst, type: change.type };
+  if (fields) next.fields = fields;
+  else delete next.fields;
+  if (repeats) next.repeats = repeats;
+  else delete next.repeats;
+  if (blocks) next.blocks = blocks;
+  else delete next.blocks;
+  return next;
+}
+
+/** Re-type one nested block, carrying over fields that still fit. */
+export function migrateBlockType(
+  block: BlockInstance,
+  type: string,
+  fieldPaths: string[],
+): BlockInstance {
+  const fields = keepByKey(block.fields, new Set(fieldPaths));
+  const next: BlockInstance = { ...block, type };
+  if (fields) next.fields = fields;
+  else delete next.fields;
+  return next;
+}
+
+/** Swap a placed section (body or region) to a different section part. */
+export function changeInstanceType(
+  settings: SiteSettings,
+  loc: InstanceLoc,
+  sectionId: string,
+  change: TypeChange,
+): SiteSettings {
+  return withInstanceAt(settings, loc, sectionId, (inst) => migrateInstanceType(inst, change));
+}
+
+/** Swap a placed nested block to a different block part. */
+export function changeBlockType(
+  settings: SiteSettings,
+  loc: InstanceLoc,
+  sectionId: string,
+  blockId: string,
+  type: string,
+  fieldPaths: string[],
+): SiteSettings {
+  return withBlocks(settings, loc, sectionId, (list) =>
+    list.map((b) => (b.id === blockId ? migrateBlockType(b, type, fieldPaths) : b)),
+  );
+}
+
 // --- Theme-wide style overrides (colors / fonts / spacing) ------------------
 // `settings.theme` holds only the operator's overrides (deltas); rendering
 // merges them over the theme's own presets (theme.json). Setting a token to ""
