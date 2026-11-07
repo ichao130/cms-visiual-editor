@@ -157,6 +157,7 @@ export function PublishFlow({ api }: { api: PcmsApi }) {
       const p = await api.previewPublish();
       setPreview(p);
       if (p.error) toast(t("publish.failed"), "error");
+      else toast(t("publish.checkDone"));
     } catch (err) {
       // Shouldn't happen (main returns errors in-band), but never let a failed
       // check crash the screen — surface it like any other publish error.
@@ -435,6 +436,51 @@ export function PublishFlow({ api }: { api: PcmsApi }) {
         {config && <span className="pcms-publish__targetlabel">{targetLabel(config)}</span>}
       </section>
 
+      {preview && (
+        <section className="pcms-publish__result">
+          {preview.error ? (
+            <DeployErrorDiagnosis message={preview.error} />
+          ) : (
+            <>
+              <p className="pcms-publish__counts">
+                {t("publish.changes")}: {t("publish.willUpload")} {preview.upload} /{" "}
+                {t("publish.willDelete")} {preview.delete} / {t("publish.unchanged")}{" "}
+                {preview.unchanged}
+              </p>
+              {(preview.deletePaths ?? []).length > 0 && (
+                <PathList
+                  label={`${t("publish.willDelete")}（${preview.deletePaths.length}）`}
+                  paths={preview.deletePaths}
+                  danger
+                  open
+                />
+              )}
+              {(preview.uploadPaths ?? []).length > 0 && (
+                <PathList
+                  label={`${t("publish.willUpload")}（${preview.uploadPaths.length}）`}
+                  paths={preview.uploadPaths}
+                />
+              )}
+              <IssueList issues={preview.issues} />
+            </>
+          )}
+        </section>
+      )}
+
+      {report && (
+        <section className="pcms-publish__result">
+          <p className={`pcms-publish__status${report.ok ? " is-ok" : " is-bad"}`}>
+            {report.blocked
+              ? t("publish.blocked")
+              : report.ok
+                ? `${t("publish.done")}（${t("publish.willUpload")} ${report.uploaded} / ${t("publish.willDelete")} ${report.deleted}）`
+                : `${t("publish.failed")}${report.rolledBack ? " — " + t("publish.rolledBack") : ""}`}
+          </p>
+          {!report.ok && !report.blocked && report.error && <DeployErrorDiagnosis message={report.error} />}
+          <IssueList issues={report.issues} />
+        </section>
+      )}
+
       <section className="pcms-publish__filebrowser">
         <h3 className="pcms-types__fieldshead">{t("publish.files.title")}</h3>
         <p className="pcms-filebrowser__hint">{t("publish.files.hint")}</p>
@@ -493,51 +539,6 @@ export function PublishFlow({ api }: { api: PcmsApi }) {
           </div>
         </div>
       </section>
-
-      {preview && (
-        <section className="pcms-publish__result">
-          {preview.error ? (
-            <DeployErrorDiagnosis message={preview.error} />
-          ) : (
-            <>
-              <p className="pcms-publish__counts">
-                {t("publish.changes")}: {t("publish.willUpload")} {preview.upload} /{" "}
-                {t("publish.willDelete")} {preview.delete} / {t("publish.unchanged")}{" "}
-                {preview.unchanged}
-              </p>
-              {(preview.deletePaths ?? []).length > 0 && (
-                <PathList
-                  label={`${t("publish.willDelete")}（${preview.deletePaths.length}）`}
-                  paths={preview.deletePaths}
-                  danger
-                  open
-                />
-              )}
-              {(preview.uploadPaths ?? []).length > 0 && (
-                <PathList
-                  label={`${t("publish.willUpload")}（${preview.uploadPaths.length}）`}
-                  paths={preview.uploadPaths}
-                />
-              )}
-              <IssueList issues={preview.issues} />
-            </>
-          )}
-        </section>
-      )}
-
-      {report && (
-        <section className="pcms-publish__result">
-          <p className={`pcms-publish__status${report.ok ? " is-ok" : " is-bad"}`}>
-            {report.blocked
-              ? t("publish.blocked")
-              : report.ok
-                ? `${t("publish.done")}（${t("publish.willUpload")} ${report.uploaded} / ${t("publish.willDelete")} ${report.deleted}）`
-                : `${t("publish.failed")}${report.rolledBack ? " — " + t("publish.rolledBack") : ""}`}
-          </p>
-          {!report.ok && !report.blocked && report.error && <DeployErrorDiagnosis message={report.error} />}
-          <IssueList issues={report.issues} />
-        </section>
-      )}
 
       <section className="pcms-publish__history">
         <h3 className="pcms-types__fieldshead">{t("publish.history")}</h3>

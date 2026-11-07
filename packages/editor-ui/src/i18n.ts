@@ -168,6 +168,7 @@ const ja = {
   "publish.confirmRun": "この内容で公開しますか？サーバー上のファイルが更新されます。",
   "publish.running": "公開中…",
   "publish.checking": "チェック中…",
+  "publish.checkDone": "公開前チェックが完了しました",
   "publish.history": "公開履歴",
   "publish.rollback": "この版に戻す",
   "publish.noHistory": "まだ公開していません。",
