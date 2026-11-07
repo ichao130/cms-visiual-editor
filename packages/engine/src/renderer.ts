@@ -362,10 +362,11 @@ function blockInsertMarker(sectionId: string, index: number): string {
   return `<div class="pcms-insert pcms-blockinsert" data-pcms-blockinsert="${index}" data-pcms-blocksection="${sectionId}"><button type="button" class="pcms-insert__btn" title="ここにブロックを追加">＋</button></div>`;
 }
 
-/** Editor-only per-block toolbar (up/down/duplicate/delete). */
+/** Editor-only per-block toolbar (drag handle + up/down/duplicate/delete). */
 function blockTools(sectionId: string, id: string): string {
   return (
     `<div class="pcms-block-tools" contenteditable="false">` +
+    `<span class="pcms-block-handle" draggable="true" data-pcms-blockdrag="${id}" data-pcms-blocksection="${sectionId}" title="ドラッグで並べ替え">⠿</span>` +
     `<button type="button" class="pcms-sec-op" data-pcms-blockop="up" data-pcms-blockid="${id}" data-pcms-blocksection="${sectionId}" title="上へ">↑</button>` +
     `<button type="button" class="pcms-sec-op" data-pcms-blockop="down" data-pcms-blockid="${id}" data-pcms-blocksection="${sectionId}" title="下へ">↓</button>` +
     `<button type="button" class="pcms-sec-op" data-pcms-blockop="dup" data-pcms-blockid="${id}" data-pcms-blocksection="${sectionId}" title="複製">⧉</button>` +

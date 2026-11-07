@@ -21,8 +21,9 @@ export const EDITOR_OVERLAY_CSS = `
 .pcms-sec-tools button:hover{background:#eef0f2;}
 .pcms-insert{position:relative;height:6px;display:flex;align-items:center;justify-content:center;margin:0;}
 .pcms-insert__btn{width:24px;height:24px;border-radius:50%;border:1px solid #2f6feb;background:#fff;color:#2f6feb;font-size:14px;line-height:1;cursor:pointer;opacity:0;transition:opacity .1s;z-index:9;padding:0;}
-.pcms-insert:hover .pcms-insert__btn,body.pcms-dragging .pcms-insert__btn{opacity:1;}
-body.pcms-dragging .pcms-insert{height:18px;outline:1px dashed #9db6ef;}
+.pcms-insert:hover .pcms-insert__btn,body.pcms-dragging .pcms-insert:not(.pcms-blockinsert) .pcms-insert__btn,body.pcms-blockdragging .pcms-blockinsert .pcms-insert__btn{opacity:1;}
+body.pcms-dragging .pcms-insert:not(.pcms-blockinsert){height:18px;outline:1px dashed #9db6ef;}
+body.pcms-blockdragging .pcms-blockinsert{height:18px;outline:1px dashed #9db6ef;}
 .pcms-insert--over{background:#eaf1ff;}
 .pcms-insert--over .pcms-insert__btn{opacity:1;background:#2f6feb;color:#fff;}
 .pcms-empty-canvas{margin:2rem;padding:3rem 1rem;border:2px dashed #c0c6cf;border-radius:12px;text-align:center;color:#6b7280;font-family:sans-serif;line-height:1.8;}
@@ -33,15 +34,16 @@ body.pcms-dragging .pcms-insert{height:18px;outline:1px dashed #9db6ef;}
 .pcms-block{position:relative;}
 .pcms-block-tools{position:absolute;top:2px;right:2px;z-index:11;display:flex;gap:2px;background:rgba(255,255,255,.96);border:1px solid #d0d7de;border-radius:6px;padding:2px;opacity:0;transition:opacity .1s;box-shadow:0 1px 4px rgba(0,0,0,.15);}
 .pcms-block:hover>.pcms-block-tools{opacity:1;}
-.pcms-block-tools button{font:inherit;font-size:12px;line-height:1;border:none;background:transparent;cursor:pointer;padding:3px 5px;border-radius:4px;color:#333;}
-.pcms-block-tools button:hover{background:#eef0f2;}
+.pcms-block-tools button,.pcms-block-handle{font:inherit;font-size:12px;line-height:1;border:none;background:transparent;cursor:pointer;padding:3px 5px;border-radius:4px;color:#333;}
+.pcms-block-handle{cursor:grab;}
+.pcms-block-tools button:hover,.pcms-block-handle:hover{background:#eef0f2;}
 .pcms-empty-blocks{margin:1rem;padding:1.5rem 1rem;border:2px dashed #c0c6cf;border-radius:10px;text-align:center;color:#6b7280;font-family:sans-serif;line-height:1.7;font-size:13px;}
 `;
 
 export const EDITOR_RUNTIME = `
 (function(){
   var SEL='[data-pcms-section],[data-pcms-block],[data-pcms-field]';
-  var hovered=null, selected=null, dragId=null, editing=null, clickTimer=null;
+  var hovered=null, selected=null, dragId=null, dragBlock=null, editing=null, clickTimer=null;
   function closestEditable(t){ return (t && t.closest) ? t.closest(SEL) : null; }
   function blockOf(el){ return (el&&el.closest)?el.closest('[data-pcms-block]'):null; }
   // Which group (header / footer / body) an element belongs to, so the editor
@@ -174,25 +176,40 @@ export const EDITOR_RUNTIME = `
     }
   }, true);
 
+  function endDrag(){ dragId=null; dragBlock=null; document.body.classList.remove('pcms-dragging'); document.body.classList.remove('pcms-blockdragging'); clearDrop(); }
   document.addEventListener('dragstart', function(e){
+    // A block handle takes priority; blocks reorder only within their section.
+    var bh=e.target.closest ? e.target.closest('[data-pcms-blockdrag]') : null;
+    if(bh){ dragBlock={id:bh.getAttribute('data-pcms-blockdrag'), section:bh.getAttribute('data-pcms-blocksection'), region:regionOf(bh)};
+      try{ e.dataTransfer.setData('text/plain', dragBlock.id); e.dataTransfer.effectAllowed='move'; }catch(_){}
+      document.body.classList.add('pcms-blockdragging'); return; }
     var h=e.target.closest ? e.target.closest('[data-pcms-drag]') : null;
     if(!h) return;
     dragId=h.getAttribute('data-pcms-drag');
     try{ e.dataTransfer.setData('text/plain', dragId); e.dataTransfer.effectAllowed='move'; }catch(_){}
     document.body.classList.add('pcms-dragging');
   }, true);
-  document.addEventListener('dragend', function(){ dragId=null; document.body.classList.remove('pcms-dragging'); clearDrop(); }, true);
+  document.addEventListener('dragend', endDrag, true);
   document.addEventListener('dragover', function(e){
+    if(dragBlock){
+      var bins=e.target.closest ? e.target.closest('[data-pcms-blockinsert]') : null;
+      if(bins && bins.getAttribute('data-pcms-blocksection')===dragBlock.section){ e.preventDefault(); clearDrop(); bins.classList.add('pcms-insert--over'); }
+      return;
+    }
     if(!dragId) return;
     var ins=e.target.closest ? e.target.closest('[data-pcms-insert]') : null;
     if(ins){ e.preventDefault(); clearDrop(); ins.classList.add('pcms-insert--over'); }
   }, true);
   document.addEventListener('drop', function(e){
-    if(dragId){
+    if(dragBlock){
+      var bins=e.target.closest ? e.target.closest('[data-pcms-blockinsert]') : null;
+      if(bins && bins.getAttribute('data-pcms-blocksection')===dragBlock.section){ e.preventDefault();
+        post({type:'blockmove', id:dragBlock.id, section:dragBlock.section, toIndex:Number(bins.getAttribute('data-pcms-blockinsert')), region:dragBlock.region}); }
+    } else if(dragId){
       var ins=e.target.closest ? e.target.closest('[data-pcms-insert]') : null;
       if(ins){ e.preventDefault(); post({type:'move', id:dragId, toIndex:Number(ins.getAttribute('data-pcms-insert')), region:regionOf(ins)}); }
     }
-    dragId=null; document.body.classList.remove('pcms-dragging'); clearDrop();
+    endDrag();
   }, true);
 
   // Keep the floating editor glued to its section as the preview scrolls/resizes.

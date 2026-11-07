@@ -514,6 +514,22 @@ export function ThemeEditor() {
     [commit, doc, locFor, blocksOf],
   );
 
+  // Drag-reorder a block within its section. `toIndex` is the gap the block was
+  // dropped on; dropping below its current slot shifts the target left by one
+  // (the block is removed before it is re-inserted) — same as section drag.
+  const onBlockMove = useCallback(
+    (scope: Scope, sectionId: string, blockId: string, toIndex: number) => {
+      const list = blocksOf(scope, sectionId);
+      const from = list.findIndex((b) => b.id === blockId);
+      if (from < 0) return;
+      const to = toIndex > from ? toIndex - 1 : toIndex;
+      if (to === from) return;
+      commit({ ...doc, settings: moveBlock(doc.settings, locFor(scope), sectionId, from, to) });
+      setDirty(true);
+    },
+    [commit, doc, locFor, blocksOf],
+  );
+
   const applyBlockFieldEdit = useCallback(
     (scope: Scope, section: string, block: string, field: string, value: string, key?: string) => {
       const settings = setBlockField(doc.settings, locFor(scope), section, block, field, value);
@@ -646,6 +662,10 @@ export function ThemeEditor() {
         onBlockOp(region, d.section, d.id, d.op);
         return;
       }
+      if (d.type === "blockmove" && d.section && d.id && d.toIndex != null) {
+        onBlockMove(region, d.section, d.id, d.toIndex);
+        return;
+      }
       if (d.type === "blockinsert" && d.section && d.index != null) {
         setEditScope(region);
         setSelectedId(d.section);
@@ -723,6 +743,7 @@ export function ThemeEditor() {
     onDeleteInstance,
     onDuplicateInstance,
     onBlockOp,
+    onBlockMove,
     applyFieldEdit,
     applyBlockFieldEdit,
     mediaLib.value,
