@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { SiteConfig } from "@pcms/shared";
-import { localBusinessJsonLd, siteJsonLd } from "../src/jsonld.js";
+import type { ContentItem } from "@pcms/shared";
+import { faqJsonLd, localBusinessJsonLd, siteJsonLd } from "../src/jsonld.js";
 
 const site = (business?: SiteConfig["business"]): SiteConfig => ({
   name: "サンプルカフェ",
@@ -53,5 +54,31 @@ describe("localBusinessJsonLd", () => {
     const withBiz = siteJsonLd(site({ telephone: "03-0000-0000" }));
     expect(withBiz).toHaveLength(3);
     expect((withBiz[2] as Record<string, unknown>)["@type"]).toBe("LocalBusiness");
+  });
+});
+
+describe("faqJsonLd", () => {
+  const item = (fields: Record<string, unknown>): ContentItem => ({
+    type: "page",
+    slug: "faq",
+    fields: fields as never,
+    body: "",
+  });
+
+  it("builds FAQPage from a group field of question/answer rows", () => {
+    const obj = faqJsonLd(
+      item({ faq: '[{"question":"営業時間は？","answer":"9時〜18時です。"}]' }),
+    ) as Record<string, unknown>;
+    expect(obj).not.toBeNull();
+    expect(obj["@type"]).toBe("FAQPage");
+    const entity = (obj.mainEntity as Record<string, unknown>[])[0]!;
+    expect(entity.name).toBe("営業時間は？");
+    expect((entity.acceptedAnswer as Record<string, unknown>).text).toBe("9時〜18時です。");
+  });
+
+  it("accepts 質問/回答 keys and returns null without a complete pair", () => {
+    expect(faqJsonLd(item({ x: '[{"質問":"Q","回答":"A"}]' }))).not.toBeNull();
+    expect(faqJsonLd(item({ x: '[{"question":"only-q"}]' }))).toBeNull();
+    expect(faqJsonLd(item({ title: "ただの文字列" }))).toBeNull();
   });
 });

@@ -47,7 +47,10 @@ describe("generateSite", () => {
       "<loc>https://example.test/post/hours/</loc><lastmod>2026-02-10</lastmod>",
     );
     // A dateless page (home) gets a <loc> but no <lastmod>.
-    expect(sitemap).toContain("<url><loc>https://example.test/</loc></url>");
+    expect(sitemap).toContain("<url><loc>https://example.test/</loc><changefreq>");
+    expect(sitemap).not.toMatch(/https:\/\/example\.test\/<\/loc><lastmod>/);
+    // Priority: home 1.0, content pages 0.7.
+    expect(sitemap).toContain("<loc>https://example.test/</loc><changefreq>weekly</changefreq><priority>1.0</priority>");
   });
 
   it("renders HTML content bodies into item pages", () => {
@@ -688,5 +691,37 @@ describe("generateSite", () => {
     expect(out.files["feed.xml"]).toContain("通常記事");
     // An indexed page carries no robots meta.
     expect(out.files["post/shown/index.html"]).not.toContain('name="robots"');
+  });
+});
+
+describe("generateSite SEO additions", () => {
+  it("adds an image sitemap entry and an RSS enclosure for an item with an image", () => {
+    const input = sampleInput();
+    input.content = input.content.map((c) =>
+      c.slug === "open" ? { ...c, fields: { ...c.fields, image: "/media/cup.png" } } : c,
+    );
+    const { files } = generateSite(input);
+    expect(files["sitemap.xml"]).toContain('xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"');
+    expect(files["sitemap.xml"]).toContain("<image:loc>https://example.test/media/cup.png</image:loc>");
+    expect(files["feed.xml"]).toContain('<enclosure url="https://example.test/media/cup.png" type="image/png"');
+  });
+
+  it("disallows noindex paths in robots.txt", () => {
+    const input = sampleInput();
+    input.content = input.content.map((c) =>
+      c.slug === "open" ? { ...c, noindex: true } : c,
+    );
+    const { files } = generateSite(input);
+    expect(files["robots.txt"]).toContain("Disallow: /post/open/");
+    // The noindex page is also kept out of the sitemap.
+    expect(files["sitemap.xml"]).not.toContain("https://example.test/post/open/");
+  });
+
+  it("localizes the 404 page copy by site language", () => {
+    const input = sampleInput();
+    input.site = { ...input.site, lang: "en" };
+    const { files } = generateSite(input);
+    expect(files["404.html"]).toContain('<html lang="en">');
+    expect(files["404.html"]).toContain("Page not found");
   });
 });

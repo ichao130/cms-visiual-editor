@@ -111,6 +111,51 @@ export function articleJsonLd(
   return obj;
 }
 
+/**
+ * FAQPage structured data from an item's group field whose rows carry a
+ * question and an answer (keys question/answer, q/a, or 質問/回答). Returns null
+ * unless at least one complete Q&A pair is found, so no empty/invalid FAQ
+ * markup is ever emitted. The group field is stored as a JSON array of rows.
+ */
+export function faqJsonLd(item: ContentItem): object | null {
+  const pairs: { q: string; a: string }[] = [];
+  for (const value of Object.values(item.fields)) {
+    if (typeof value !== "string" || !value.trim().startsWith("[")) continue;
+    let rows: unknown;
+    try {
+      rows = JSON.parse(value);
+    } catch {
+      continue;
+    }
+    if (!Array.isArray(rows)) continue;
+    for (const row of rows) {
+      if (!row || typeof row !== "object") continue;
+      const r = row as Record<string, unknown>;
+      const q = pick(r, ["question", "q", "質問"]);
+      const a = pick(r, ["answer", "a", "回答"]);
+      if (q && a) pairs.push({ q, a });
+    }
+  }
+  if (pairs.length === 0) return null;
+  return {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: pairs.map((p) => ({
+      "@type": "Question",
+      name: p.q,
+      acceptedAnswer: { "@type": "Answer", text: p.a },
+    })),
+  };
+}
+
+function pick(row: Record<string, unknown>, keys: string[]): string | undefined {
+  for (const k of keys) {
+    const v = row[k];
+    if (typeof v === "string" && v.trim() !== "") return v.trim();
+  }
+  return undefined;
+}
+
 /** BreadcrumbList from a trail of crumbs. */
 export function breadcrumbJsonLd(crumbs: Crumb[], site: SiteConfig): object {
   const b = base(site);

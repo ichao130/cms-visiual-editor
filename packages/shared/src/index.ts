@@ -346,6 +346,7 @@ export const BUILTIN_CONTENT_TYPES: ContentTypeDef[] = [
     fields: [
       { name: "title", label: "タイトル", type: "text", required: true },
       { name: "date", label: "日付", type: "date" },
+      { name: "author", label: "著者", type: "text" },
       { name: "body", label: "本文", type: "richtext" },
     ],
   },

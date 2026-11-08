@@ -18,6 +18,7 @@ import { archivePagePath, archivePageUrl, paginate } from "./pagination.js";
 import {
   articleJsonLd,
   breadcrumbJsonLd,
+  faqJsonLd,
   injectHeadMeta,
   injectHeadStyle,
   injectHeadTitle,
@@ -132,6 +133,8 @@ export function generateSite(input: SiteInput): GeneratedSite {
   // sitemap's <lastmod>. Populated from content item dates; archives use their
   // newest item. Pages without a known date simply get no <lastmod>.
   const lastmod = new Map<string, string>();
+  // Output path → a representative image URL, for <image:image> in the sitemap.
+  const imageByPath = new Map<string, string>();
 
   const siteLd = siteJsonLd(input.site);
   const analytics = analyticsTags(input.site);
@@ -233,6 +236,9 @@ export function generateSite(input: SiteInput): GeneratedSite {
     if (item.noindex) noindexPaths.add(outPath);
     const itemDate = w3cDate(item.fields.date);
     if (itemDate) lastmod.set(outPath, itemDate);
+    const img = itemImage(item);
+    if (img && !item.noindex) imageByPath.set(outPath, img);
+    const faq = faqJsonLd(item);
     files[outPath] = finish(
       outPath,
       html,
@@ -246,6 +252,7 @@ export function generateSite(input: SiteInput): GeneratedSite {
         ],
         input.site,
       ),
+        ...(faq ? [faq] : []),
       ],
       {
         title: String(item.fields.title ?? item.slug),
@@ -315,8 +322,8 @@ export function generateSite(input: SiteInput): GeneratedSite {
   }
 
   // 6. Always-on outputs.
-  files["sitemap.xml"] = buildSitemap(files, input.site, noindexPaths, lastmod);
-  files["robots.txt"] = buildRobots(input.site);
+  files["sitemap.xml"] = buildSitemap(files, input.site, noindexPaths, lastmod, imageByPath);
+  files["robots.txt"] = buildRobots(input.site, noindexPaths);
   files["feed.xml"] = buildFeed(
     content.filter((item) => !item.noindex),
     input.site,
@@ -463,25 +470,62 @@ function buildSitemap(
   site: SiteConfig,
   noindexPaths: Set<string>,
   lastmod: Map<string, string>,
+  imageByPath: Map<string, string>,
 ): string {
   const base = site.baseUrl ?? "";
   const urls = Object.keys(files)
     .filter((p) => p.endsWith("index.html") && !noindexPaths.has(p))
     .map((p) => {
+      const home = p === "index.html";
       const loc = `<loc>${escapeXml(urlForPath(p, base))}</loc>`;
       const mod = lastmod.get(p);
-      return `  <url>${loc}${mod ? `<lastmod>${mod}</lastmod>` : ""}</url>`;
+      // The home page changes most often and matters most; content pages less so.
+      const changefreq = `<changefreq>${home ? "weekly" : "monthly"}</changefreq>`;
+      const priority = `<priority>${home ? "1.0" : "0.7"}</priority>`;
+      const img = imageByPath.get(p);
+      const image = img
+        ? `<image:image><image:loc>${escapeXml(absoluteUrl(img, base))}</image:loc></image:image>`
+        : "";
+      return `  <url>${loc}${mod ? `<lastmod>${mod}</lastmod>` : ""}${changefreq}${priority}${image}</url>`;
     })
     .join("\n");
   return `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
 ${urls}
 </urlset>
 `;
 }
 
-function buildRobots(site: SiteConfig): string {
+/** Best-effort image MIME type from a file extension (for RSS enclosures). */
+function imageMime(path: string): string {
+  const ext = path.split(/[?#]/)[0]!.split(".").pop()?.toLowerCase() ?? "";
+  const map: Record<string, string> = {
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    png: "image/png",
+    gif: "image/gif",
+    webp: "image/webp",
+    avif: "image/avif",
+    svg: "image/svg+xml",
+  };
+  return map[ext] ?? "image/jpeg";
+}
+
+/** Make an image path absolute against the site base URL (pass through URLs). */
+function absoluteUrl(path: string, base: string): string {
+  if (/^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(path)) return path;
+  const b = base.replace(/\/+$/, "");
+  return b ? `${b}/${path.replace(/^\/+/, "")}` : path;
+}
+
+function buildRobots(site: SiteConfig, noindexPaths: Set<string>): string {
   const lines = ["User-agent: *", "Allow: /"];
+  // Keep crawlers off pages we deliberately excluded (noindex content, redirect
+  // stubs). Paths are the page's directory, e.g. "foo/index.html" → "/foo/".
+  const disallow = [...noindexPaths]
+    .map((p) => "/" + p.replace(/index\.html$/, ""))
+    .sort();
+  for (const path of disallow) lines.push(`Disallow: ${path}`);
   if (site.baseUrl) {
     lines.push(`Sitemap: ${site.baseUrl.replace(/\/+$/, "")}/sitemap.xml`);
   }
@@ -509,6 +553,14 @@ function buildFeed(
       if (pub) lines.push(`      <pubDate>${pub}</pubDate>`);
       const desc = itemDescription(item);
       if (desc) lines.push(`      <description>${escapeXml(desc)}</description>`);
+      const img = itemImage(item);
+      if (img) {
+        // RSS enclosure so readers can show the item's image. length is unknown
+        // at generate time, so 0 (permitted by the spec).
+        lines.push(
+          `      <enclosure url="${escapeXml(absoluteUrl(img, base))}" type="${imageMime(img)}" length="0"/>`,
+        );
+      }
       const body = (item.bodyHtml ?? item.body ?? "").trim();
       if (body) {
         // Full article HTML for readers that render it. Relative links/images
@@ -643,14 +695,48 @@ function redirectPath(from: string): string {
  * search engines the canonical destination, and is marked noindex so the old
  * URL is not indexed.
  */
+/** Localized copy for the generated 404 / redirect stub pages, by language. */
+const STUB_COPY: Record<string, {
+  moved: string;
+  movedBody: (href: string) => string;
+  notFoundTitle: string;
+  notFoundDesc: string;
+  notFoundHead: string;
+  home: string;
+}> = {
+  ja: {
+    moved: "移動しました",
+    movedBody: (href) => `このページは <a href="${href}">こちら</a> に移動しました。`,
+    notFoundTitle: "404",
+    notFoundDesc: "お探しのページは見つかりませんでした。",
+    notFoundHead: "ページが見つかりません",
+    home: "トップへ戻る",
+  },
+  en: {
+    moved: "Page moved",
+    movedBody: (href) => `This page has moved to <a href="${href}">this location</a>.`,
+    notFoundTitle: "404",
+    notFoundDesc: "The page you were looking for was not found.",
+    notFoundHead: "Page not found",
+    home: "Back to home",
+  },
+};
+
+function stubCopy(site: SiteConfig): (typeof STUB_COPY)["ja"] {
+  const lang = (site.lang ?? "ja").split("-")[0]!.toLowerCase();
+  return STUB_COPY[lang] ?? STUB_COPY.ja!;
+}
+
 function buildRedirect(to: string, site: SiteConfig): string {
   const base = (site.baseUrl ?? "").replace(/\/+$/, "");
   const canonical = base ? escapeXml(absoluteTo(to, base)) : escapeXml(to);
   const href = escapeXml(to);
+  const lang = escapeXml((site.lang ?? "ja").trim() || "ja");
+  const c = stubCopy(site);
   return `<!doctype html>
-<html lang="ja">
-<head><meta charset="utf-8"><title>移動しました</title><meta name="robots" content="noindex"><link rel="canonical" href="${canonical}"><meta http-equiv="refresh" content="0; url=${href}"></head>
-<body><p>このページは <a href="${href}">こちら</a> に移動しました。</p></body>
+<html lang="${lang}">
+<head><meta charset="utf-8"><title>${escapeXml(c.moved)}</title><meta name="robots" content="noindex"><link rel="canonical" href="${canonical}"><meta http-equiv="refresh" content="0; url=${href}"></head>
+<body><p>${c.movedBody(href)}</p></body>
 </html>
 `;
 }
@@ -661,10 +747,12 @@ function absoluteTo(to: string, base: string): string {
 }
 
 function build404(site: SiteConfig): string {
+  const lang = escapeXml((site.lang ?? "ja").trim() || "ja");
+  const c = stubCopy(site);
   return `<!doctype html>
-<html lang="ja">
-<head><meta charset="utf-8"><title>404 - ${escapeXml(site.name)}</title><meta name="description" content="お探しのページは見つかりませんでした。"><meta name="robots" content="noindex"></head>
-<body><h1>ページが見つかりません</h1><p><a href="/">トップへ戻る</a></p></body>
+<html lang="${lang}">
+<head><meta charset="utf-8"><title>${escapeXml(c.notFoundTitle)} - ${escapeXml(site.name)}</title><meta name="description" content="${escapeXml(c.notFoundDesc)}"><meta name="robots" content="noindex"></head>
+<body><h1>${escapeXml(c.notFoundHead)}</h1><p><a href="/">${escapeXml(c.home)}</a></p></body>
 </html>
 `;
 }
