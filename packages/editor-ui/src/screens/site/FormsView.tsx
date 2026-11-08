@@ -52,7 +52,7 @@ export function FormsView({ api, siteId }: Props) {
     const form: FormDef = {
       id,
       name: t("forms.newName"),
-      fields: [{ name: "name", label: "お名前", type: "text", required: true }],
+      fields: [{ name: "name", label: t("forms.defaultFieldName"), type: "text", required: true }],
       notifyEmails: [],
       autoReply: false,
       completionMessage: t("forms.defaultComplete"),
@@ -469,7 +469,7 @@ export function uniqueFieldName(existing: string[]): string {
 }
 
 function buildCsv(form: FormDef, rows: FormSubmission[]): string {
-  const headers = [...form.fields.map((f) => f.label), "受信日時"];
+  const headers = [...form.fields.map((f) => f.label), t("forms.receivedAt")];
   const lines = [headers.map(csvCell).join(",")];
   for (const r of rows) {
     const cells = [...form.fields.map((f) => r.values[f.name] ?? ""), r.receivedAt];

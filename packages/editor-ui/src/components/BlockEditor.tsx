@@ -37,19 +37,10 @@ const KINDS = [
 ] as const;
 type Kind = (typeof KINDS)[number];
 
-const KIND_LABEL: Record<Kind, string> = {
-  paragraph: "段落",
-  heading2: "見出し（大）",
-  heading3: "見出し（小）",
-  list: "箇条書き",
-  orderedlist: "番号付き",
-  quote: "引用",
-  image: "画像",
-  gallery: "ギャラリー",
-  button: "ボタン",
-  divider: "区切り線",
-  html: "HTML / 埋め込み",
-};
+/** Block-palette label, via i18n so an English UI can be added later. */
+function kindLabel(kind: Kind): string {
+  return t(`blockeditor.kind.${kind}` as const);
+}
 
 function newBlock(kind: Kind): Block {
   switch (kind) {
@@ -229,7 +220,7 @@ function BlockBody({ block, onChange }: { block: Block; onChange: (b: Block) => 
           <Editable
             className={`pcms-block__text is-h${block.level}`}
             html={block.html}
-            placeholder={KIND_LABEL[block.level === 3 ? "heading3" : "heading2"]}
+            placeholder={kindLabel(block.level === 3 ? "heading3" : "heading2")}
             onChange={(html) => onChange({ ...block, html })}
           />
         </div>
@@ -239,7 +230,7 @@ function BlockBody({ block, onChange }: { block: Block; onChange: (b: Block) => 
         <Editable
           className="pcms-block__text"
           html={block.html}
-          placeholder={KIND_LABEL.paragraph}
+          placeholder={kindLabel("paragraph")}
           onChange={(html) => onChange({ ...block, html })}
         />
       );
@@ -248,7 +239,7 @@ function BlockBody({ block, onChange }: { block: Block; onChange: (b: Block) => 
         <Editable
           className="pcms-block__text is-quote"
           html={block.html}
-          placeholder={KIND_LABEL.quote}
+          placeholder={kindLabel("quote")}
           onChange={(html) => onChange({ ...block, html })}
         />
       );
@@ -466,7 +457,7 @@ function AddMenu({
                 setOpen(false);
               }}
             >
-              {KIND_LABEL[k]}
+              {kindLabel(k)}
             </button>
           ))}
         </div>

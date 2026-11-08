@@ -191,7 +191,7 @@ export function SiteSettingsView() {
         <input
           value={site.business?.addressRegion ?? ""}
           onChange={(e) => updateBusiness({ addressRegion: e.target.value || undefined })}
-          placeholder="東京都"
+          placeholder={t("siteSettings.biz.regionEg")}
         />
       </label>
       <label className="pcms-field">
@@ -199,7 +199,7 @@ export function SiteSettingsView() {
         <input
           value={site.business?.addressLocality ?? ""}
           onChange={(e) => updateBusiness({ addressLocality: e.target.value || undefined })}
-          placeholder="渋谷区"
+          placeholder={t("siteSettings.biz.localityEg")}
         />
       </label>
       <label className="pcms-field">
@@ -283,7 +283,7 @@ export function SiteSettingsView() {
           value={site.analytics?.headSnippet ?? ""}
           onChange={(e) => updateAnalytics({ headSnippet: e.target.value || undefined })}
           rows={4}
-          placeholder="<!-- 解析サービスのタグを貼り付け（例: MOKKEDA） -->"
+          placeholder={t("siteSettings.analyticsEg")}
         />
       </label>
 

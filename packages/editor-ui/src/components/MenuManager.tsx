@@ -28,7 +28,7 @@ export function MenuManager({ menus, onCommit, targets = [] }: MenuManagerProps)
       selected,
       items.map((it, i) => (i === idx ? { ...it, ...patch } : it)),
     );
-  const add = () => onCommit(selected, [...items, { label: "新しい項目", url: "/" }]);
+  const add = () => onCommit(selected, [...items, { label: t("menu.newItem"), url: "/" }]);
   const remove = (idx: number) => onCommit(selected, items.filter((_, i) => i !== idx));
   const move = (idx: number, dir: -1 | 1) => {
     const to = idx + dir;
@@ -43,7 +43,7 @@ export function MenuManager({ menus, onCommit, targets = [] }: MenuManagerProps)
   const childrenOf = (p: number): MenuItem[] => items[p]?.children ?? [];
   const setChildren = (p: number, children: MenuItem[]) =>
     update(p, { children: children.length > 0 ? children : undefined });
-  const addChild = (p: number) => setChildren(p, [...childrenOf(p), { label: "新しい項目", url: "/" }]);
+  const addChild = (p: number) => setChildren(p, [...childrenOf(p), { label: t("menu.newItem"), url: "/" }]);
   const updateChild = (p: number, c: number, patch: Partial<MenuItem>) =>
     setChildren(p, childrenOf(p).map((ch, i) => (i === c ? { ...ch, ...patch } : ch)));
   const removeChild = (p: number, c: number) =>
@@ -181,7 +181,7 @@ function MenuRow({
             const target = targets.find((tg) => tg.url === e.target.value);
             if (!target) return;
             const patch: Partial<MenuItem> =
-              item.label.trim() === "" || item.label === "新しい項目"
+              item.label.trim() === "" || item.label === t("menu.newItem")
                 ? { url: target.url, label: target.label }
                 : { url: target.url };
             onChange(patch);

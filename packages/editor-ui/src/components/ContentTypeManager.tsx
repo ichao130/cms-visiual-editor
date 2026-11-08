@@ -88,7 +88,7 @@ export function ContentTypeManager({ types, onCommit }: ContentTypeManagerProps)
     if (!current) return;
     const fields = [
       ...current.fields,
-      { name: uniqueFieldName(current.fields), label: "新しい項目", type: "text" as FieldType },
+      { name: uniqueFieldName(current.fields), label: t("types.newFieldLabel"), type: "text" as FieldType },
     ];
     setFields(current.name, fields);
   };
@@ -180,7 +180,7 @@ export function ContentTypeManager({ types, onCommit }: ContentTypeManagerProps)
                     <input
                       value={f.label}
                       onChange={(e) => updateField(i, { label: e.target.value })}
-                      placeholder="ラベル"
+                      placeholder={t("types.fieldLabel")}
                     />
                     <select
                       value={f.type}

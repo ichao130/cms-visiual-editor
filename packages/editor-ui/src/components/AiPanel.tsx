@@ -210,7 +210,7 @@ export function AiPanel({ api, content, onClose }: AiPanelProps) {
                   <ul className="pcms-publish__issues">
                     {issues.map((i, idx) => (
                       <li key={idx} className={`pcms-publish__issue is-${i.level}`}>
-                        [{i.level === "error" ? "エラー" : "注意"}] {i.message}
+                        [{i.level === "error" ? t("issue.error") : t("issue.warning")}] {i.message}
                       </li>
                     ))}
                   </ul>
