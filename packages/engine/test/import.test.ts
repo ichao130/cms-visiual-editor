@@ -303,3 +303,20 @@ describe("importThemeHtml", () => {
     expect(notes.some((n) => n.includes("セクション"))).toBe(true);
   });
 });
+
+describe("importThemeHtml — block slots", () => {
+  it("gives each imported section a data-blocks container", () => {
+    const raw =
+      "<section><h2>特長</h2><p>おいしい珈琲。</p></section><section><h2>店舗</h2><p>渋谷。</p></section>";
+    const { html } = importThemeHtml(raw);
+    const slots = html.match(/data-blocks=""/g) ?? [];
+    expect(slots.length).toBeGreaterThanOrEqual(2);
+    expect(html).toContain('class="pcms-blocks"');
+  });
+
+  it("does not add a second container when one already exists", () => {
+    const raw = '<section data-section="s"><div data-blocks="cta"></div></section>';
+    const { html } = importThemeHtml(raw);
+    expect((html.match(/data-blocks=/g) ?? []).length).toBe(1);
+  });
+});

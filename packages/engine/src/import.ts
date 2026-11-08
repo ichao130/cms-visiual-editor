@@ -417,6 +417,23 @@ const CLASS_LABELS: Record<string, string> = {
  * heading, else a known class/id keyword — so imported sections are legible in
  * the editor instead of "セクション1". Falls back to themeify's generic label.
  */
+/**
+ * Give each imported section a place to host nested blocks: an empty
+ * `data-blocks=""` container (all block types allowed). Sections that already
+ * declare one are left alone. This makes an imported theme block-capable from
+ * the start (CLAUDE.md: sections host blocks), instead of frozen markup.
+ */
+function addBlockSlots(html: string): { html: string; count: number } {
+  const root = parse(html, { comment: false });
+  let count = 0;
+  for (const sec of root.querySelectorAll("[data-section]")) {
+    if (sec.querySelector("[data-blocks]")) continue;
+    sec.insertAdjacentHTML("beforeend", '<div class="pcms-blocks" data-blocks=""></div>');
+    count += 1;
+  }
+  return { html: root.toString(), count };
+}
+
 function relabelSections(html: string): { html: string; count: number } {
   const root = parse(html, { comment: false });
   let count = 0;
@@ -688,10 +705,14 @@ export function importThemeHtml(raw: string): ImportResult {
   const assets = normalizeAssets(root);
   const forms = neutralizeForms(root);
   const { html: themed, count: labelled } = relabelSections(themeifyHtml(root.toString()));
-  const { content, layout } = extractLayout(themed);
+  const { html: withBlocks, count: blockSlots } = addBlockSlots(themed);
+  const { content, layout } = extractLayout(withBlocks);
   const issues = validateThemeHtml(content);
 
   if (labelled > 0) notes.push("セクション名を内容から自動で付けました。");
+  if (blockSlots > 0) {
+    notes.push("各セクションにブロック（パーツ）を追加できる置き場を用意しました。");
+  }
   if (layout) {
     notes.push("ヘッダーとフッターを共通レイアウト（layout.html）として分離しました。");
   }
