@@ -227,10 +227,15 @@ function readBlocks(): Record<string, string> {
  * preview and editor can show it. Operator-added assets come from the overlay
  * (see applyThemeOverlay); this covers what the theme itself ships.
  */
-function readThemeAssets(): { paths: string[]; map: Record<string, string> } {
+function readThemeAssets(): {
+  paths: string[];
+  map: Record<string, string>;
+  text: Record<string, string>;
+} {
   const dir = join(themeDir(), "assets");
   const paths = new Set<string>(["assets/style.css"]);
   const map: Record<string, string> = {};
+  const text: Record<string, string> = {};
   if (existsSync(dir)) {
     for (const file of readdirSync(dir)) {
       if (file.startsWith(".")) continue;
@@ -243,10 +248,16 @@ function readThemeAssets(): { paths: string[]; map: Record<string, string> } {
         } catch {
           /* skip unreadable asset */
         }
+      } else {
+        try {
+          text[rel] = readFileSync(join(dir, file), "utf8");
+        } catch {
+          /* skip unreadable asset */
+        }
       }
     }
   }
-  return { paths: [...paths], map };
+  return { paths: [...paths], map, text };
 }
 
 /** Read every <type>.html in a theme subfolder into a { type: html } map. */
@@ -414,6 +425,7 @@ export function loadProject(): ProjectData {
     taxonomies: loadTaxonomies(),
     previewCss: readTheme("assets/style.css"),
     themeAssets: assets.map,
+    themeTextAssets: assets.text,
   };
 }
 

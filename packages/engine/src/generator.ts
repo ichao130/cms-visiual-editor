@@ -107,6 +107,8 @@ export function generateSite(input: SiteInput): GeneratedSite {
     regions: input.settings.regions,
     sections: input.theme.sections,
     blocks: input.theme.blocks,
+    // Operator-added CSS / JS under assets/ are auto-linked into every page.
+    assets: input.theme.assets,
   };
   const pageSize = input.site.archivePageSize ?? 10;
 

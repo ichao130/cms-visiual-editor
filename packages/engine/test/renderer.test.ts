@@ -242,3 +242,47 @@ describe("nested menus", () => {
     expect(out).not.toContain("渋谷店");
   });
 });
+
+describe("auto-linked theme assets", () => {
+  const layout =
+    '<html><head><link rel="stylesheet" href="/assets/style.css" /></head><body><main data-slot="content"></main></body></html>';
+  function scope(): RenderScope {
+    return {
+      site: sampleSite(),
+      theme: theme.config,
+      page: {},
+      menus: {},
+      collections: {},
+    };
+  }
+
+  it("adds <link> for extra CSS and <script> for JS, deduping style.css", () => {
+    const out = renderTemplate("<p>x</p>", scope(), {
+      layout,
+      assets: ["assets/style.css", "assets/extra.css", "assets/app.js"],
+    });
+    expect(out).toContain('<link rel="stylesheet" href="/assets/extra.css"');
+    expect(out).toContain('<script src="/assets/app.js" defer>');
+    // style.css already in the layout — never doubled
+    expect((out.match(/assets\/style\.css/g) ?? []).length).toBe(1);
+  });
+
+  it("ignores names starting with _ and non-css/js files", () => {
+    const out = renderTemplate("<p>x</p>", scope(), {
+      layout,
+      assets: ["assets/_draft.css", "assets/_wip.js", "assets/logo.png"],
+    });
+    expect(out).not.toContain("_draft.css");
+    expect(out).not.toContain("_wip.js");
+    expect(out).not.toContain("logo.png");
+  });
+
+  it("keeps the theme token :root after the auto-linked stylesheet in <head>", () => {
+    const out = renderTemplate("<p>x</p>", {
+      ...scope(),
+      theme: { colors: { primary: "#111" } },
+    }, { layout, assets: ["assets/extra.css"] });
+    expect(out).toContain("data-pcms-theme");
+    expect(out.indexOf("assets/extra.css")).toBeLessThan(out.indexOf("data-pcms-theme"));
+  });
+});

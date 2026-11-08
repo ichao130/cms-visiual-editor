@@ -768,6 +768,16 @@ function themeAssetsMap(): Record<string, string> {
   return out;
 }
 
+/** Text theme assets (css/js/svg/html) as a path → text map (for preview). */
+function themeTextAssetsMap(): Record<string, string> {
+  const files = mergedThemeFiles();
+  const out: Record<string, string> = {};
+  for (const p of themeAssetPaths()) {
+    if (!isBinaryAsset(p) && typeof files[p] === "string") out[p] = files[p]!;
+  }
+  return out;
+}
+
 /**
  * Build the theme bundle from the merged files, so parts created or edited in
  * the code editor (sections/*.html, templates, layout, assets) flow into the
@@ -822,6 +832,7 @@ export function createMockApi(): PcmsApi {
         taxonomies: loadTaxonomies(),
         previewCss: mergedThemeFiles()["assets/style.css"] ?? previewCss,
         themeAssets: themeAssetsMap(),
+        themeTextAssets: themeTextAssetsMap(),
       };
     },
     async saveSite(site: SiteConfig): Promise<void> {

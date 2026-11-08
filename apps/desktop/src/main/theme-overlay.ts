@@ -96,6 +96,7 @@ export function applyThemeOverlay(project: ProjectData): ProjectData {
   let previewCss = project.previewCss;
   const assets = new Set(project.theme.assets ?? []);
   const themeAssets: Record<string, string> = { ...project.themeAssets };
+  const themeTextAssets: Record<string, string> = { ...project.themeTextAssets };
   for (const [path, content] of store()) {
     const sec = /^sections\/(.+)\.html$/.exec(path);
     if (sec?.[1]) {
@@ -121,12 +122,14 @@ export function applyThemeOverlay(project: ProjectData): ProjectData {
         /* keep the existing config on bad JSON */
       }
     } else if (path.startsWith("assets/")) {
-      // Operator-added asset (image/JS/CSS/HTML): copy it into the output and,
-      // for a binary asset, expose its data URL for the preview.
+      // Operator-added asset (image/JS/CSS/HTML): copy it into the output and
+      // expose it to the preview — binary as a data URL, text as its contents
+      // (so an added stylesheet / script is inlined into the sandboxed preview).
       assets.add(path);
       if (isBinaryAsset(path)) themeAssets[path] = content;
+      else themeTextAssets[path] = content;
     }
   }
   theme.assets = [...assets];
-  return { ...project, theme, previewCss, themeAssets };
+  return { ...project, theme, previewCss, themeAssets, themeTextAssets };
 }

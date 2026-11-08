@@ -1,4 +1,5 @@
 import {
+  autoLinkedAssets,
   mergeThemeConfig,
   parseTemplate,
   renderComposedPage,
@@ -71,6 +72,40 @@ export function schemaForPage(
 }
 
 /**
+ * `<style>` blocks for the theme's auto-linked CSS assets (same selection the
+ * engine makes for the published site), inlined because the sandboxed `srcdoc`
+ * can't fetch `assets/…`. `style.css` is skipped — `previewCss` already carries
+ * it — and the later `inlineThemeAssets` pass resolves any `url(…)` images.
+ */
+function themeExtraStyles(project: ProjectData): string {
+  const texts = project.themeTextAssets ?? {};
+  let out = "";
+  for (const path of autoLinkedAssets(project.theme.assets).css) {
+    if (path === "assets/style.css") continue;
+    const text = texts[path];
+    if (text != null) out += `\n<style data-pcms-asset="${path}">\n${text}\n</style>`;
+  }
+  return out;
+}
+
+/**
+ * One `<script>` with the theme's auto-linked JS concatenated. Only the theme's
+ * own registered scripts run (CLAUDE.md: the operator's deliberate theme JS is
+ * trusted); scripts that appear inside section HTML are stripped as untrusted.
+ * Runs only in the live preview, which is sandboxed with `allow-scripts` but no
+ * same-origin access, so it stays isolated from the app.
+ */
+function themeExtraScript(project: ProjectData): string {
+  const texts = project.themeTextAssets ?? {};
+  const parts: string[] = [];
+  for (const path of autoLinkedAssets(project.theme.assets).js) {
+    const text = texts[path];
+    if (text != null) parts.push(`/* ${path} */\n${text}`);
+  }
+  return parts.length ? `<script data-pcms-asset>\n${parts.join("\n;\n")}\n</script>` : "";
+}
+
+/**
  * Render the current target to a full HTML document for the live preview.
  * CSS is inlined so the sandboxed, script-free iframe shows theme styling.
  */
@@ -127,13 +162,17 @@ export function renderPreview(
   // Theme CSS goes at the START of <head> so the theme-token `:root` block the
   // engine appends to the END of <head> (settings.theme overrides) wins over it.
   // The editor overlay goes last.
-  const themeCss = `<style>\n${project.previewCss}\n</style>`;
+  const themeCss = `<style>\n${project.previewCss}\n</style>${themeExtraStyles(project)}`;
   const overlay = `<style>${EDITOR_OVERLAY_CSS}</style>`;
   html = html.includes("<head>") ? html.replace("<head>", `<head>${themeCss}`) : `${themeCss}${html}`;
   html = html.includes("</head>") ? html.replace("</head>", `${overlay}</head>`) : `${html}${overlay}`;
 
   const runtime = `<script>${EDITOR_RUNTIME}</script>`;
-  html = html.includes("</body>") ? html.replace("</body>", `${runtime}</body>`) : `${html}${runtime}`;
+  // The editor runtime first, then the theme's own (trusted) asset scripts.
+  const themeJs = themeExtraScript(project);
+  html = html.includes("</body>")
+    ? html.replace("</body>", `${runtime}${themeJs}</body>`)
+    : `${html}${runtime}${themeJs}`;
 
   // The sandboxed iframe can't load site-relative `media/...` paths, so swap
   // media references to their data URLs for display.
@@ -174,7 +213,7 @@ export function renderHomeThumbnail(
   html = html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "");
   // Theme CSS at the start of <head> so the engine's theme-token :root (end of
   // <head>) overrides it.
-  const head = `<style>\n${project.previewCss}\n</style>`;
+  const head = `<style>\n${project.previewCss}\n</style>${themeExtraStyles(project)}`;
   html = html.includes("<head>") ? html.replace("<head>", `<head>${head}`) : `${head}${html}`;
   return inlineThemeAssets(inlineMedia(html, media), project.themeAssets ?? {});
 }
@@ -212,7 +251,7 @@ export function renderItemPreview(
     layout: project.theme.layout,
   });
   html = html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "");
-  const head = `<style>\n${project.previewCss}\n</style>`;
+  const head = `<style>\n${project.previewCss}\n</style>${themeExtraStyles(project)}`;
   html = html.includes("<head>") ? html.replace("<head>", `<head>${head}`) : `${head}${html}`;
   return inlineThemeAssets(inlineMedia(html, media), project.themeAssets ?? {});
 }

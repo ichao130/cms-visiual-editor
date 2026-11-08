@@ -35,6 +35,14 @@ export interface ProjectData {
    * references into the sandboxed preview and to show image assets in the editor.
    */
   themeAssets: Record<string, string>;
+  /**
+   * Text theme assets (CSS / JS / SVG under `assets/`), keyed by theme-relative
+   * path with the file's text as value. The live preview inlines the auto-linked
+   * CSS / JS from here (a sandboxed `srcdoc` can't fetch `assets/…`), so operator
+   * stylesheets and scripts take effect in the preview just as they do when
+   * published. Optional for older producers.
+   */
+  themeTextAssets?: Record<string, string>;
 }
 
 /**

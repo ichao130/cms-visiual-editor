@@ -41,6 +41,16 @@ export interface RenderOptions {
    * instance's nested blocks into its `data-blocks` container.
    */
   blocks?: Record<string, string>;
+  /**
+   * Theme-relative asset paths (`assets/<name>`). Any `.css` / `.js` directly
+   * under `assets/` is auto-linked into the layout — stylesheets as `<link>` in
+   * `<head>`, scripts as a deferred `<script>` before `</body>` — so an operator
+   * can add a stylesheet or script in the code editor and have it take effect
+   * without editing layout.html by hand. Files already referenced in the layout
+   * are skipped (no duplicate `style.css`), and names starting with `_` are
+   * treated as drafts and never auto-linked.
+   */
+  assets?: string[];
 }
 
 /**
@@ -104,6 +114,11 @@ function fillLayout(
     }
   }
   processTree(layoutRoot, { ...scope, page: {} } as RenderScope);
+  // Auto-link theme assets (operator-added CSS / JS): a `<link>` for each
+  // stylesheet at the end of <head>, a deferred `<script>` for each script
+  // before </body>. Done before the token block below so the `:root` overrides
+  // stay last in <head>.
+  injectAutoAssets(layoutRoot, options.assets);
   // Emit the theme's style tokens (colors / fonts / spacing) as a `:root` block
   // at the end of <head>, after the theme's own stylesheet, so operator
   // overrides (settings.theme) win over the theme defaults. Themes without
@@ -119,6 +134,73 @@ function fillLayout(
 /** Editor-only wrapper tagging a region so preview clicks resolve their group. */
 function wrapRegion(region: RegionName | "body", inner: string): string {
   return `<div data-pcms-region="${region}">${inner}</div>`;
+}
+
+/**
+ * The theme asset files that are auto-linked into a layout, split by kind. A
+ * file qualifies when it is a `.css` / `.js` directly under `assets/` whose
+ * basename does not start with `_` (drafts). Shared by the generator (real
+ * `<link>` / `<script>` tags) and the live preview (which inlines the contents,
+ * since a sandboxed `srcdoc` can't fetch `assets/…`), so both agree on exactly
+ * which files take effect.
+ */
+export function autoLinkedAssets(assets: string[] | undefined): {
+  css: string[];
+  js: string[];
+} {
+  const css: string[] = [];
+  const js: string[] = [];
+  for (const path of assets ?? []) {
+    const m = /^assets\/([^/]+)\.(css|js)$/.exec(path);
+    if (!m) continue;
+    if (m[1]!.startsWith("_")) continue; // draft / partial — not auto-linked
+    (m[2] === "css" ? css : js).push(path);
+  }
+  css.sort();
+  js.sort();
+  return { css, js };
+}
+
+/** Basenames already referenced by the layout's own `<link>` / `<script>`. */
+function referencedAssetNames(root: HTMLElement): Set<string> {
+  const names = new Set<string>();
+  const add = (ref: string | undefined) => {
+    if (!ref) return;
+    const base = ref.split(/[?#]/)[0]!.split("/").pop();
+    if (base) names.add(base);
+  };
+  for (const el of root.querySelectorAll("link")) add(el.getAttribute("href"));
+  for (const el of root.querySelectorAll("script")) add(el.getAttribute("src"));
+  return names;
+}
+
+/**
+ * Add `<link>` / `<script>` tags for the theme's auto-linked CSS / JS assets,
+ * skipping any the layout already references (so a theme that links its own
+ * `style.css` is never doubled). Site-root-relative URLs (`/assets/<name>`)
+ * match the convention layout.html uses for `style.css`.
+ */
+function injectAutoAssets(root: HTMLElement, assets: string[] | undefined): void {
+  const { css, js } = autoLinkedAssets(assets);
+  if (css.length === 0 && js.length === 0) return;
+  const already = referencedAssetNames(root);
+  const name = (path: string) => path.slice("assets/".length);
+
+  const head = root.querySelector("head");
+  if (head) {
+    for (const path of css) {
+      if (already.has(name(path))) continue;
+      head.insertAdjacentHTML(
+        "beforeend",
+        `<link rel="stylesheet" href="/${path}" />`,
+      );
+    }
+  }
+  const body = root.querySelector("body") ?? root;
+  for (const path of js) {
+    if (already.has(name(path))) continue;
+    body.insertAdjacentHTML("beforeend", `<script src="/${path}" defer></script>`);
+  }
 }
 
 function renderFragment(html: string, scope: RenderScope): string {
