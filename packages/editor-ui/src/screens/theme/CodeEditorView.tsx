@@ -40,6 +40,10 @@ const PART_TEMPLATES: { id: string; label: MessageKey; make: (name: string) => s
   },
 ];
 
+/** Starter for a new page template (templates/<name>.html). */
+const TEMPLATE_STARTER =
+  `<article class="entry">\n  <h1 data-field="post.title">タイトル</h1>\n  <div data-field="post.body" data-type="richtext"></div>\n</article>\n`;
+
 const safeName = (raw: string): string =>
   raw.trim().replace(/[^a-z0-9-]/gi, "-").toLowerCase();
 
@@ -86,6 +90,68 @@ function validateFile(content: string, kind: ThemeFileKind | undefined): AiDiagn
       ];
     }
   }
+  if (kind === "js") return diagnoseJs(content);
+  return [];
+}
+
+/**
+ * Lightweight JS bracket-balance check (no eval, so it is CSP-safe and never
+ * fails on module syntax). Ignores brackets inside strings, template literals,
+ * and comments so quoted braces don't trip it.
+ */
+function diagnoseJs(code: string): AiDiagnosis[] {
+  const pairs: Record<string, string> = { ")": "(", "]": "[", "}": "{" };
+  const stack: string[] = [];
+  let i = 0;
+  let inStr: string | null = null;
+  while (i < code.length) {
+    const ch = code[i]!;
+    const next = code[i + 1];
+    if (inStr) {
+      if (ch === "\\") i += 2;
+      else {
+        if (ch === inStr) inStr = null;
+        i += 1;
+      }
+      continue;
+    }
+    if (ch === '"' || ch === "'" || ch === "`") {
+      inStr = ch;
+      i += 1;
+      continue;
+    }
+    if (ch === "/" && next === "/") {
+      const nl = code.indexOf("\n", i);
+      i = nl < 0 ? code.length : nl;
+      continue;
+    }
+    if (ch === "/" && next === "*") {
+      const end = code.indexOf("*/", i + 2);
+      i = end < 0 ? code.length : end + 2;
+      continue;
+    }
+    if (ch === "(" || ch === "[" || ch === "{") stack.push(ch);
+    else if (ch === ")" || ch === "]" || ch === "}") {
+      if (stack.pop() !== pairs[ch]) {
+        return [{
+          level: "warning",
+          message: `括弧の対応が取れていません（${ch} の位置）`,
+          fix: "( ) [ ] { } の開き・閉じの対応を確認してください。",
+        }];
+      }
+    }
+    i += 1;
+  }
+  if (inStr) {
+    return [{ level: "warning", message: "文字列が閉じていません", fix: "引用符の閉じ忘れを確認してください。" }];
+  }
+  if (stack.length > 0) {
+    return [{
+      level: "warning",
+      message: `閉じられていない括弧が ${stack.length} 個あります`,
+      fix: "( [ { に対応する閉じ括弧を確認してください。",
+    }];
+  }
   return [];
 }
 
@@ -103,7 +169,8 @@ export function CodeEditorView({ api }: Props) {
   const [content, setContent] = useState("");
   const [dirty, setDirty] = useState(false);
   const [newName, setNewName] = useState<string | null>(null);
-  const [newKind, setNewKind] = useState<"section" | "block" | "asset">("section");
+  const [newKind, setNewKind] = useState<"section" | "block" | "template" | "asset">("section");
+  const [filter, setFilter] = useState("");
   const [newTemplate, setNewTemplate] = useState<string>(PART_TEMPLATES[0]!.id);
   const [rename, setRename] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<"delete" | "reset" | null>(null);
@@ -180,11 +247,18 @@ export function CodeEditorView({ api }: Props) {
       setNewName(null);
       return;
     }
-    const path = newKind === "block" ? `blocks/${safe}.html` : `sections/${safe}.html`;
+    const path =
+      newKind === "block"
+        ? `blocks/${safe}.html`
+        : newKind === "template"
+          ? `templates/${safe}.html`
+          : `sections/${safe}.html`;
     const content =
       newKind === "block"
         ? blockPartTemplate(safe, safe)
-        : (PART_TEMPLATES.find((p) => p.id === newTemplate) ?? PART_TEMPLATES[0]!).make(safe);
+        : newKind === "template"
+          ? TEMPLATE_STARTER
+          : (PART_TEMPLATES.find((p) => p.id === newTemplate) ?? PART_TEMPLATES[0]!).make(safe);
     await api.writeThemeFile(path, content);
     await refreshFiles();
     setActivePath(path);
@@ -221,8 +295,14 @@ export function CodeEditorView({ api }: Props) {
 
   const doRename = async () => {
     if (!active || rename == null) return;
+    // Rename within the file's own folder, keeping its extension (so blocks,
+    // templates and assets rename in place, not only sections).
+    const slash = active.path.lastIndexOf("/");
+    const dir = slash < 0 ? "" : active.path.slice(0, slash);
+    const dot = active.path.lastIndexOf(".");
+    const ext = dot > slash ? active.path.slice(dot) : "";
     const safe = safeName(rename);
-    const to = `sections/${safe}.html`;
+    const to = dir ? `${dir}/${safe}${ext}` : `${safe}${ext}`;
     if (!safe || to === active.path) {
       setRename(null);
       return;
@@ -263,7 +343,9 @@ export function CodeEditorView({ api }: Props) {
     reloadProject();
   };
 
-  const grouped = groupByDir(files);
+  const q = filter.trim().toLowerCase();
+  const visibleFiles = q ? files.filter((f) => f.path.toLowerCase().includes(q)) : files;
+  const grouped = groupByDir(visibleFiles);
 
   return (
     <div className="pcms-codelayout">
@@ -298,6 +380,13 @@ export function CodeEditorView({ api }: Props) {
             }}
           />
         </div>
+        <input
+          type="search"
+          className="pcms-filetree__search"
+          value={filter}
+          placeholder={t("code.search")}
+          onChange={(e) => setFilter(e.target.value)}
+        />
         {newName != null && (
           <div className="pcms-filetree__newbox">
             <div className="pcms-filetree__newrow">
@@ -323,10 +412,13 @@ export function CodeEditorView({ api }: Props) {
             <select
               className="pcms-filetree__tplselect"
               value={newKind}
-              onChange={(e) => setNewKind(e.target.value as "section" | "block" | "asset")}
+              onChange={(e) =>
+                setNewKind(e.target.value as "section" | "block" | "template" | "asset")
+              }
             >
               <option value="section">{t("code.kind.section")}</option>
               <option value="block">{t("code.kind.block")}</option>
+              <option value="template">{t("code.kind.template")}</option>
               <option value="asset">{t("code.kind.asset")}</option>
             </select>
             {newKind === "section" && (
