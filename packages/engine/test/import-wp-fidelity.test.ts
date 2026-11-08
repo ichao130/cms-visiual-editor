@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { importWpTheme, mapTemplateTags, type WpImportFile } from "../src/index.js";
+import { importWpTheme, mapTemplateTags, localizeCssUrls, type WpImportFile } from "../src/index.js";
 
 /**
  * Fidelity regression for real-world classic WordPress themes (the `_s` /
@@ -48,7 +48,8 @@ const INDEX_PHP = `<?php get_header(); ?>
 <?php endwhile; ?>
 </section>
 </main>
-<?php get_footer(); ?>`;
+<?php
+get_footer();`;
 
 const SINGLE_PHP = `<?php get_header(); ?>
 <main class="site-main">
@@ -57,7 +58,9 @@ const SINGLE_PHP = `<?php get_header(); ?>
 <div class="entry-content"><?php the_content(); ?></div>
 </article>
 </main>
-<?php get_footer(); ?>`;
+<?php
+get_sidebar();
+get_footer();`;
 
 const FILES: WpImportFile[] = [
   { path: "style.css", text: "/*\nTheme Name: Real Cafe\n*/\nbody{color:#222}" },
@@ -81,6 +84,30 @@ describe("mapTemplateTags — attribute safety", () => {
   });
 });
 
+describe("localizeCssUrls — stylesheet asset refs", () => {
+  it("re-points local url(...) refs to /assets/ and leaves external/data/svg refs", () => {
+    const css = [
+      `@font-face{src:url("../fonts/Input-Bold.woff2") format("woff2"),url('../fonts/Input-Bold.woff')}`,
+      `.loader{background:url('./ajax-loader.gif')}`,
+      `.hero{background:url(/common/img/bg.jpg)}`,
+      `.ext{background:url("https://cdn.example.com/x.png")}`,
+      `.inline{background:url(data:image/gif;base64,AAAA)}`,
+      `.svg{fill:url(#grad)}`,
+    ].join("\n");
+    const out = localizeCssUrls(css);
+    expect(out).toContain('url("/assets/Input-Bold.woff2")');
+    expect(out).toContain('url("/assets/Input-Bold.woff")');
+    expect(out).toContain('url("/assets/ajax-loader.gif")');
+    expect(out).toContain('url("/assets/bg.jpg")');
+    // untouched
+    expect(out).toContain("https://cdn.example.com/x.png");
+    expect(out).toContain("data:image/gif;base64,AAAA");
+    expect(out).toContain("url(#grad)");
+    expect(out).not.toContain("../fonts/");
+    expect(out).not.toContain("/common/img/");
+  });
+});
+
 describe("importWpTheme — real classic theme fidelity", () => {
   const r = importWpTheme(FILES);
   const layout = r.files["layout.html"] ?? "";
@@ -88,9 +115,15 @@ describe("importWpTheme — real classic theme fidelity", () => {
   const post = r.files.templates.post ?? "";
   const all = JSON.stringify(r.files);
 
-  it("detects classic and leaves no PHP", () => {
+  it("detects classic and leaves no PHP (terminated or unterminated)", () => {
     expect(r.kind).toBe("classic");
     expect(all).not.toContain("<?php");
+    // Templates end with an unterminated `<?php\nget_footer();` (no `?>`); none
+    // of it may survive into any generated file.
+    expect(all).not.toContain("<?");
+    expect(index).not.toContain("get_footer");
+    expect(post).not.toContain("get_footer");
+    expect(post).not.toContain("get_sidebar");
   });
 
   it("the layout is a single valid document (no nested doctype/head in a slot)", () => {
@@ -111,10 +144,13 @@ describe("importWpTheme — real classic theme fidelity", () => {
     expect(all).toContain("assets/app.js");
   });
 
-  it("normalizes every local image path to assets/<file>", () => {
+  it("normalizes every local image path to a root-absolute /assets/<file>", () => {
     expect(all).not.toContain("/common/img/");
-    expect(all).toContain("assets/logo_black.png");
-    expect(all).toContain("assets/hero.jpg");
+    // Root-absolute so references resolve from any page depth, consistent with
+    // the layout's own /assets/style.css link.
+    expect(all).toContain("/assets/logo_black.png");
+    expect(all).toContain("/assets/hero.jpg");
+    expect(all).not.toContain('src="assets/'); // never relative
   });
 
   it("splits the index template into editable sections and fields", () => {

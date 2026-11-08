@@ -104,6 +104,7 @@ export {
   parseStyleCssName,
   mapTemplateTags,
   composeClassicTemplate,
+  localizeCssUrls,
   type WpImportFile,
   type WpThemeFiles,
   type WpImportResult,

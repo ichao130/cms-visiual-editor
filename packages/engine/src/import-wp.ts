@@ -464,7 +464,26 @@ function localizeAssetUrl(url: string): string {
   if (u === "" || u.startsWith("#") || /^(https?:)?\/\//i.test(u) || /^data:/i.test(u)) return url;
   if (/^(mailto:|tel:|javascript:)/i.test(u)) return url;
   const base = u.split("#")[0]?.split("?")[0]?.split("/").filter(Boolean).pop() ?? "";
-  return base ? `assets/${base}` : url;
+  // Root-absolute so a reference works from any page depth (the generator serves
+  // theme assets at /assets/, as the layout's own /assets/style.css link does).
+  return base ? `/assets/${base}` : url;
+}
+
+/**
+ * Rewrite local `url(...)` references inside a stylesheet to `/assets/<file>`.
+ * A theme's CSS points at fonts and background images with relative paths like
+ * `../fonts/x.woff` or `./ajax-loader.gif`; once every asset is flattened into
+ * `/assets/`, those must be re-pointed or they 404 (missing fonts/backgrounds —
+ * a major fidelity loss). External URLs, data URIs and `url(#id)` SVG refs are
+ * left untouched.
+ */
+export function localizeCssUrls(css: string): string {
+  return css.replace(/url\(\s*(['"]?)([^'")]+)\1\s*\)/gi, (m, _q, raw) => {
+    const u = String(raw).trim();
+    if (u === "" || u.startsWith("#") || u.startsWith("data:") || /^(https?:)?\/\//i.test(u)) return m;
+    const base = u.split("#")[0]?.split("?")[0]?.split("/").filter(Boolean).pop() ?? "";
+    return base ? `url("/assets/${base}")` : m;
+  });
 }
 
 /** Normalize every local asset reference in a parsed tree to `assets/<file>`. */
@@ -517,6 +536,12 @@ function cleanWpMarkup(raw: string): string {
     .replace(/<%[\s\S]*?%>/g, "")
     .replace(/\{%[\s\S]*?%\}/g, "")
     .replace(/\{\{[\s\S]*?\}\}/g, "");
+  // Unterminated trailing PHP: WP templates routinely end with `<?php\nget_footer();`
+  // and NO closing `?>` (the PHP tag runs to EOF). Those never match the terminated
+  // rules above, so strip any remaining open `<?php`/`<?=` through end-of-string.
+  // In valid templates an open tag only occurs at EOF — HTML after an unclosed tag
+  // would be a PHP parse error — so this cannot swallow real markup.
+  s = s.replace(/<\?(?:php\b|=)[\s\S]*$/i, "").replace(/<\?php\s*$/i, "");
   // Strip the document wrapper so a partial header.php (doctype + head + <body>
   // with no </body>) never leaks its <head>/<!doctype> into a layout slot. The
   // shared chrome (charset, viewport, stylesheet) is supplied by layoutSkeleton.

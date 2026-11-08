@@ -9,6 +9,9 @@ import {
   inlineThemeAssets,
   detectWpThemeKind,
   importWpTheme,
+  localizeCssUrls,
+  bytesToDataUrl,
+  assetContentType,
   type ImportResult,
   type ImportSource,
   type WpImportFile,
@@ -120,7 +123,9 @@ function buildWpThemeFiles(
   for (const [k, v] of Object.entries(f.templates)) files[`templates/${k}.html`] = v;
   for (const [k, v] of Object.entries(f.sections)) files[`sections/${k}.html`] = v;
   for (const [k, v] of Object.entries(f.blocks)) files[`blocks/${k}.html`] = v;
-  if (cssText.trim() !== "") files["assets/style.css"] = cssText;
+  // Re-point the stylesheet's local url(...) refs (fonts, background images) to
+  // /assets/ so they resolve once every asset is flattened into that folder.
+  if (cssText.trim() !== "") files["assets/style.css"] = localizeCssUrls(cssText);
   // Carry EVERY image from the archive (not only referenced ones).
   for (const [base, url] of Object.entries(imageAssets)) files[`assets/${base}`] = url;
   // Carry EVERY script, and reference them from the layout so the theme's JS runs.
@@ -215,12 +220,17 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
     let embedded = 0;
     let tooLarge = 0;
     for (const [path, bytes] of Object.entries(entries)) {
-      if (classifyZipEntry(path) !== "image") continue;
+      const isImage = classifyZipEntry(path) === "image";
+      // Fonts are binary assets too; the CSS points at them (e.g. ../fonts/x.woff),
+      // so carry them or custom typefaces fall back to system fonts (a big visual
+      // loss). localizeCssUrls re-points those url(...) refs to /assets/.
+      const isFont = /\.(woff2?|ttf|otf|eot)$/i.test(path);
+      if (!isImage && !isFont) continue;
       if (bytes.length > ASSET_SIZE_CAP) {
         tooLarge += 1;
         continue;
       }
-      const url = imageDataUrl(path, bytes);
+      const url = isImage ? imageDataUrl(path, bytes) : bytesToDataUrl(bytes, assetContentType(path));
       if (url) {
         assets[baseName(path)] = url;
         embedded += 1;
