@@ -90,17 +90,54 @@ function themeExtraStyles(project: ProjectData): string {
   return out;
 }
 
+/** Basename of an asset reference, e.g. `/assets/slick.min.js?v=2` → `slick.min.js`. */
+function assetBase(ref: string): string {
+  return ref.split(/[?#]/)[0]?.split("/").filter(Boolean).pop() ?? "";
+}
+
 /**
- * One `<script>` with the theme's auto-linked JS concatenated. Only the theme's
- * own registered scripts run (CLAUDE.md: the operator's deliberate theme JS is
- * trusted); scripts that appear inside section HTML are stripped as untrusted.
- * Runs only in the live preview, which is sandboxed with `allow-scripts` but no
- * same-origin access, so it stays isolated from the app.
+ * Resolve the theme's `<script>` tags for the sandboxed preview, PRESERVING
+ * document order (so dependencies like jQuery load before the plugins that need
+ * them — the sorted-concat approach broke every jQuery theme). The preview is
+ * sandboxed (`allow-scripts`, no same-origin), so these scripts are isolated
+ * from the app, matching CLAUDE.md's "untrusted preview in an unprivileged
+ * region". Rules, in place:
+ *  - External `src` (https / protocol-relative / data:) → kept as-is; the iframe
+ *    can load it over the network.
+ *  - Local `src` (`/assets/x.js`) → replaced inline with the asset's text, since
+ *    the `srcdoc` iframe can't fetch `assets/…`.
+ *  - Inline code with no `src` → dropped (untrusted embedded script, e.g. GTM).
+ * Returns the rewritten html plus the basenames that were referenced, so the
+ * caller can append any auto-linked JS a hand-made theme didn't tag explicitly.
  */
-function themeExtraScript(project: ProjectData): string {
+export function resolveThemeScripts(
+  html: string,
+  texts: Record<string, string>,
+): { html: string; referenced: Set<string> } {
+  const referenced = new Set<string>();
+  const out = html.replace(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi, (full, attrs: string) => {
+    const src = /\bsrc\s*=\s*(['"])(.*?)\1/i.exec(attrs)?.[2];
+    if (!src) return ""; // inline code block — untrusted, drop
+    if (/^(https?:)?\/\//i.test(src) || /^data:/i.test(src)) return full; // external — keep
+    const base = assetBase(src);
+    if (base) referenced.add(base);
+    const text = texts[`assets/${base}`];
+    return text != null ? `<script>\n/* ${base} */\n${text}\n</script>` : "";
+  });
+  return { html: out, referenced };
+}
+
+/**
+ * Inline any auto-linked theme JS the layout did NOT already reference with a
+ * `<script src>` (a hand-made theme that relies on auto-linking). Referenced
+ * ones are already inlined in place by resolveThemeScripts, so they're skipped
+ * to avoid double execution.
+ */
+function autoLinkedExtraScript(project: ProjectData, referenced: Set<string>): string {
   const texts = project.themeTextAssets ?? {};
   const parts: string[] = [];
   for (const path of autoLinkedAssets(project.theme.assets).js) {
+    if (referenced.has(assetBase(path))) continue;
     const text = texts[path];
     if (text != null) parts.push(`/* ${path} */\n${text}`);
   }
@@ -158,8 +195,11 @@ export function renderPreview(
     html = renderTemplate(templateHtml(project, name), scope, layoutOptsFor(page));
   }
 
-  // Remove any theme scripts (untrusted) before adding our trusted runtime.
-  html = html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "");
+  // Resolve the theme's scripts IN PLACE (external kept, local inlined, inline
+  // code dropped) so dependencies load in document order. The sandbox isolates
+  // them from the app.
+  const resolved = resolveThemeScripts(html, project.themeTextAssets ?? {});
+  html = resolved.html;
 
   // Theme CSS goes at the START of <head> so the theme-token `:root` block the
   // engine appends to the END of <head> (settings.theme overrides) wins over it.
@@ -170,11 +210,12 @@ export function renderPreview(
   html = html.includes("</head>") ? html.replace("</head>", `${overlay}</head>`) : `${html}${overlay}`;
 
   const runtime = `<script>${EDITOR_RUNTIME}</script>`;
-  // The editor runtime first, then the theme's own (trusted) asset scripts.
-  const themeJs = themeExtraScript(project);
+  // Any auto-linked JS the layout didn't tag explicitly, then the editor runtime
+  // last (after the theme's own scripts have set up the page).
+  const themeJs = autoLinkedExtraScript(project, resolved.referenced);
   html = html.includes("</body>")
-    ? html.replace("</body>", `${runtime}${themeJs}</body>`)
-    : `${html}${runtime}${themeJs}`;
+    ? html.replace("</body>", `${themeJs}${runtime}</body>`)
+    : `${html}${themeJs}${runtime}`;
 
   // The sandboxed iframe can't load site-relative `media/...` paths, so swap
   // media references to their data URLs for display.
