@@ -95,5 +95,19 @@ export {
   type ImportResult,
   type ZipEntryKind,
 } from "./import.js";
+export {
+  detectWpThemeKind,
+  importWpTheme,
+  parseGutenberg,
+  gutenbergToHtml,
+  wpThemeJsonToKumito,
+  parseStyleCssName,
+  mapTemplateTags,
+  composeClassicTemplate,
+  type WpImportFile,
+  type WpThemeFiles,
+  type WpImportResult,
+  type WpBlock,
+} from "./import-wp.js";
 export { mediaUsageCounts } from "./media.js";
 export { preflight, validateContent, type PreflightIssue, type SiteFileSet } from "./preflight.js";
