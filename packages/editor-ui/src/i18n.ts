@@ -127,6 +127,7 @@ const ja = {
   "media.deleteUsedConfirm": "「{name}」は{count}か所で使われています。削除すると、その箇所の画像が表示されなくなります。削除しますか？",
   "media.usedCount": "使用 {count}か所",
   "media.unused": "未使用",
+  "media.noAlt": "代替テキスト未設定",
   "media.deleteUnused": "未使用をまとめて削除（{count}）",
   "media.deleteUnusedConfirm": "どこにも使われていないメディア{count}件を削除します。よろしいですか？",
   "media.search": "ファイル名で絞り込み",

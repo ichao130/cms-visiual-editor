@@ -170,6 +170,10 @@ export function MediaLibrary({
                           : t("media.usedCount").replace("{count}", String(usage[item.path]))}
                       </span>
                     )}
+                    {onAltChange && (item.alt ?? "").trim() === "" &&
+                      (item.dataUrl ?? "").startsWith("data:image/") && (
+                        <span className="pcms-media__noalt">{t("media.noAlt")}</span>
+                      )}
                     {onAltChange && (
                       <AltField item={item} onCommit={(alt) => onAltChange(item, alt)} />
                     )}

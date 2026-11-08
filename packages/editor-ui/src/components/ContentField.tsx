@@ -177,13 +177,14 @@ function GalleryField({
           <div className="pcms-gallery__item" key={`${p}-${i}`}>
             <img src={resolveUrl(p)} alt="" />
             <div className="pcms-gallery__ops">
-              <button type="button" onClick={() => move(i, -1)} disabled={i === 0} title={t("sections.up")}>
+              <button type="button" onClick={() => move(i, -1)} disabled={i === 0} aria-label={t("sections.up")} title={t("sections.up")}>
                 ←
               </button>
               <button
                 type="button"
                 onClick={() => move(i, 1)}
                 disabled={i === paths.length - 1}
+                aria-label={t("sections.down")}
                 title={t("sections.down")}
               >
                 →
@@ -192,6 +193,7 @@ function GalleryField({
                 type="button"
                 className="pcms-gallery__del"
                 onClick={() => removeAt(i)}
+                aria-label={t("media.clear")}
                 title={t("media.clear")}
               >
                 ×

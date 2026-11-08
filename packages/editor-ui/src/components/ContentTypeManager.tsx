@@ -228,13 +228,21 @@ export function ContentTypeManager({ types, onCommit }: ContentTypeManagerProps)
                       </select>
                     )}
                     <div className="pcms-fielddef__actions">
-                      <button type="button" onClick={() => moveField(i, -1)} disabled={i === 0}>
+                      <button
+                        type="button"
+                        onClick={() => moveField(i, -1)}
+                        disabled={i === 0}
+                        aria-label={t("sections.up")}
+                        title={t("sections.up")}
+                      >
                         <Icon name="chevron-up" size={15} />
                       </button>
                       <button
                         type="button"
                         onClick={() => moveField(i, 1)}
                         disabled={i === current.fields.length - 1}
+                        aria-label={t("sections.down")}
+                        title={t("sections.down")}
                       >
                         <Icon name="chevron-down" size={15} />
                       </button>

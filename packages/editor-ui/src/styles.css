@@ -1487,3 +1487,10 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline: non
   border: 1px solid var(--border, #d0d0d0); border-radius: 6px;
   background: var(--surface, transparent); color: inherit;
 }
+
+/* Media: missing alt-text nudge */
+.pcms-media__noalt {
+  font-size: 0.72rem; color: var(--warn, #b26a00);
+  background: color-mix(in srgb, var(--warn, #b26a00) 14%, transparent);
+  border-radius: 4px; padding: 0.05rem 0.35rem; align-self: flex-start;
+}
