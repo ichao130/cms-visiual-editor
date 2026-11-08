@@ -175,6 +175,8 @@ export function CodeEditorView({ api }: Props) {
   const [rename, setRename] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<"delete" | "remove" | "reset" | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  // Right-click context menu on a file-tree entry.
+  const [menu, setMenu] = useState<{ x: number; y: number; file: ThemeFileNode } | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
   // The active node is derived from the current list, so its custom/edited flags
@@ -217,6 +219,16 @@ export function CodeEditorView({ api }: Props) {
     setRename(null);
     setConfirm(null);
   }, [activePath]);
+
+  // Close the context menu on Escape (outside clicks are caught by its scrim).
+  useEffect(() => {
+    if (!menu) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenu(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [menu]);
 
   const onSave = () => {
     if (!active) return;
@@ -314,10 +326,10 @@ export function CodeEditorView({ api }: Props) {
     reloadProject();
   };
 
-  const doDelete = async () => {
-    if (!active) return;
-    const wasPath = active.path;
-    const wasCustom = active.custom;
+  const doDelete = async (target: ThemeFileNode | null = active) => {
+    if (!target) return;
+    const wasPath = target.path;
+    const wasCustom = target.custom;
     await api.deleteThemeFile(wasPath);
     const list = await refreshFiles();
     // A reverted original stays in the list (reload it); a deleted part is gone.
@@ -461,6 +473,11 @@ export function CodeEditorView({ api }: Props) {
                 key={f.path}
                 className={`pcms-filetree__file${active?.path === f.path ? " is-active" : ""}`}
                 onClick={() => setActivePath(f.path)}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setActivePath(f.path);
+                  setMenu({ x: e.clientX, y: e.clientY, file: f });
+                }}
                 style={{ paddingLeft: dir ? "1.4rem" : "0.6rem" }}
               >
                 <span className="pcms-filetree__name">{basename(f.path)}</span>
@@ -606,6 +623,52 @@ export function CodeEditorView({ api }: Props) {
           )}
         </div>
       </div>
+
+      {menu && (
+        <>
+          <div
+            className="pcms-ctxmenu__scrim"
+            onClick={() => setMenu(null)}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              setMenu(null);
+            }}
+          />
+          <div className="pcms-ctxmenu" style={{ top: menu.y, left: menu.x }} role="menu">
+            {menu.file.custom && (
+              <button
+                onClick={() => {
+                  setActivePath(menu.file.path);
+                  setRename(baseNoExt(menu.file.path));
+                  setMenu(null);
+                }}
+              >
+                {t("code.rename")}
+              </button>
+            )}
+            {menu.file.edited && (
+              <button
+                onClick={() => {
+                  void doDelete(menu.file);
+                  setMenu(null);
+                }}
+              >
+                {t("code.revert")}
+              </button>
+            )}
+            <button
+              className="pcms-ctxmenu__danger"
+              onClick={() => {
+                setActivePath(menu.file.path);
+                setConfirm(menu.file.custom ? "delete" : "remove");
+                setMenu(null);
+              }}
+            >
+              {t("code.delete")}
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }

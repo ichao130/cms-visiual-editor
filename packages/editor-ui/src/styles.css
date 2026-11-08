@@ -1218,6 +1218,14 @@ button:has(> .pcms-icon:only-child) { display: inline-flex; align-items: center;
 .pcms-confirm__actions { display: flex; gap: 0.3rem; }
 .pcms-confirm__actions button { font-size: 0.78rem; padding: 0.2rem 0.5rem; }
 button.pcms-danger:hover:not(:disabled) { background: var(--pcms-danger-weak); border-color: var(--pcms-danger); color: var(--pcms-danger); }
+/* Right-click context menu (file tree) */
+.pcms-ctxmenu__scrim { position: fixed; inset: 0; z-index: 50; }
+.pcms-ctxmenu { position: fixed; z-index: 51; min-width: 160px; background: var(--pcms-elevated); border: 1px solid var(--pcms-border-strong); border-radius: 7px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14); padding: 0.25rem; display: flex; flex-direction: column; }
+.pcms-ctxmenu button { text-align: left; width: 100%; background: none; border: none; padding: 0.35rem 0.6rem; border-radius: 5px; font-size: 0.82rem; }
+.pcms-ctxmenu button:hover { background: var(--pcms-hover); }
+.pcms-ctxmenu__danger { color: var(--pcms-danger); }
+.pcms-ctxmenu__danger:hover { background: var(--pcms-danger-weak); }
+
 .pcms-codemain__actions { display: flex; gap: 0.4rem; }
 .pcms-codemain__actions button { font-size: 0.82rem; }
 .pcms-codemain__rename { display: flex; align-items: center; gap: 0.4rem; flex: 1; font-size: 0.82rem; }
