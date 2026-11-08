@@ -43,11 +43,16 @@ function activeThemePath(): string {
   return join(siteDir(), "active-theme.json");
 }
 
-/** The active theme id; defaults to the bundled sample when unset/invalid. */
+/** The active theme id; defaults to the bundled sample when unset/invalid. A
+ *  pointer to an imported theme whose folder no longer exists (deleted on disk)
+ *  heals back to the sample, so the app never loads from a missing theme dir. */
 export function activeThemeId(): string {
   try {
     const obj = JSON.parse(readFileSync(activeThemePath(), "utf8")) as { id?: unknown };
-    if (typeof obj.id === "string" && obj.id) return obj.id;
+    if (typeof obj.id === "string" && obj.id) {
+      if (obj.id === SAMPLE_THEME_ID || existsSync(themeRoot(obj.id))) return obj.id;
+      // Dangling pointer — the imported theme is gone; fall back to the sample.
+    }
   } catch {
     /* no pointer yet — the sample is active */
   }

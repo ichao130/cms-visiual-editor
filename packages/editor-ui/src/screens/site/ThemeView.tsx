@@ -21,13 +21,13 @@ export function ThemeView({ api, siteId, onNavigate }: Props) {
   const [currentThumb, setCurrentThumb] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
-    const [ts, project, media] = await Promise.all([
-      api.listThemes(),
-      api.loadProject(),
-      api.listMedia(),
-    ]);
+    // Load the theme list on its own so a failure building the home thumbnail —
+    // e.g. an imported theme whose project fails to load — never blanks the list
+    // (the bundled sample must always be selectable).
+    const ts = await api.listThemes().catch(() => [] as ThemeSummary[]);
     setThemes(ts);
     try {
+      const [project, media] = await Promise.all([api.loadProject(), api.listMedia()]);
       setCurrentThumb(renderHomeThumbnail(project, media));
     } catch {
       setCurrentThumb(null);
