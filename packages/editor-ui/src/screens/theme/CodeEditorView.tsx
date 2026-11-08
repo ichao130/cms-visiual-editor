@@ -173,7 +173,7 @@ export function CodeEditorView({ api }: Props) {
   const [filter, setFilter] = useState("");
   const [newTemplate, setNewTemplate] = useState<string>(PART_TEMPLATES[0]!.id);
   const [rename, setRename] = useState<string | null>(null);
-  const [confirm, setConfirm] = useState<"delete" | "reset" | null>(null);
+  const [confirm, setConfirm] = useState<"delete" | "remove" | "reset" | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -326,6 +326,20 @@ export function CodeEditorView({ api }: Props) {
       : (list.find((f) => f.path === wasPath) ?? null);
     setActivePath(next?.path ?? null);
     // Reverting keeps the same path, so reload the content explicitly.
+    setContent(next ? await api.readThemeFile(next.path) : "");
+    setDirty(false);
+    setConfirm(null);
+    reloadProject();
+  };
+
+  /** Fully remove the active file (an original is tombstoned on the working copy;
+   *  the theme's disk files are untouched, and resetTheme restores it). */
+  const doRemove = async () => {
+    if (!active) return;
+    await api.removeThemeFile(active.path);
+    const list = await refreshFiles();
+    const next = list.find((f) => f.path === "layout.html") ?? list[0] ?? null;
+    setActivePath(next?.path ?? null);
     setContent(next ? await api.readThemeFile(next.path) : "");
     setDirty(false);
     setConfirm(null);
@@ -503,6 +517,14 @@ export function CodeEditorView({ api }: Props) {
               </button>
               <button onClick={() => setConfirm(null)}>{t("common.no")}</button>
             </div>
+          ) : confirm === "remove" ? (
+            <div className="pcms-codemain__rename">
+              <span>{t("code.removeConfirm")}</span>
+              <button className="pcms-danger" onClick={() => void doRemove()}>
+                {t("common.yes")}
+              </button>
+              <button onClick={() => setConfirm(null)}>{t("common.no")}</button>
+            </div>
           ) : (
             <>
               <span className="pcms-codemain__path">{active?.path ?? ""}</span>
@@ -519,6 +541,11 @@ export function CodeEditorView({ api }: Props) {
                 )}
                 {active?.edited && (
                   <button onClick={() => void doDelete()}>{t("code.revert")}</button>
+                )}
+                {active && !active.custom && (
+                  <button className="pcms-danger" onClick={() => setConfirm("remove")}>
+                    {t("code.delete")}
+                  </button>
                 )}
                 {isSection && (
                   <button

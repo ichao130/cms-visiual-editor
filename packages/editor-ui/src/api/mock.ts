@@ -24,6 +24,8 @@ import {
   isBinaryAsset,
   assetContentType,
   bytesToDataUrl,
+  THEME_FILE_TOMBSTONE,
+  isThemeTombstone,
 } from "@pcms/engine";
 import type { ThemeBundle } from "@pcms/engine";
 import type {
@@ -791,7 +793,13 @@ function themeFileKind(path: string): ThemeFileKind {
 
 /** Theme originals (active theme) overlaid with the code-editor working copy. */
 function mergedThemeFiles(): Record<string, string> {
-  return { ...baseThemeFiles(), ...themeWorkingCopy() };
+  const merged: Record<string, string> = { ...baseThemeFiles(), ...themeWorkingCopy() };
+  // A tombstoned path is a deleted original — drop it so it never reaches the
+  // theme bundle, the preview or the published output.
+  for (const [path, content] of Object.entries(merged)) {
+    if (isThemeTombstone(content)) delete merged[path];
+  }
+  return merged;
 }
 
 /** All theme-relative paths under `assets/` (originals + working copy). */
@@ -1262,19 +1270,24 @@ export function createMockApi(): PcmsApi {
       const base = baseThemeFiles();
       const working = themeWorkingCopy();
       const paths = new Set([...Object.keys(base), ...Object.keys(working)]);
-      return [...paths].sort().map((path) => {
-        const original = path in base;
-        return {
-          path,
-          kind: themeFileKind(path),
-          custom: !original,
-          edited: original && path in working,
-          binary: isBinaryAsset(path),
-        };
-      });
+      return [...paths]
+        // Hide deleted originals (tombstones) from the file tree.
+        .filter((path) => !isThemeTombstone(working[path]))
+        .sort()
+        .map((path) => {
+          const original = path in base;
+          return {
+            path,
+            kind: themeFileKind(path),
+            custom: !original,
+            edited: original && path in working,
+            binary: isBinaryAsset(path),
+          };
+        });
     },
     async readThemeFile(path: string): Promise<string> {
       const working = themeWorkingCopy();
+      if (isThemeTombstone(working[path])) return "";
       return working[path] ?? baseThemeFiles()[path] ?? "";
     },
     async writeThemeFile(path: string, content: string): Promise<void> {
@@ -1293,6 +1306,14 @@ export function createMockApi(): PcmsApi {
       // edited original (which then falls back to the theme's version).
       const working = themeWorkingCopy();
       delete working[path];
+      saveJson(workingKey(), working);
+    },
+    async removeThemeFile(path: string): Promise<void> {
+      // Fully remove a file. An original is tombstoned (disk untouched); a
+      // created part is just dropped. Recoverable via resetTheme.
+      const working = themeWorkingCopy();
+      if (path in baseThemeFiles()) working[path] = THEME_FILE_TOMBSTONE;
+      else delete working[path];
       saveJson(workingKey(), working);
     },
     async renameThemeFile(from: string, to: string): Promise<void> {

@@ -614,6 +614,7 @@ const ja = {
   "code.renamePlaceholder": "新しいパーツ名（半角英数）",
   "code.delete": "削除",
   "code.deleteConfirm": "このパーツを削除しますか？",
+  "code.removeConfirm": "このファイルを削除しますか？（テーマのリセットで元に戻せます）",
   "code.revert": "変更を破棄",
   "code.reset": "テーマをリセット",
   "code.resetConfirm": "テーマの変更をすべて破棄しますか？",

@@ -78,6 +78,7 @@ import {
   writeThemeFile,
   writeThemeAsset,
   deleteThemeFile,
+  removeThemeFile,
   renameThemeFile,
   resetTheme,
   listForms,
@@ -260,6 +261,7 @@ function registerIpc(): void {
     writeThemeAsset(path, bytes),
   );
   ipcMain.handle("pcms:deleteThemeFile", (_event, path: string) => deleteThemeFile(path));
+  ipcMain.handle("pcms:removeThemeFile", (_event, path: string) => removeThemeFile(path));
   ipcMain.handle("pcms:renameThemeFile", (_event, from: string, to: string) =>
     renameThemeFile(from, to),
   );

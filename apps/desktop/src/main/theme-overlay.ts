@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { app } from "electron";
 import type { ProjectData } from "@pcms/editor-ui";
 import type { ThemeBundle } from "@pcms/engine";
-import { isBinaryAsset } from "@pcms/engine";
+import { isBinaryAsset, isThemeTombstone } from "@pcms/engine";
 import { activeThemeId, SAMPLE_THEME_ID } from "./theme-store.js";
 
 /**
@@ -105,30 +105,50 @@ export function applyThemeOverlay(project: ProjectData): ProjectData {
   const themeAssets: Record<string, string> = { ...project.themeAssets };
   const themeTextAssets: Record<string, string> = { ...project.themeTextAssets };
   for (const [path, content] of store()) {
+    // A tombstoned path is a deleted original: remove it from the theme so it
+    // drops out of the editor, the preview and the published output. The file on
+    // disk is left untouched (CLAUDE.md); resetTheme restores it.
+    const deleted = isThemeTombstone(content);
     const sec = /^sections\/(.+)\.html$/.exec(path);
     if (sec?.[1]) {
-      theme.sections = { ...theme.sections, [sec[1]]: content };
+      const next = { ...theme.sections };
+      if (deleted) delete next[sec[1]];
+      else next[sec[1]] = content;
+      theme.sections = next;
       continue;
     }
     const blk = /^blocks\/(.+)\.html$/.exec(path);
     if (blk?.[1]) {
-      theme.blocks = { ...theme.blocks, [blk[1]]: content };
+      const next = { ...theme.blocks };
+      if (deleted) delete next[blk[1]];
+      else next[blk[1]] = content;
+      theme.blocks = next;
       continue;
     }
     const tpl = /^templates\/(.+)\.html$/.exec(path);
     if (tpl?.[1]) {
-      theme.templates = { ...theme.templates, [tpl[1]]: content };
+      const next = { ...theme.templates };
+      if (deleted) delete next[tpl[1]];
+      else next[tpl[1]] = content;
+      theme.templates = next;
       continue;
     }
-    if (path === "layout.html") theme.layout = content;
-    else if (path === "assets/style.css") previewCss = content;
+    if (path === "layout.html") theme.layout = deleted ? "" : content;
+    else if (path === "assets/style.css") previewCss = deleted ? "" : content;
     else if (path === "theme.json") {
+      if (deleted) continue; // keep the loaded config
       try {
         theme.config = JSON.parse(content) as ThemeBundle["config"];
       } catch {
         /* keep the existing config on bad JSON */
       }
     } else if (path.startsWith("assets/")) {
+      if (deleted) {
+        assets.delete(path);
+        delete themeAssets[path];
+        delete themeTextAssets[path];
+        continue;
+      }
       // Operator-added asset (image/JS/CSS/HTML): copy it into the output and
       // expose it to the preview — binary as a data URL, text as its contents
       // (so an added stylesheet / script is inlined into the sandboxed preview).

@@ -179,6 +179,13 @@ export interface PcmsApi {
   /** Remove a working-copy file: deletes a created part, or reverts an edited
    *  original back to the theme's version. */
   deleteThemeFile(path: string): Promise<void>;
+  /**
+   * Fully remove a file from the theme. A created part is dropped; an *original*
+   * theme file is tombstoned in the working copy (the file on disk is untouched,
+   * CLAUDE.md) so it disappears from the editor, the preview and the published
+   * output. Recoverable with resetTheme, which clears the working copy.
+   */
+  removeThemeFile(path: string): Promise<void>;
   /** Rename a created part (working-copy file) to a new path. */
   renameThemeFile(from: string, to: string): Promise<void>;
   /** Discard the whole working copy — back to the original theme files. */

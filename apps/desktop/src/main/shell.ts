@@ -17,6 +17,8 @@ import {
   isBinaryAsset,
   assetContentType,
   bytesToDataUrl,
+  THEME_FILE_TOMBSTONE,
+  isThemeTombstone,
 } from "@pcms/engine";
 import {
   loadProject,
@@ -257,20 +259,27 @@ export async function listThemeFiles(): Promise<ThemeFileNode[]> {
   const project = await loadProject();
   const base = themeFiles(project);
   const paths = new Set([...Object.keys(base), ...overlayKeys()]);
-  return [...paths].sort().map((path) => {
-    const original = path in base;
-    return {
-      path,
-      kind: fileKind(path),
-      custom: !original,
-      edited: original && overlayHas(path),
-      binary: isBinaryAsset(path),
-    };
-  });
+  return [...paths]
+    // Hide deleted originals (tombstones) from the file tree.
+    .filter((path) => !isThemeTombstone(overlayGet(path)))
+    .sort()
+    .map((path) => {
+      const original = path in base;
+      return {
+        path,
+        kind: fileKind(path),
+        custom: !original,
+        edited: original && overlayHas(path),
+        binary: isBinaryAsset(path),
+      };
+    });
 }
 
 export async function readThemeFile(path: string): Promise<string> {
-  if (overlayHas(path)) return overlayGet(path) ?? "";
+  if (overlayHas(path)) {
+    const content = overlayGet(path) ?? "";
+    return isThemeTombstone(content) ? "" : content;
+  }
   const project = await loadProject();
   return themeFiles(project)[path] ?? "";
 }
@@ -287,6 +296,15 @@ export async function writeThemeAsset(path: string, bytes: Uint8Array): Promise<
 
 export async function deleteThemeFile(path: string): Promise<void> {
   overlayDelete(path);
+}
+
+export async function removeThemeFile(path: string): Promise<void> {
+  // Fully remove a file. An original is tombstoned (the file on disk is left
+  // untouched, CLAUDE.md); a created part is just dropped. Recoverable via
+  // resetTheme, which clears the overlay.
+  const project = await loadProject();
+  if (path in themeFiles(project)) overlaySet(path, THEME_FILE_TOMBSTONE);
+  else overlayDelete(path);
 }
 
 export async function renameThemeFile(from: string, to: string): Promise<void> {

@@ -32,6 +32,7 @@ import {
   isBinaryAsset,
   assetContentType,
   bytesToDataUrl,
+  isThemeTombstone,
   type BackupData,
   type BackupRef,
   type EncryptedBackup,
@@ -605,6 +606,10 @@ export function assembleOutput(): FileSet {
     // (decode to bytes), text ones (CSS/JS/HTML/SVG) as UTF-8.
     if (overlayHas(rel)) {
       const content = overlayGet(rel) ?? "";
+      // A tombstoned asset is deleted — never emit the sentinel as bytes.
+      // (applyThemeOverlay already drops it from generated.assets; this guards
+      // any path that still enumerates it.)
+      if (isThemeTombstone(content)) continue;
       if (isBinaryAsset(rel)) {
         const bytes = dataUrlToBytes(content);
         if (bytes) files[rel] = bytes;

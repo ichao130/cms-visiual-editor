@@ -87,6 +87,7 @@ const api: PcmsApi = {
   writeThemeAsset: (path: string, bytes: Uint8Array) =>
     ipcRenderer.invoke("pcms:writeThemeAsset", path, bytes),
   deleteThemeFile: (path: string) => ipcRenderer.invoke("pcms:deleteThemeFile", path),
+  removeThemeFile: (path: string) => ipcRenderer.invoke("pcms:removeThemeFile", path),
   renameThemeFile: (from: string, to: string) =>
     ipcRenderer.invoke("pcms:renameThemeFile", from, to),
   resetTheme: () => ipcRenderer.invoke("pcms:resetTheme"),

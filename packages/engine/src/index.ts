@@ -111,5 +111,6 @@ export {
   type WpImportResult,
   type WpBlock,
 } from "./import-wp.js";
+export { THEME_FILE_TOMBSTONE, isThemeTombstone } from "./theme-files.js";
 export { mediaUsageCounts } from "./media.js";
 export { preflight, validateContent, type PreflightIssue, type SiteFileSet } from "./preflight.js";
