@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { PcmsApi, ThemeSummary } from "../../api/types.js";
 import type { Route } from "../../state/route.js";
 import { ThemeImport } from "../../components/ThemeImport.js";
@@ -16,26 +16,43 @@ interface Props {
 export function ThemeView({ api, siteId, onNavigate }: Props) {
   const [themes, setThemes] = useState<ThemeSummary[]>([]);
   const [importing, setImporting] = useState(false);
+  const [switching, setSwitching] = useState(false);
   // A live mini-render of the site's home, shown on the in-use theme's card.
   const [currentThumb, setCurrentThumb] = useState<string | null>(null);
 
+  const reload = useCallback(async () => {
+    const [ts, project, media] = await Promise.all([
+      api.listThemes(),
+      api.loadProject(),
+      api.listMedia(),
+    ]);
+    setThemes(ts);
+    try {
+      setCurrentThumb(renderHomeThumbnail(project, media));
+    } catch {
+      setCurrentThumb(null);
+    }
+  }, [api]);
+
   useEffect(() => {
     let active = true;
-    void api.listThemes().then((ts) => active && setThemes(ts));
-    void Promise.all([api.loadProject(), api.listMedia()]).then(([project, media]) => {
-      if (!active) return;
-      try {
-        setCurrentThumb(renderHomeThumbnail(project, media));
-      } catch {
-        setCurrentThumb(null);
-      }
-    });
+    void reload().catch(() => active && setThemes([]));
     return () => {
       active = false;
     };
-  }, [api]);
+  }, [reload]);
 
   const openEditor = () => onNavigate({ screen: "themeEditor", siteId, mode: "visual" });
+
+  // Switching a theme resets the page layout to the new theme's defaults while
+  // keeping all content (CLAUDE.md / plan); reload so the editor sees it.
+  const useTheme = (id: string) => {
+    setSwitching(true);
+    void api
+      .setActiveTheme(id)
+      .then(reload)
+      .finally(() => setSwitching(false));
+  };
 
   return (
     <div className="pcms-themeview">
@@ -67,7 +84,7 @@ export function ThemeView({ api, siteId, onNavigate }: Props) {
                   {t("theme.edit")}
                 </button>
               ) : (
-                <button disabled title={t("common.comingSoon")}>
+                <button disabled={switching} onClick={() => useTheme(th.id)}>
                   {t("theme.use")}
                 </button>
               )}
@@ -78,7 +95,13 @@ export function ThemeView({ api, siteId, onNavigate }: Props) {
 
       <p className="pcms-note">{t("theme.figmaRoadmap")}</p>
 
-      {importing && <ThemeImport api={api} onClose={() => setImporting(false)} />}
+      {importing && (
+        <ThemeImport
+          api={api}
+          onClose={() => setImporting(false)}
+          onImported={() => void reload()}
+        />
+      )}
     </div>
   );
 }
