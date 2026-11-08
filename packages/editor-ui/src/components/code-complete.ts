@@ -33,7 +33,10 @@ const DATA_ATTRS: { name: string; info: string; snippet: string }[] = [
 ];
 
 /** Allowed values of `data-type`. */
-const DATA_TYPES = ["text", "richtext", "image", "link", "color", "number", "select"];
+const DATA_TYPES = ["text", "richtext", "image", "link", "color", "number", "select", "gallery"];
+
+/** Loop sources offered for `data-loop`. */
+const LOOP_SOURCES = ["posts", "menu"];
 
 /** Common `data-field` paths a theme references (from CLAUDE.md examples). */
 const FIELD_HINTS = [
@@ -42,9 +45,13 @@ const FIELD_HINTS = [
   "post.date",
   "post.excerpt",
   "post.price",
+  "post.image",
   "post.url",
+  "item.label",
+  "item.url",
   "site.name",
   "site.logo",
+  "site.description",
   "pagination.label",
   "term.label",
 ];
@@ -68,6 +75,11 @@ const FIELD_OPTIONS: readonly Completion[] = FIELD_HINTS.map((v) => ({
   type: "variable",
 }));
 
+const LOOP_OPTIONS: readonly Completion[] = LOOP_SOURCES.map((v) => ({
+  label: v,
+  type: "enum",
+}));
+
 /** Suggest pcms `data-*` attributes and the values of `data-type` / `data-field`. */
 function pcmsHtmlSource(ctx: CompletionContext): CompletionResult | null {
   // Value of data-type="…": offer the known field types.
@@ -76,6 +88,15 @@ function pcmsHtmlSource(ctx: CompletionContext): CompletionResult | null {
     return {
       from: typeVal.from + typeVal.text.indexOf('"') + 1,
       options: TYPE_OPTIONS,
+      validFor: /^[\w-]*$/,
+    };
+  }
+  // Value of data-loop="…": offer the known loop sources.
+  const loopVal = ctx.matchBefore(/data-loop="[\w-]*/);
+  if (loopVal) {
+    return {
+      from: loopVal.from + loopVal.text.indexOf('"') + 1,
+      options: LOOP_OPTIONS,
       validFor: /^[\w-]*$/,
     };
   }

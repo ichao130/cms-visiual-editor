@@ -1,9 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { EditorView, basicSetup } from "codemirror";
+import { keymap } from "@codemirror/view";
 import { EditorState, type Extension } from "@codemirror/state";
+import { indentUnit } from "@codemirror/language";
+import { indentWithTab } from "@codemirror/commands";
 import { html } from "@codemirror/lang-html";
 import { css } from "@codemirror/lang-css";
-import { javascript } from "@codemirror/lang-javascript";
+import {
+  javascript,
+  javascriptLanguage,
+  localCompletionSource,
+  scopeCompletionSource,
+} from "@codemirror/lang-javascript";
 import { oneDark } from "@codemirror/theme-one-dark";
 import type { ThemeFileKind } from "../api/types.js";
 import { pcmsHtmlCompletions, pcmsCssCompletions } from "./code-complete.js";
@@ -34,15 +42,29 @@ function usePrefersDark(): boolean {
   return dark;
 }
 
+/**
+ * JS/TS completions closer to an IDE: `localCompletionSource` suggests
+ * identifiers declared in the file, `scopeCompletionSource` suggests properties
+ * of the global scope (e.g. `document.`, `window.`), so typing offers real
+ * member names instead of just keywords.
+ */
+function jsCompletions(): Extension {
+  return javascriptLanguage.data.of({
+    autocomplete: [localCompletionSource, scopeCompletionSource(globalThis)],
+  });
+}
+
 function languageExt(kind: ThemeFileKind, cssVars: readonly string[]): Extension[] {
   switch (kind) {
     case "html":
+      // html() enables tag/attribute completion and auto-closing tags.
       return [html(), pcmsHtmlCompletions()];
     case "css":
       return [css(), pcmsCssCompletions(cssVars)];
     case "js":
+      return [javascript(), jsCompletions()];
     case "json":
-      return [javascript()];
+      return [javascript({ jsx: false })];
     default:
       return [];
   }
@@ -70,6 +92,11 @@ export function CodeEditor({ value, kind, onChange, cssVars }: Props) {
       doc: value,
       extensions: [
         basicSetup,
+        // Tab indents / Shift-Tab dedents the selection (basicSetup leaves Tab
+        // for focus movement by default); 2-space soft indentation throughout.
+        keymap.of([indentWithTab]),
+        indentUnit.of("  "),
+        EditorState.tabSize.of(2),
         // one-dark in dark mode; CodeMirror's light default in light mode, so
         // the editor matches the surrounding UI instead of always being dark.
         ...(dark ? [oneDark] : []),
