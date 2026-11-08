@@ -105,6 +105,7 @@ export {
   mapTemplateTags,
   composeClassicTemplate,
   localizeCssUrls,
+  collectEnqueuedScripts,
   type WpImportFile,
   type WpThemeFiles,
   type WpImportResult,

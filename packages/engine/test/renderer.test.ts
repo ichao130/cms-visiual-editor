@@ -285,6 +285,24 @@ describe("auto-linked theme assets", () => {
     expect(out).toContain("data-pcms-theme");
     expect(out.indexOf("assets/extra.css")).toBeLessThan(out.indexOf("data-pcms-theme"));
   });
+
+  it("does NOT auto-link JS when the theme links its own scripts (WP import)", () => {
+    // A theme that already references a script manages its own JS — auto-linking
+    // every other assets/*.js would pull in unused vendor files that conflict.
+    const managed =
+      '<html><head></head><body><main data-slot="content"></main>' +
+      '<script src="/assets/app.js" defer></script></body></html>';
+    const out = renderTemplate("<p>x</p>", scope(), {
+      layout: managed,
+      assets: ["assets/app.js", "assets/vendor.js", "assets/anime.min.js", "assets/site.css"],
+    });
+    // The theme's own script stays; the vendor JS is NOT linked.
+    expect(out).toContain('<script src="/assets/app.js"');
+    expect(out).not.toContain("vendor.js");
+    expect(out).not.toContain("anime.min.js");
+    // CSS auto-linking is unaffected.
+    expect(out).toContain('href="/assets/site.css"');
+  });
 });
 
 describe("group field loop (data-loop on a content field)", () => {

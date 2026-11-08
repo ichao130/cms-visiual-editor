@@ -443,7 +443,12 @@ export function composeClassicTemplate(stem: string, files: Map<string, string>)
 // ---------------------------------------------------------------------------
 
 /** The pcms layout.html skeleton (same shape as the sample theme). */
-function layoutSkeleton(headerMarkup: string, footerMarkup: string, lang: string): string {
+function layoutSkeleton(
+  headerMarkup: string,
+  footerMarkup: string,
+  lang: string,
+  scriptTags = "",
+): string {
   return (
     `<!doctype html>\n<html lang="${lang}">\n  <head>\n` +
     `    <meta charset="utf-8" />\n` +
@@ -454,8 +459,65 @@ function layoutSkeleton(headerMarkup: string, footerMarkup: string, lang: string
     `    <div data-slot="header">${headerMarkup}</div>\n\n` +
     `    <main data-slot="content"></main>\n\n` +
     `    <div data-slot="footer">${footerMarkup}</div>\n` +
+    (scriptTags ? `${scriptTags}\n` : "") +
     `  </body>\n</html>\n`
   );
+}
+
+/**
+ * The scripts a classic theme ACTUALLY loads, from `wp_enqueue_script(...)` /
+ * `wp_register_script(...)` in any PHP file. A WordPress theme ships a whole
+ * vendor folder (e.g. a dozen `anime.*.js` versions, both `jquery.js` and a CDN
+ * copy, `slick.js` + `slick.min.js`); loading all of them — which auto-linking
+ * every `assets/*.js` would do — breaks the page with conflicting globals and is
+ * nothing like the live site. Only the enqueued set loads; the rest are carried
+ * but never linked. External (CDN) URLs are kept verbatim; local paths collapse
+ * to `/assets/<basename>` (the flattened asset folder).
+ */
+export function collectEnqueuedScripts(
+  files: WpImportFile[],
+): { external: boolean; base: string; url: string }[] {
+  const seen = new Set<string>();
+  const out: { external: boolean; base: string; url: string }[] = [];
+  const call = /wp_(?:enqueue|register)_script\s*\(/gi;
+  for (const f of files) {
+    if (!/\.php$/i.test(f.path)) continue;
+    let m: RegExpExecArray | null;
+    call.lastIndex = 0;
+    while ((m = call.exec(f.text)) !== null) {
+      // The statement argument list (up to the terminating `;`, capped so a
+      // missing semicolon can't run away). The URL is the one string literal
+      // whose path ends in `.js`; the handle literal does not.
+      const windowText = f.text.slice(m.index, m.index + 500);
+      const end = windowText.indexOf(";");
+      const args = end >= 0 ? windowText.slice(0, end) : windowText;
+      const lit = /(['"])(.*?)\1/g;
+      let s: RegExpExecArray | null;
+      while ((s = lit.exec(args)) !== null) {
+        const raw = (s[2] ?? "").trim();
+        const path = raw.split(/[?#]/)[0] ?? "";
+        if (!/\.js$/i.test(path)) continue;
+        const external = /^(https?:)?\/\//i.test(raw);
+        const base = baseName(path);
+        if (!external && !base) continue;
+        const key = external ? raw : base;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push({ external, base, url: external ? raw : `/assets/${base}` });
+      }
+    }
+  }
+  return out;
+}
+
+/** Basenames of scripts a markup fragment already loads with `<script src>`. */
+function inlineScriptBases(markup: string): Set<string> {
+  const bases = new Set<string>();
+  for (const m of markup.matchAll(/<script\b[^>]*\bsrc\s*=\s*(['"])(.*?)\1/gi)) {
+    const base = baseName((m[2] ?? "").split(/[?#]/)[0] ?? "");
+    if (base) bases.add(base);
+  }
+  return bases;
 }
 
 /** Rewrite one local asset URL to `assets/<file>`; leave external/inline refs. */
@@ -580,7 +642,14 @@ function buildLayout(kind: WpImportResult["kind"], files: WpImportFile[], byBase
     if (fp) footer = cleanWpMarkup(mapTemplateTags(fp).html);
   }
   if (!header && !footer) return null;
-  return layoutSkeleton(header, footer, "ja");
+  // Load only the scripts the theme enqueues that aren't already linked inline
+  // by the header/footer (those survive cleanWpMarkup and load as-is).
+  const alreadyInline = inlineScriptBases(`${header}\n${footer}`);
+  const scriptTags = collectEnqueuedScripts(files)
+    .filter((s) => s.external || !alreadyInline.has(s.base))
+    .map((s) => `    <script src="${s.url}" defer></script>`)
+    .join("\n");
+  return layoutSkeleton(header, footer, "ja", scriptTags);
 }
 
 const ASSET_URL = /(?:src|href)\s*=\s*"([^"]+)"|url\(\s*(['"]?)([^'")]+)\2\s*\)/gi;
@@ -684,6 +753,25 @@ function toTemplateHtml(markup: string): { html: string; issues: AiIssue[] } {
   return { html: withBlocks, issues: validateThemeHtml(withBlocks) };
 }
 
+/**
+ * A generic single-entry template (title + body slot). Used when a classic
+ * `page.php` / `single.php` composes to nothing — its content lives in a
+ * template-part that wasn't in the archive, or in a loop that produced no
+ * markup — so the operator still gets a page that renders its content instead of
+ * a blank template. Mirrors what `the_title` + `the_content` map to.
+ */
+const GENERIC_ENTRY =
+  '<article class="entry">\n' +
+  '  <h1 data-field="post.title" data-type="text" data-label="タイトル"></h1>\n' +
+  '  <div data-slot="content" data-field="post.body" data-type="richtext" data-label="本文"></div>\n' +
+  "</article>";
+
+/** True when a produced template has no editable field, slot, loop or text. */
+function isEmptyTemplate(html: string): boolean {
+  if (/data-(?:field|slot|loop|repeat)\b/i.test(html)) return false;
+  return html.replace(/<[^>]+>/g, "").trim() === "";
+}
+
 /** Dedupe notes while keeping order. */
 function dedupe(notes: string[]): string[] {
   return [...new Set(notes)];
@@ -723,9 +811,26 @@ export function importWpTheme(files: WpImportFile[]): WpImportResult {
   const issues: AiIssue[] = [];
   for (const [name, rawHtml] of sources) {
     const mapped = kind === "block" ? gutenbergToHtml(parseGutenberg(rawHtml)) : mapTemplateTags(rawHtml).html;
-    const r = toTemplateHtml(mapped);
+    let r = toTemplateHtml(mapped);
+    // A single-entry template (page/post) that composed to nothing — content in
+    // an absent template-part, or a loop that yielded no markup — would render a
+    // blank page. Fall back to the generic title+body template so it shows the
+    // post's content. (index/archive legitimately render via data-loop.)
+    if ((name === "page" || name === "post") && isEmptyTemplate(r.html)) {
+      r = toTemplateHtml(GENERIC_ENTRY);
+      notes.push(`${name}テンプレートの本文を抽出できず、汎用テンプレート（タイトル＋本文）で補いました。`);
+    }
     out.templates[name] = r.html;
     issues.push(...r.issues);
+  }
+  // Ensure a page and a post template always exist, even if the theme shipped
+  // none (or only an index) — otherwise non-home content has nothing to render.
+  for (const name of ["page", "post"] as const) {
+    if (!out.templates[name] || isEmptyTemplate(out.templates[name]!)) {
+      const r = toTemplateHtml(GENERIC_ENTRY);
+      out.templates[name] = r.html;
+      issues.push(...r.issues);
+    }
   }
 
   // Layout from header/footer.

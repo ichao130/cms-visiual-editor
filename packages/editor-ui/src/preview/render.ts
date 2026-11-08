@@ -195,6 +195,11 @@ export function renderPreview(
     html = renderTemplate(templateHtml(project, name), scope, layoutOptsFor(page));
   }
 
+  // A theme that links any script itself (e.g. a WordPress import) manages its
+  // own JS; auto-linking every other `assets/*.js` would load unused vendor
+  // files (conflicting library versions) and break the page. Detect before
+  // resolving, while local scripts still carry their `src`.
+  const themeManagesJs = /<script\b[^>]*\bsrc\b/i.test(html);
   // Resolve the theme's scripts IN PLACE (external kept, local inlined, inline
   // code dropped) so dependencies load in document order. The sandbox isolates
   // them from the app.
@@ -212,7 +217,7 @@ export function renderPreview(
   const runtime = `<script>${EDITOR_RUNTIME}</script>`;
   // Any auto-linked JS the layout didn't tag explicitly, then the editor runtime
   // last (after the theme's own scripts have set up the page).
-  const themeJs = autoLinkedExtraScript(project, resolved.referenced);
+  const themeJs = themeManagesJs ? "" : autoLinkedExtraScript(project, resolved.referenced);
   html = html.includes("</body>")
     ? html.replace("</body>", `${themeJs}${runtime}</body>`)
     : `${html}${themeJs}${runtime}`;

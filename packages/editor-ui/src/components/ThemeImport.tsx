@@ -128,20 +128,15 @@ function buildWpThemeFiles(
   if (cssText.trim() !== "") files["assets/style.css"] = localizeCssUrls(cssText);
   // Carry EVERY image from the archive (not only referenced ones).
   for (const [base, url] of Object.entries(imageAssets)) files[`assets/${base}`] = url;
-  // Carry EVERY script, and reference them from the layout so the theme's JS runs.
+  // Carry EVERY script file verbatim, but DON'T link them all: the layout the
+  // engine built already loads exactly the theme's enqueued/inline scripts. A WP
+  // theme ships a whole vendor folder (a dozen anime.js versions, duplicate
+  // jQuery, slick.js + slick.min.js); loading all of them breaks the page with
+  // conflicting globals. The unreferenced files stay on disk (so a dynamic load
+  // still resolves) but are never auto-linked (the engine suppresses that for a
+  // theme that manages its own scripts).
   for (const [base, text] of Object.entries(jsAssets)) files[`assets/${base}`] = text;
-  let layout = f["layout.html"] ?? "";
-  if (layout) {
-    const tags = Object.keys(jsAssets)
-      .map((base) => `    <script src="/assets/${base}" defer></script>`)
-      .join("\n");
-    if (tags) {
-      layout = layout.includes("</body>")
-        ? layout.replace("</body>", `${tags}\n  </body>`)
-        : `${layout}\n${tags}`;
-    }
-    files["layout.html"] = layout;
-  }
+  if (f["layout.html"]) files["layout.html"] = f["layout.html"];
   return files;
 }
 

@@ -220,6 +220,13 @@ function injectAutoAssets(root: HTMLElement, assets: string[] | undefined): void
       );
     }
   }
+  // A theme that links any script itself (e.g. a WordPress import, which loads
+  // exactly its enqueued set) manages its own JS — auto-linking every other
+  // `assets/*.js` would pull in unused vendor files (conflicting library
+  // versions, duplicate jQuery) and break the page. Only auto-link JS for a
+  // theme that references no scripts at all (a hand-made theme relying on it).
+  const themeManagesJs = root.querySelectorAll("script[src]").length > 0;
+  if (themeManagesJs) return;
   const body = root.querySelector("body") ?? root;
   for (const path of js) {
     if (already.has(name(path))) continue;
