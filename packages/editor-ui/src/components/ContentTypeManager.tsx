@@ -25,6 +25,9 @@ const FIELD_TYPES: FieldType[] = [
   "multiselect",
   "checkbox",
   "link",
+  "gallery",
+  "relation",
+  "group",
 ];
 
 /** Japanese labels for the field types offered above. */
@@ -41,6 +44,9 @@ const FIELD_TYPE_LABEL: Partial<Record<FieldType, MessageKey>> = {
   multiselect: "fieldtype.multiselect",
   checkbox: "fieldtype.checkbox",
   link: "fieldtype.link",
+  gallery: "fieldtype.gallery",
+  relation: "fieldtype.relation",
+  group: "fieldtype.group",
 };
 
 /** GUI to define custom post types and their fields (content-types.json). */
@@ -204,6 +210,23 @@ export function ContentTypeManager({ types, onCommit }: ContentTypeManagerProps)
                         placeholder={t("types.options")}
                       />
                     )}
+                    {f.type === "relation" && (
+                      <select
+                        className="pcms-fielddef__options"
+                        value={f.relationType ?? ""}
+                        onChange={(e) =>
+                          updateField(i, { relationType: e.target.value || undefined })
+                        }
+                        aria-label={t("types.relationType")}
+                      >
+                        <option value="">{t("types.relationType")}</option>
+                        {types.map((tp) => (
+                          <option key={tp.name} value={tp.name}>
+                            {tp.label}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                     <div className="pcms-fielddef__actions">
                       <button type="button" onClick={() => moveField(i, -1)} disabled={i === 0}>
                         <Icon name="chevron-up" size={15} />
@@ -281,6 +304,12 @@ export function ContentTypeManager({ types, onCommit }: ContentTypeManagerProps)
                       />
                     )}
                   </div>
+                  {f.type === "group" && (
+                    <GroupSubfields
+                      fields={f.fields ?? []}
+                      onChange={(fields) => updateField(i, { fields })}
+                    />
+                  )}
                 </fieldset>
               ))}
               <button type="button" className="pcms-types__addfield" onClick={addField}>
@@ -299,6 +328,74 @@ export function ContentTypeManager({ types, onCommit }: ContentTypeManagerProps)
             </div>
           )}
         </div>
+    </div>
+  );
+}
+
+/** Field types allowed inside a group (no nesting a group in a group). */
+const GROUP_SUBFIELD_TYPES: FieldType[] = [
+  "text",
+  "longtext",
+  "number",
+  "date",
+  "image",
+  "link",
+  "select",
+];
+
+/** Compact editor for a group field's repeating sub-fields. */
+function GroupSubfields({
+  fields,
+  onChange,
+}: {
+  fields: FieldDef[];
+  onChange: (fields: FieldDef[]) => void;
+}) {
+  const update = (idx: number, patch: Partial<FieldDef>) =>
+    onChange(fields.map((f, i) => (i === idx ? { ...f, ...patch } : f)));
+  const add = () =>
+    onChange([...fields, { name: uniqueFieldName(fields), label: "", type: "text" }]);
+  const remove = (idx: number) => onChange(fields.filter((_, i) => i !== idx));
+  return (
+    <div className="pcms-subfields">
+      <span className="pcms-subfields__head">{t("types.groupFields")}</span>
+      {fields.map((sf, i) => (
+        <div className="pcms-subfields__row" key={i}>
+          <input
+            className="pcms-fielddef__name"
+            value={sf.name}
+            onChange={(e) => update(i, { name: e.target.value })}
+            placeholder={t("types.fieldName")}
+          />
+          <input
+            value={sf.label}
+            onChange={(e) => update(i, { label: e.target.value })}
+            placeholder={t("types.label")}
+          />
+          <select
+            value={sf.type}
+            onChange={(e) => update(i, { type: e.target.value as FieldType })}
+          >
+            {GROUP_SUBFIELD_TYPES.map((ft) => (
+              <option key={ft} value={ft}>
+                {FIELD_TYPE_LABEL[ft] ? t(FIELD_TYPE_LABEL[ft]) : ft}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className="pcms-delbtn"
+            onClick={() => remove(i)}
+            aria-label={t("repeat.remove")}
+            title={t("repeat.remove")}
+          >
+            <Icon name="trash" size={14} />
+          </button>
+        </div>
+      ))}
+      <button type="button" className="pcms-subfields__add" onClick={add}>
+        <Icon name="plus" size={13} /> {t("types.addSubfield")}
+      </button>
     </div>
   );
 }

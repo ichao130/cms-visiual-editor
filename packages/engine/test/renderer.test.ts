@@ -286,3 +286,32 @@ describe("auto-linked theme assets", () => {
     expect(out.indexOf("assets/extra.css")).toBeLessThan(out.indexOf("data-pcms-theme"));
   });
 });
+
+describe("group field loop (data-loop on a content field)", () => {
+  function postScope(fields: Record<string, unknown>): RenderScope {
+    return {
+      site: sampleSite(),
+      theme: theme.config,
+      page: {},
+      menus: {},
+      collections: {},
+      item: { type: "post", slug: "p", fields: fields as never, body: "" },
+    };
+  }
+  const tpl =
+    '<dl><div data-loop="post.specs"><dt data-field="item.k">k</dt><dd data-field="item.v">v</dd></div></dl>';
+
+  it("iterates a group field's JSON rows", () => {
+    const out = renderTemplate(tpl, postScope({ specs: '[{"k":"容量","v":"250ml"},{"k":"産地","v":"エチオピア"}]' }));
+    expect(out).toContain("容量");
+    expect(out).toContain("250ml");
+    expect(out).toContain("産地");
+    expect(out).toContain("エチオピア");
+    expect((out.match(/<dt/g) ?? []).length).toBe(2);
+  });
+
+  it("renders nothing for an empty / non-array group value", () => {
+    const out = renderTemplate(tpl, postScope({ specs: "" }));
+    expect(out).not.toContain("<dt");
+  });
+});

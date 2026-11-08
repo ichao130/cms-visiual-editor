@@ -81,6 +81,13 @@ export function ContentEditorPanel({ type, slug, onDeleted, onDuplicated }: Prop
 
   const onPreview = () => setPreviewHtml(renderItemPreview(project, doc, type, slug, media));
 
+  // Options a `relation` field may point at: items of the target type (title →
+  // slug). Excludes the item being edited so it can't relate to itself.
+  const relationItems = (target: string | undefined) =>
+    doc.content
+      .filter((i) => (target ? i.type === target : true) && !(i.type === type && i.slug === slug))
+      .map((i) => ({ value: i.slug, label: String(i.fields.title ?? i.slug) }));
+
   return (
     <>
       <ContentForm
@@ -93,6 +100,7 @@ export function ContentEditorPanel({ type, slug, onDeleted, onDuplicated }: Prop
         onNoindexChange={onNoindexChange}
         aiSeo={aiSeo}
         aiRewrite={aiRewrite}
+        relationItems={relationItems}
         onDuplicate={onDuplicate}
         onPreview={onPreview}
         onDelete={onDelete}

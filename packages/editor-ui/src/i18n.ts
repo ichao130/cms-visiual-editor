@@ -320,6 +320,13 @@ const ja = {
   "fieldtype.multiselect.empty": "選択肢を設定してください。",
   "fieldtype.checkbox": "チェック",
   "fieldtype.link": "リンク",
+  "fieldtype.gallery": "ギャラリー",
+  "fieldtype.relation": "関連付け",
+  "fieldtype.group": "繰り返しグループ",
+  "types.relationType": "関連付け先のタイプ",
+  "types.groupFields": "グループ内の項目",
+  "types.addSubfield": "項目を追加",
+  "group.addRow": "行を追加",
 
   // App shell
   "common.loading": "読み込み中…",

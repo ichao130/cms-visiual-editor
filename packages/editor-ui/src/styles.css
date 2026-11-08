@@ -1457,3 +1457,25 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline: non
 .pcms-redirects__add { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.9rem; flex-wrap: wrap; }
 .pcms-redirects__input { flex: 1 1 12rem; min-width: 8rem; }
 .pcms-redirects__arrow { color: var(--pcms-muted); }
+
+/* Group content field (repeating sub-field rows) */
+.pcms-group { display: flex; flex-direction: column; gap: 0.6rem; }
+.pcms-group__row {
+  display: flex; gap: 0.5rem; align-items: flex-start;
+  border: 1px solid var(--border, #d0d0d0); border-radius: 8px; padding: 0.6rem;
+}
+.pcms-group__fields { flex: 1; display: flex; flex-direction: column; gap: 0.4rem; min-width: 0; }
+.pcms-group__ops { display: flex; flex-direction: column; gap: 0.25rem; }
+.pcms-group__ops button { padding: 0.1rem 0.4rem; }
+.pcms-group__add { align-self: flex-start; }
+
+/* Group sub-field definition editor (inside a field definition) */
+.pcms-subfields {
+  margin-top: 0.4rem; padding: 0.5rem; border-radius: 8px;
+  background: var(--surface-2, rgba(127,127,127,0.06));
+  display: flex; flex-direction: column; gap: 0.35rem;
+}
+.pcms-subfields__head { font-size: 0.78rem; opacity: 0.7; }
+.pcms-subfields__row { display: flex; gap: 0.35rem; align-items: center; }
+.pcms-subfields__row > input,
+.pcms-subfields__row > select { min-width: 0; }

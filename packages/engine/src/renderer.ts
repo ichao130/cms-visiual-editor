@@ -765,7 +765,34 @@ function loopItems(source: string, scope: RenderScope): ContentItem[] {
   if (scope.collections[source]) return scope.collections[source];
   const menu = scope.menus[source];
   if (menu) return menu.map(menuToItem);
+  // A content group field, e.g. `data-loop="post.specs"`: iterate its rows
+  // (stored as a JSON array by the group field editor). Inner elements use
+  // `data-field="item.<sub>"`.
+  if (source.includes(".")) {
+    const rows = asRowArray(resolveField(source, scope));
+    if (rows) {
+      return rows.map((fields) => ({ type: "group", slug: "", fields, body: "" }));
+    }
+  }
   return [];
+}
+
+/** A group field's value as an array of row objects, or null when it isn't one. */
+function asRowArray(value: FieldValue | undefined): Array<Record<string, FieldValue>> | null {
+  let arr: unknown = value;
+  if (typeof value === "string") {
+    const s = value.trim();
+    if (!s.startsWith("[")) return null;
+    try {
+      arr = JSON.parse(s);
+    } catch {
+      return null;
+    }
+  }
+  if (!Array.isArray(arr)) return null;
+  return arr
+    .filter((r): r is Record<string, FieldValue> => !!r && typeof r === "object")
+    .map((r) => ({ ...r }));
 }
 
 function menuToItem(mi: MenuItem): ContentItem {

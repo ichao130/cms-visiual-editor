@@ -5,20 +5,29 @@ import { AiRewriteAssist } from "./AiRewriteAssist.js";
 import { useMedia } from "../media/MediaContext.js";
 import { t } from "../i18n.js";
 
+/** Options a `relation` field can link to, resolved by target content type. */
+export type RelationOptions = (type: string | undefined) => {
+  value: string;
+  label: string;
+}[];
+
 interface ContentFieldProps {
   field: FieldDef;
   value: FieldValue | undefined;
   onChange: (value: string) => void;
   /** AI rewrite for rich-text fields: given the current text + an instruction. */
   aiRewrite?: (text: string, instruction: string) => Promise<string>;
+  /** Items a `relation` field may link to, by target type. */
+  relationItems?: RelationOptions;
 }
 
 /**
- * One content field rendered from its definition. Covers the field types the
- * MVP editor supports; richer types (gallery, relation, group) fall back to a
- * text control for now.
+ * One content field rendered from its definition. Covers every field type in
+ * the spec (CLAUDE.md カスタムフィールド): text/longtext/richtext, number,
+ * date/datetime, image/file, gallery, link, select/multiselect, checkbox,
+ * relation, and group (repeating sub-fields).
  */
-export function ContentField({ field, value, onChange, aiRewrite }: ContentFieldProps) {
+export function ContentField({ field, value, onChange, aiRewrite, relationItems }: ContentFieldProps) {
   const id = `cf-${field.name}`;
   const str = value == null ? "" : String(value);
 
@@ -28,7 +37,7 @@ export function ContentField({ field, value, onChange, aiRewrite }: ContentField
         {field.label || field.name}
         {field.required && <em className="pcms-field__req">必須</em>}
       </span>
-      {control(id, field, str, onChange)}
+      {control(id, field, str, onChange, relationItems)}
       {field.type === "richtext" && aiRewrite && str.trim() !== "" && (
         <AiRewriteAssist
           rewrite={(instruction) => aiRewrite(str, instruction)}
@@ -45,6 +54,7 @@ function control(
   field: FieldDef,
   str: string,
   onChange: (value: string) => void,
+  relationItems?: RelationOptions,
 ) {
   switch (field.type) {
     case "image":
@@ -75,6 +85,28 @@ function control(
     case "file":
       // Reuse the media picker; the stored value is the file's path.
       return <ImageField id={id} value={str} onChange={onChange} />;
+    case "link":
+      // A URL input (type=url) — validated and keyboard-friendly, unlike text.
+      return (
+        <input
+          id={id}
+          type="url"
+          value={str}
+          placeholder="https://"
+          onChange={(e) => onChange(e.target.value)}
+        />
+      );
+    case "relation":
+      return (
+        <RelationField
+          id={id}
+          value={str}
+          options={relationItems?.(field.relationType) ?? []}
+          onChange={onChange}
+        />
+      );
+    case "group":
+      return <GroupField id={id} value={str} fields={field.fields ?? []} onChange={onChange} />;
     case "gallery":
       return <GalleryField id={id} value={str} onChange={onChange} />;
     case "multiselect":
@@ -173,6 +205,114 @@ function GalleryField({
       </button>
     </div>
   );
+}
+
+/**
+ * Relation field: link this item to another content item. The value stored is
+ * the target item's slug (the theme references it via `data-field`); the picker
+ * shows titles. Falls back to a text input when no options are available.
+ */
+function RelationField({
+  id,
+  value,
+  options,
+  onChange,
+}: {
+  id: string;
+  value: string;
+  options: { value: string; label: string }[];
+  onChange: (value: string) => void;
+}) {
+  if (options.length === 0) {
+    return <input id={id} type="text" value={value} onChange={(e) => onChange(e.target.value)} />;
+  }
+  return (
+    <select id={id} value={value} onChange={(e) => onChange(e.target.value)}>
+      <option value="">—</option>
+      {options.map((o) => (
+        <option key={o.value} value={o.value}>
+          {o.label}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+type GroupRow = Record<string, string>;
+
+/**
+ * Group field: a repeating set of sub-fields. Stored as a JSON array of row
+ * objects (string in, string out, like gallery/multiselect), which the engine
+ * iterates with `data-loop="<type>.<field>"` and `data-field="item.<sub>"`.
+ */
+function GroupField({
+  id,
+  value,
+  fields,
+  onChange,
+}: {
+  id: string;
+  value: string;
+  fields: FieldDef[];
+  onChange: (value: string) => void;
+}) {
+  const rows = parseRows(value);
+  const commit = (next: GroupRow[]) => onChange(JSON.stringify(next));
+  const addRow = () => commit([...rows, {}]);
+  const removeRow = (i: number) => commit(rows.filter((_, idx) => idx !== i));
+  const moveRow = (i: number, dir: -1 | 1) => {
+    const to = i + dir;
+    if (to < 0 || to >= rows.length) return;
+    const next = [...rows];
+    [next[i], next[to]] = [next[to]!, next[i]!];
+    commit(next);
+  };
+  const setCell = (i: number, key: string, v: string) =>
+    commit(rows.map((r, idx) => (idx === i ? { ...r, [key]: v } : r)));
+
+  return (
+    <div id={id} className="pcms-group">
+      {rows.map((row, i) => (
+        <div className="pcms-group__row" key={i}>
+          <div className="pcms-group__fields">
+            {fields.map((sf) => (
+              <ContentField
+                key={sf.name}
+                field={sf}
+                value={row[sf.name] ?? ""}
+                onChange={(v) => setCell(i, sf.name, v)}
+              />
+            ))}
+          </div>
+          <div className="pcms-group__ops">
+            <button type="button" onClick={() => moveRow(i, -1)} disabled={i === 0} aria-label={t("sections.up")} title={t("sections.up")}>
+              ↑
+            </button>
+            <button type="button" onClick={() => moveRow(i, 1)} disabled={i === rows.length - 1} aria-label={t("sections.down")} title={t("sections.down")}>
+              ↓
+            </button>
+            <button type="button" className="pcms-group__del" onClick={() => removeRow(i)} aria-label={t("repeat.remove")} title={t("repeat.remove")}>
+              ×
+            </button>
+          </div>
+        </div>
+      ))}
+      <button type="button" className="pcms-group__add" onClick={addRow}>
+        ＋ {t("group.addRow")}
+      </button>
+    </div>
+  );
+}
+
+/** Parse a group field's stored JSON array; tolerate empty / invalid as []. */
+function parseRows(value: string): GroupRow[] {
+  if (!value.trim()) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? (parsed as GroupRow[]) : [];
+  } catch {
+    return [];
+  }
 }
 
 /**

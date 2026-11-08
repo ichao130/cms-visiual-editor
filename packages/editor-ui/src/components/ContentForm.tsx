@@ -5,7 +5,7 @@ import type {
   FieldValue,
   TaxonomyDef,
 } from "@pcms/shared";
-import { ContentField } from "./ContentField.js";
+import { ContentField, type RelationOptions } from "./ContentField.js";
 import { TaxonomyInput } from "./TaxonomyInput.js";
 import { AiSeoAssist } from "./AiSeoAssist.js";
 import { t } from "../i18n.js";
@@ -22,6 +22,8 @@ interface ContentFormProps {
   aiSeo?: { suggest: () => Promise<string>; apply: (text: string) => void };
   /** AI rewrite for rich-text fields (given current text + instruction). */
   aiRewrite?: (text: string, instruction: string) => Promise<string>;
+  /** Items a `relation` field may link to, by target content type. */
+  relationItems?: RelationOptions;
   onDuplicate?: () => void;
   /** Open a preview of how this item's published page will look. */
   onPreview?: () => void;
@@ -45,6 +47,7 @@ export function ContentForm({
   onNoindexChange,
   aiSeo,
   aiRewrite,
+  relationItems,
   onDuplicate,
   onPreview,
   onDelete,
@@ -96,6 +99,7 @@ export function ContentForm({
             value={valueOf(f.name)}
             onChange={(v) => onChange(f.name, v)}
             aiRewrite={aiRewrite}
+            relationItems={relationItems}
           />
         ))}
 

@@ -302,6 +302,8 @@ export interface FieldDef {
   options?: string[];
   /** Nested fields for `group` type. */
   fields?: FieldDef[];
+  /** Target content-type name for `relation` type (which items may be linked). */
+  relationType?: string;
 }
 
 // ---------------------------------------------------------------------------
