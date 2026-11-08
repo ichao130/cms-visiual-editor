@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { preflight } from "../src/index.js";
+import type { ContentItem, ContentTypeDef } from "@pcms/shared";
+import { preflight, validateContent } from "../src/index.js";
 
 const ok = {
   "index.html": '<html><head><title>Home</title></head><body><a href="/about/">about</a></body></html>',
@@ -83,5 +84,70 @@ describe("preflight", () => {
     expect(dupes.map((i) => i.path).sort()).toEqual(["a/index.html", "b/index.html"]);
     // The unique titles in the base set are not flagged.
     expect(issues.some((i) => i.message.includes("重複") && i.path === "index.html")).toBe(false);
+  });
+});
+
+describe("validateContent", () => {
+  const types: ContentTypeDef[] = [
+    {
+      name: "staff",
+      label: "スタッフ",
+      fields: [
+        { name: "title", label: "氏名", type: "text", required: true },
+        { name: "bio", label: "紹介", type: "longtext" },
+        { name: "price", label: "料金", type: "number", required: true },
+        { name: "agree", label: "同意", type: "checkbox", required: true },
+        {
+          name: "note",
+          label: "補足",
+          type: "text",
+          required: true,
+          showIf: { field: "agree", equals: true },
+        },
+      ],
+    },
+  ];
+  const item = (fields: ContentItem["fields"], extra: Partial<ContentItem> = {}): ContentItem => ({
+    type: "staff",
+    slug: "taro",
+    fields,
+    body: "",
+    ...extra,
+  });
+
+  it("passes when every required field is filled", () => {
+    const issues = validateContent(types, [
+      item({ title: "太郎", price: 0, agree: true, note: "ok" }),
+    ]);
+    expect(issues).toEqual([]);
+  });
+
+  it("flags an empty required text field (number 0 is a real value)", () => {
+    const issues = validateContent(types, [item({ title: "", price: 0, agree: true, note: "ok" })]);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]?.level).toBe("warning");
+    expect(issues[0]?.message).toContain("氏名");
+  });
+
+  it("treats an unchecked required checkbox as empty", () => {
+    const issues = validateContent(types, [item({ title: "太郎", price: 1, agree: false })]);
+    // agree=false is flagged; note is hidden (showIf agree=true) so it is not.
+    expect(issues).toHaveLength(1);
+    expect(issues[0]?.message).toContain("同意");
+  });
+
+  it("requires a showIf field only when its condition is met", () => {
+    const issues = validateContent(types, [item({ title: "太郎", price: 1, agree: true })]);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]?.message).toContain("補足");
+  });
+
+  it("skips drafts and unknown types", () => {
+    expect(
+      validateContent(types, [item({ title: "" }, { status: "draft" })]),
+    ).toEqual([]);
+    expect(
+      validateContent(types, [{ type: "ghost", slug: "x", fields: {}, body: "" }]),
+    ).toEqual([]);
   });
 });

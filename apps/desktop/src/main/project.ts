@@ -22,6 +22,8 @@ import type {
 import { BUILTIN_CONTENT_TYPES, BUILTIN_TAXONOMIES } from "@pcms/shared";
 import {
   generateSite,
+  validateContent,
+  type PreflightIssue,
   parseFrontMatter,
   renderMarkdown,
   createEncryptedBackup,
@@ -445,6 +447,15 @@ export function saveMenus(menus: Record<string, MenuItem[]>): void {
 
 export function saveTaxonomies(taxonomies: TaxonomyDef[]): void {
   writeFileSync(taxonomiesPath(), JSON.stringify(taxonomies, null, 2), "utf8");
+}
+
+/**
+ * Content-level pre-publish checks (required fields), merged with the engine's
+ * output checks in the publish flow. Kept here because it loads content/types
+ * from disk; the pure check lives in the engine.
+ */
+export function contentIssues(): PreflightIssue[] {
+  return validateContent(loadContentTypes(), loadContent());
 }
 
 /**

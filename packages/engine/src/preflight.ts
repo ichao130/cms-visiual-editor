@@ -1,3 +1,5 @@
+import type { ContentItem, ContentTypeDef, FieldDef, FieldValue } from "@pcms/shared";
+
 /** An in-memory set of output files: site-relative path → contents. */
 export type SiteFileSet = Record<string, string | Uint8Array>;
 
@@ -93,6 +95,67 @@ export function preflight(files: SiteFileSet): PreflightIssue[] {
     }
   }
 
+  return issues;
+}
+
+/**
+ * Whether a field value counts as "not filled in" for a required-field check.
+ * Empty string / whitespace, null, an empty list, and an unchecked checkbox
+ * (false) are empty; the number 0 and `false`-but-as-text are real values.
+ */
+function isEmptyValue(value: FieldValue | undefined): boolean {
+  if (value == null) return true;
+  if (typeof value === "string") return value.trim() === "";
+  if (typeof value === "boolean") return value === false;
+  if (Array.isArray(value)) return value.length === 0;
+  return false;
+}
+
+/**
+ * Whether a field is active given the item's other values. Mirrors the editor's
+ * showIf rule (ContentForm): a field with no condition is always active; with a
+ * condition it is active only when the referenced field matches (equals the
+ * given value, or is non-empty when no value is given). Hidden fields are not
+ * required.
+ */
+function fieldActive(field: FieldDef, fields: Record<string, FieldValue>): boolean {
+  const cond = field.showIf;
+  if (!cond) return true;
+  const other = fields[cond.field];
+  if (cond.equals === undefined) return !isEmptyValue(other);
+  return other === cond.equals;
+}
+
+/**
+ * Pre-publish content check: every published item has its type's required
+ * fields filled (respecting showIf, skipping drafts). Pure and isomorphic, like
+ * {@link preflight}; the publish pipeline merges these with the output checks.
+ * Missing required fields are warnings (they do not block publishing) so the
+ * operator sees them in the same pre-publish list as the SEO checks.
+ */
+export function validateContent(
+  contentTypes: ContentTypeDef[],
+  content: ContentItem[],
+): PreflightIssue[] {
+  const issues: PreflightIssue[] = [];
+  const typeByName = new Map(contentTypes.map((t) => [t.name, t]));
+  for (const item of content) {
+    if (item.status === "draft") continue;
+    const type = typeByName.get(item.type);
+    if (!type) continue;
+    const label =
+      (typeof item.fields.title === "string" && item.fields.title.trim()) || item.slug;
+    for (const field of type.fields) {
+      if (!field.required) continue;
+      if (!fieldActive(field, item.fields)) continue;
+      if (isEmptyValue(item.fields[field.name])) {
+        issues.push({
+          level: "warning",
+          message: `「${type.label}」の「${label}」で必須項目が未入力です: ${field.label || field.name}`,
+        });
+      }
+    }
+  }
   return issues;
 }
 

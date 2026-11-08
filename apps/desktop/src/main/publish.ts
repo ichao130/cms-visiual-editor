@@ -22,7 +22,7 @@ import {
   type PublishManifest,
   type Transport,
 } from "@pcms/deploy";
-import { assembleOutput } from "./project.js";
+import { assembleOutput, contentIssues } from "./project.js";
 
 // --- Config types (mirrored by the editor-ui API) --------------------------
 
@@ -433,7 +433,7 @@ export async function previewPublish(full = false): Promise<PublishPreview> {
   const { transport, target } = makeTransport(loadRawConfig());
   try {
     const files = assembleOutput();
-    const issues = preflight(files);
+    const issues = [...contentIssues(), ...preflight(files)];
     const result = await publish(files, transport, {
       previousManifest: loadManifest(),
       dryRun: true,
@@ -470,7 +470,7 @@ export async function previewPublish(full = false): Promise<PublishPreview> {
 }
 
 async function runPublish(files: FileSet, full = false): Promise<PublishReport> {
-  const issues = preflight(files);
+  const issues = [...contentIssues(), ...preflight(files)];
   const { transport, target } = makeTransport(loadRawConfig());
 
   if (issues.some((i) => i.level === "error")) {

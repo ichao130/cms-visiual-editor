@@ -95,4 +95,4 @@ export {
   type ZipEntryKind,
 } from "./import.js";
 export { mediaUsageCounts } from "./media.js";
-export { preflight, type PreflightIssue, type SiteFileSet } from "./preflight.js";
+export { preflight, validateContent, type PreflightIssue, type SiteFileSet } from "./preflight.js";

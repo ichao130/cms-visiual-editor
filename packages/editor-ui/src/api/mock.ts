@@ -20,6 +20,7 @@ import {
   rewriteText,
   seoSuggest,
   preflight,
+  validateContent,
   isBinaryAsset,
   assetContentType,
   bytesToDataUrl,
@@ -566,9 +567,8 @@ function loadPublished(): Record<string, string> | null {
 }
 
 /** Generate the whole site output, as the engine would for a publish. */
-function generateMockSite(): Record<string, string> {
-  const media = loadMedia();
-  const { files, assets } = generateSite({
+function mockSiteInput() {
+  return {
     site: loadSite(),
     settings: loadDraft() ?? defaultSettings,
     contentTypes: loadTypes(),
@@ -576,9 +576,15 @@ function generateMockSite(): Record<string, string> {
     theme: buildTheme(),
     menus: loadMenus(),
     taxonomies: loadTaxonomies(),
-    media,
+    media: loadMedia(),
     redirects: loadRedirects(),
-  });
+  };
+}
+
+function generateMockSite(): Record<string, string> {
+  const input = mockSiteInput();
+  const media = input.media;
+  const { files, assets } = generateSite(input);
   // Mirror the desktop's assembleOutput: the published set also carries the
   // theme's copied assets and the media files, so the pre-publish check resolves
   // links to them (otherwise /assets/style.css and media look broken) and counts
@@ -595,9 +601,13 @@ function outputCount(): number {
   return Object.keys(generateMockSite()).length;
 }
 
-/** Run the real pre-publish checks over the generated output. */
+/** Run the real pre-publish checks over the generated output plus content. */
 function preflightIssues(): PublishIssue[] {
-  return preflight(generateMockSite());
+  const input = mockSiteInput();
+  return [
+    ...validateContent(input.contentTypes, input.content),
+    ...preflight(generateMockSite()),
+  ];
 }
 
 // ---------------------------------------------------------------------------
