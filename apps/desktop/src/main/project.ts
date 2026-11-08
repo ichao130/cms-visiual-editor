@@ -6,7 +6,7 @@ import {
   readdirSync,
   unlinkSync,
 } from "node:fs";
-import { basename, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { app } from "electron";
 import type {
   ContentItem,
@@ -36,10 +36,20 @@ import {
   type BackupRef,
   type EncryptedBackup,
   type KvAdapter,
+  type ThemeBundle,
 } from "@pcms/engine";
 import type { FileSet } from "@pcms/deploy";
-import type { MediaUpload, ProjectData } from "@pcms/editor-ui";
+import type { MediaUpload, ProjectData, ThemeSummary } from "@pcms/editor-ui";
 import { applyThemeOverlay, overlayHas, overlayGet } from "./theme-overlay.js";
+import {
+  activeThemeId,
+  readThemeMeta,
+  setActiveThemeId,
+  themeRoot,
+  themesRoot,
+  uniqueThemeId,
+  SAMPLE_THEME_ID,
+} from "./theme-store.js";
 import { currentUid } from "./auth.js";
 import { storageBackupKv } from "./storageBackup.js";
 
@@ -54,7 +64,10 @@ import { storageBackupKv } from "./storageBackup.js";
 
 function themeDir(): string {
   if (process.env.PCMS_THEME_DIR) return process.env.PCMS_THEME_DIR;
-  // Packaged: the theme is shipped as an extraResource under resources/.
+  // An imported theme lives in its own folder under userData.
+  const id = activeThemeId();
+  if (id !== SAMPLE_THEME_ID) return themeRoot(id);
+  // Packaged: the sample is shipped as an extraResource under resources/.
   if (app.isPackaged) return join(process.resourcesPath, "themes/sample-cafe");
   // Dev: from out/main back up to the repo root, then themes/sample-cafe.
   return resolve(__dirname, "../../../..", "themes/sample-cafe");
@@ -211,6 +224,15 @@ const defaultContent: ContentItem[] = [
 
 function readTheme(rel: string): string {
   return readFileSync(join(themeDir(), rel), "utf8");
+}
+
+/** Read a theme file, tolerating absence (imported themes vary in which files they ship). */
+function readThemeSafe(rel: string, fallback = ""): string {
+  try {
+    return readTheme(rel);
+  } catch {
+    return fallback;
+  }
 }
 
 /** Load the theme's reusable sections (sections/<type>.html) for composed pages. */
@@ -403,19 +425,31 @@ function recordPermalinkRedirects(oldPermalink: string, newPermalink: string): v
   writeFileSync(redirectsPath(), JSON.stringify(merged, null, 2), "utf8");
 }
 
+function parseThemeConfig(): ThemeBundle["config"] {
+  try {
+    return JSON.parse(readThemeSafe("theme.json", "{}")) as ThemeBundle["config"];
+  } catch {
+    return {};
+  }
+}
+
 export function loadProject(): ProjectData {
   const assets = readThemeAssets();
+  // Every template the theme ships (imported themes may name them differently),
+  // with the four core stems guaranteed so composed pages / archives resolve.
+  const tpls = readHtmlDir("templates");
   return {
     site: loadSite(),
     settings: loadSettings(),
     theme: {
-      config: JSON.parse(readTheme("theme.json")),
-      layout: readTheme("layout.html"),
+      config: parseThemeConfig(),
+      layout: readThemeSafe("layout.html"),
       templates: {
-        index: readTheme("templates/index.html"),
-        page: readTheme("templates/page.html"),
-        post: readTheme("templates/post.html"),
-        archive: readTheme("templates/archive.html"),
+        index: tpls.index ?? readThemeSafe("templates/index.html"),
+        page: tpls.page ?? tpls.index ?? "",
+        post: tpls.post ?? "",
+        archive: tpls.archive ?? tpls.index ?? "",
+        ...tpls,
       },
       sections: readSections(),
       blocks: readBlocks(),
@@ -425,7 +459,7 @@ export function loadProject(): ProjectData {
     menus: loadMenus(),
     contentTypes: loadContentTypes(),
     taxonomies: loadTaxonomies(),
-    previewCss: readTheme("assets/style.css"),
+    previewCss: readThemeSafe("assets/style.css"),
     themeAssets: assets.map,
     themeTextAssets: assets.text,
   };
@@ -433,6 +467,86 @@ export function loadProject(): ProjectData {
 
 export function saveDraft(settings: SiteSettings): void {
   writeFileSync(settingsPath(), JSON.stringify(settings, null, 2), "utf8");
+}
+
+/** The default page/region layout for a theme, used when it becomes active. */
+function presetSettingsFor(id: string): SiteSettings {
+  if (id === SAMPLE_THEME_ID) return defaultSettings;
+  // Imported themes render their templates directly (a page with no section
+  // instances renders templates/<template>.html), so the index page just names
+  // its template; header/footer come from the theme's own layout.html.
+  return { pages: { index: { template: "index" } }, regions: {} };
+}
+
+/** All available themes: the bundled sample plus every imported theme. */
+export function listThemes(): ThemeSummary[] {
+  const active = activeThemeId();
+  const out: ThemeSummary[] = [
+    {
+      id: SAMPLE_THEME_ID,
+      name: "サンプル（カフェ）",
+      description: "付属のサンプルテーマ",
+      current: active === SAMPLE_THEME_ID,
+    },
+  ];
+  const root = themesRoot();
+  if (existsSync(root)) {
+    for (const dir of readdirSync(root)) {
+      const meta = readThemeMeta(dir);
+      if (!meta) continue;
+      out.push({
+        id: meta.id,
+        name: meta.name,
+        description: meta.description ?? "",
+        current: active === meta.id,
+      });
+    }
+  }
+  return out;
+}
+
+/**
+ * Import a complete theme as a new, separate theme under userData (CLAUDE.md:
+ * never touching the bundled theme). `files` is a theme-relative path→content
+ * map; binary assets arrive as data URLs. The theme is added but not activated
+ * — the caller decides when to switch with setActiveTheme.
+ */
+export function createTheme(
+  meta: { name: string; description?: string; source?: string },
+  files: Record<string, string>,
+): ThemeSummary {
+  const id = uniqueThemeId(meta.name);
+  const dir = themeRoot(id);
+  mkdirSync(dir, { recursive: true });
+  for (const [rel, content] of Object.entries(files)) {
+    if (rel.includes("..") || rel.startsWith("/")) continue; // never escape the theme folder
+    const full = join(dir, rel);
+    mkdirSync(dirname(full), { recursive: true });
+    const bytes = isBinaryAsset(rel) && content.startsWith("data:") ? dataUrlToBytes(content) : null;
+    if (bytes) writeFileSync(full, bytes);
+    else writeFileSync(full, content, "utf8");
+  }
+  const description = meta.description ?? "";
+  writeFileSync(
+    join(dir, "theme-meta.json"),
+    JSON.stringify({ id, name: meta.name, description, source: meta.source }, null, 2),
+    "utf8",
+  );
+  return { id, name: meta.name, description, current: false };
+}
+
+/**
+ * Switch the active theme. The page/region layout is reset to the new theme's
+ * defaults (section and region types belong to the active theme, so the old
+ * layout would render nothing), while all content — posts, pages, media, menus,
+ * site.json — is preserved. The per-theme color override is cleared on switch.
+ */
+export function setActiveTheme(id: string): void {
+  if (id !== SAMPLE_THEME_ID && !readThemeMeta(id)) {
+    throw new Error(`theme not found: ${id}`);
+  }
+  setActiveThemeId(id);
+  saveDraft(presetSettingsFor(id));
 }
 
 export { saveContent };

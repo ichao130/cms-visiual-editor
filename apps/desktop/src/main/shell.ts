@@ -18,7 +18,12 @@ import {
   assetContentType,
   bytesToDataUrl,
 } from "@pcms/engine";
-import { loadProject } from "./project.js";
+import {
+  loadProject,
+  listThemes as loadThemes,
+  createTheme as createThemeOnDisk,
+  setActiveTheme as setActiveThemeOnDisk,
+} from "./project.js";
 import {
   overlayDelete,
   overlayGet,
@@ -201,9 +206,18 @@ export async function fetchVisitStats(siteId: string, days = 14): Promise<VisitS
 }
 
 export async function listThemes(): Promise<ThemeSummary[]> {
-  const project = await loadProject();
-  const name = (project.theme.config as { name?: string } | undefined)?.name ?? "テーマ";
-  return [{ id: "current", name: String(name), description: "", current: true }];
+  return loadThemes();
+}
+
+export async function createTheme(
+  meta: { name: string; description?: string; source?: string },
+  files: Record<string, string>,
+): Promise<ThemeSummary> {
+  return createThemeOnDisk(meta, files);
+}
+
+export async function setActiveTheme(id: string): Promise<void> {
+  setActiveThemeOnDisk(id);
 }
 
 function themeFiles(project: ProjectData): Record<string, string> {

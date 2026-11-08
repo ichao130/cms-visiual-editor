@@ -146,6 +146,23 @@ export interface PcmsApi {
    */
   fetchVisitStats(siteId: string, days?: number): Promise<VisitStats>;
   listThemes(): Promise<ThemeSummary[]>;
+  /**
+   * Create a new theme from a complete set of files (e.g. a converted
+   * WordPress theme) and return its summary. `files` maps a theme-relative path
+   * (theme.json / layout.html / templates|sections|blocks/*.html / assets/*) to
+   * its text; binary assets are passed as data URLs. The new theme is stored
+   * alongside the bundled sample; it does not become active until setActiveTheme.
+   */
+  createTheme(
+    meta: { name: string; description?: string; source?: string },
+    files: Record<string, string>,
+  ): Promise<ThemeSummary>;
+  /**
+   * Switch the active theme. The editor then renders/generates with that
+   * theme's files. Page section-composition (settings.pages / regions) is reset
+   * to the new theme's defaults; content (posts/pages/media/menus) is preserved.
+   */
+  setActiveTheme(id: string): Promise<void>;
 
   // Theme source files — for theme development / part authoring in the code
   // editor. Distinct from operator content editing; writes target a theme

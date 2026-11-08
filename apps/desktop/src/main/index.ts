@@ -71,6 +71,8 @@ import {
   loadSiteStats,
   fetchVisitStats,
   listThemes,
+  createTheme,
+  setActiveTheme,
   listThemeFiles,
   readThemeFile,
   writeThemeFile,
@@ -243,6 +245,12 @@ function registerIpc(): void {
     fetchVisitStats(siteId, days),
   );
   ipcMain.handle("pcms:listThemes", () => listThemes());
+  ipcMain.handle(
+    "pcms:createTheme",
+    (_event, meta: { name: string; description?: string; source?: string }, files: Record<string, string>) =>
+      createTheme(meta, files),
+  );
+  ipcMain.handle("pcms:setActiveTheme", (_event, id: string) => setActiveTheme(id));
   ipcMain.handle("pcms:listThemeFiles", () => listThemeFiles());
   ipcMain.handle("pcms:readThemeFile", (_event, path: string) => readThemeFile(path));
   ipcMain.handle("pcms:writeThemeFile", (_event, path: string, content: string) =>

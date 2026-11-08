@@ -4,6 +4,7 @@ import { app } from "electron";
 import type { ProjectData } from "@pcms/editor-ui";
 import type { ThemeBundle } from "@pcms/engine";
 import { isBinaryAsset } from "@pcms/engine";
+import { activeThemeId, SAMPLE_THEME_ID } from "./theme-store.js";
 
 /**
  * The code editor's theme working copy.
@@ -19,14 +20,20 @@ import { isBinaryAsset } from "@pcms/engine";
 function overlayPath(): string {
   const dir = join(app.getPath("userData"), "site");
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-  return join(dir, "theme-overlay.json");
+  // The overlay (code-editor working copy) is per theme, so switching themes
+  // shows the right edits. The sample keeps the legacy filename for back-compat.
+  const id = activeThemeId();
+  return join(dir, id === SAMPLE_THEME_ID ? "theme-overlay.json" : `theme-overlay.${id}.json`);
 }
 
 let cache: Map<string, string> | null = null;
+let cacheId: string | null = null;
 
 function store(): Map<string, string> {
-  if (cache) return cache;
+  const id = activeThemeId();
+  if (cache && cacheId === id) return cache;
   cache = new Map();
+  cacheId = id;
   try {
     const raw = readFileSync(overlayPath(), "utf8");
     const obj = JSON.parse(raw) as Record<string, string>;

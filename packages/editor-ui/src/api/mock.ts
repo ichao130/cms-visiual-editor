@@ -693,16 +693,13 @@ const mockInquiries = [
   { id: "inq-3", name: "鈴木 一郎", email: "suzuki@example.com", message: "店内でイベントはできますか？", receivedAt: "2026-10-20T09:05:00Z" },
 ];
 
-const mockThemes: ThemeSummary[] = [
-  { id: "sample-cafe", name: "Sample Cafe", description: "カフェ・小規模店舗向けのサンプルテーマ。", current: true },
-  { id: "minimal", name: "Minimal", description: "シンプルなブログ／コーポレート向け。", current: false },
-  { id: "shop-starter", name: "Shop Starter", description: "商品一覧に強いスターターテーマ。", current: false },
-];
-
 // Theme source files, exposed to the code editor. Writes go to a localStorage
 // working copy overlaid on these originals — the sample-cafe files are never
 // modified (CLAUDE.md: テーマのファイルは改変しない).
 const THEME_KEY = "pcms.mock.themeFiles";
+const ACTIVE_THEME_KEY = "pcms.mock.activeTheme";
+const THEMES_KEY = "pcms.mock.themes";
+const SAMPLE_THEME_ID = "sample-cafe";
 const THEME_FILES: Record<string, string> = {
   "theme.json": JSON.stringify(themeJson, null, 2),
   "layout.html": layout,
@@ -733,9 +730,45 @@ const THEME_FILES: Record<string, string> = {
   "assets/style.css": previewCss,
 };
 
+/** A theme the operator imported (e.g. a converted WordPress theme). */
+interface StoredTheme {
+  meta: { id: string; name: string; description?: string; source?: string };
+  files: Record<string, string>;
+}
+
+/** The active theme id (defaults to the bundled sample). */
+function activeThemeId(): string {
+  try {
+    return localStorage.getItem(ACTIVE_THEME_KEY) || SAMPLE_THEME_ID;
+  } catch {
+    return SAMPLE_THEME_ID;
+  }
+}
+
+/** Imported themes, keyed by id. */
+function createdThemes(): Record<string, StoredTheme> {
+  try {
+    const raw = localStorage.getItem(THEMES_KEY);
+    return raw ? (JSON.parse(raw) as Record<string, StoredTheme>) : {};
+  } catch {
+    return {};
+  }
+}
+
+/** The immutable original files of a theme (sample bundle or an imported one). */
+function baseThemeFiles(id: string = activeThemeId()): Record<string, string> {
+  if (id === SAMPLE_THEME_ID) return THEME_FILES;
+  return createdThemes()[id]?.files ?? THEME_FILES;
+}
+
+/** The working-copy storage key for a theme (sample keeps the legacy key). */
+function workingKey(id: string = activeThemeId()): string {
+  return id === SAMPLE_THEME_ID ? THEME_KEY : `${THEME_KEY}.${id}`;
+}
+
 function themeWorkingCopy(): Record<string, string> {
   try {
-    const raw = localStorage.getItem(THEME_KEY);
+    const raw = localStorage.getItem(workingKey());
     return raw ? (JSON.parse(raw) as Record<string, string>) : {};
   } catch {
     return {};
@@ -756,9 +789,9 @@ function themeFileKind(path: string): ThemeFileKind {
   return "other";
 }
 
-/** Theme originals overlaid with the code-editor working copy. */
+/** Theme originals (active theme) overlaid with the code-editor working copy. */
 function mergedThemeFiles(): Record<string, string> {
-  return { ...THEME_FILES, ...themeWorkingCopy() };
+  return { ...baseThemeFiles(), ...themeWorkingCopy() };
 }
 
 /** All theme-relative paths under `assets/` (originals + working copy). */
@@ -826,6 +859,29 @@ function buildTheme(): ThemeBundle {
     blocks,
     assets: themeAssetPaths(),
   };
+}
+
+function themeSlug(name: string): string {
+  return (
+    name
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "theme"
+  );
+}
+
+/**
+ * The default page composition for a theme. Switching themes resets
+ * settings.pages / regions to this (content is untouched). The sample keeps its
+ * rich hardcoded layout; an imported theme renders its own templates directly
+ * (no section instances), with the layout supplying header/footer.
+ */
+function presetSettingsFor(id: string): Pick<SiteSettings, "pages" | "regions"> {
+  if (id === SAMPLE_THEME_ID) {
+    return { pages: defaultSettings.pages, regions: defaultSettings.regions };
+  }
+  return { pages: { index: { template: "index" } }, regions: {} };
 }
 
 /** Browser mock of window.pcms used by the dev harness. */
@@ -1160,13 +1216,54 @@ export function createMockApi(): PcmsApi {
       };
     },
     async listThemes(): Promise<ThemeSummary[]> {
-      return mockThemes;
+      const active = activeThemeId();
+      const sample: ThemeSummary = {
+        id: SAMPLE_THEME_ID,
+        name: "Sample Cafe",
+        description: "カフェ・小規模店舗向けのサンプルテーマ。",
+        current: active === SAMPLE_THEME_ID,
+      };
+      const imported = Object.values(createdThemes()).map<ThemeSummary>((t) => ({
+        id: t.meta.id,
+        name: t.meta.name,
+        description: t.meta.description ?? "",
+        current: t.meta.id === active,
+      }));
+      return [sample, ...imported];
+    },
+    async createTheme(meta, files): Promise<ThemeSummary> {
+      const existing = createdThemes();
+      const base = themeSlug(meta.name);
+      let id = base;
+      let n = 1;
+      while (id === SAMPLE_THEME_ID || existing[id]) id = `${base}-${++n}`;
+      existing[id] = {
+        meta: { id, name: meta.name, description: meta.description, source: meta.source },
+        files,
+      };
+      saveJson(THEMES_KEY, existing);
+      return { id, name: meta.name, description: meta.description ?? "", current: false };
+    },
+    async setActiveTheme(id: string): Promise<void> {
+      // Stored raw (not JSON) — activeThemeId() reads it back with getItem().
+      try {
+        localStorage.setItem(ACTIVE_THEME_KEY, id);
+      } catch {
+        /* ignore storage failures in the mock */
+      }
+      // Reset page composition to the new theme's defaults; content is untouched.
+      const preset = presetSettingsFor(id);
+      const current = loadDraft() ?? defaultSettings;
+      const next: SiteSettings = { ...current, pages: preset.pages, regions: preset.regions };
+      delete next.theme; // clear the old theme's colour overrides
+      saveJson(DRAFT_KEY, next);
     },
     async listThemeFiles(): Promise<ThemeFileNode[]> {
+      const base = baseThemeFiles();
       const working = themeWorkingCopy();
-      const paths = new Set([...Object.keys(THEME_FILES), ...Object.keys(working)]);
+      const paths = new Set([...Object.keys(base), ...Object.keys(working)]);
       return [...paths].sort().map((path) => {
-        const original = path in THEME_FILES;
+        const original = path in base;
         return {
           path,
           kind: themeFileKind(path),
@@ -1178,38 +1275,39 @@ export function createMockApi(): PcmsApi {
     },
     async readThemeFile(path: string): Promise<string> {
       const working = themeWorkingCopy();
-      return working[path] ?? THEME_FILES[path] ?? "";
+      return working[path] ?? baseThemeFiles()[path] ?? "";
     },
     async writeThemeFile(path: string, content: string): Promise<void> {
       const working = themeWorkingCopy();
       working[path] = content;
-      saveJson(THEME_KEY, working);
+      saveJson(workingKey(), working);
     },
     async writeThemeAsset(path: string, bytes: Uint8Array): Promise<void> {
       // The working copy is string-only, so a binary asset is kept as a data URL.
       const working = themeWorkingCopy();
       working[path] = bytesToDataUrl(bytes, assetContentType(path));
-      saveJson(THEME_KEY, working);
+      saveJson(workingKey(), working);
     },
     async deleteThemeFile(path: string): Promise<void> {
       // Remove the working-copy entry: deletes a created part, or reverts an
       // edited original (which then falls back to the theme's version).
       const working = themeWorkingCopy();
       delete working[path];
-      saveJson(THEME_KEY, working);
+      saveJson(workingKey(), working);
     },
     async renameThemeFile(from: string, to: string): Promise<void> {
+      const base = baseThemeFiles();
       const working = themeWorkingCopy();
       // Only created parts (not original theme files) can be renamed.
-      if (from in THEME_FILES || to in THEME_FILES || to in working) return;
+      if (from in base || to in base || to in working) return;
       // Keep the contents consistent: update data-section / default data-label.
       working[to] = renameSection(working[from] ?? "", sectionStem(from), sectionStem(to));
       delete working[from];
-      saveJson(THEME_KEY, working);
+      saveJson(workingKey(), working);
     },
     async resetTheme(): Promise<void> {
       try {
-        localStorage.removeItem(THEME_KEY);
+        localStorage.removeItem(workingKey());
       } catch {
         /* ignore storage failures in the mock */
       }
