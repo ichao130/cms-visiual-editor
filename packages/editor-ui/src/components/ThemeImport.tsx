@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, type DragEvent } from "react";
 import { unzipSync } from "fflate";
 import { Icon } from "./Icon.js";
 import {
@@ -94,6 +94,7 @@ export function ThemeImport({ api, onClose }: Props) {
   const [zipNote, setZipNote] = useState<string | null>(null);
   const [aiBusy, setAiBusy] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const errors = result?.issues.filter((i) => i.level === "error") ?? [];
@@ -111,6 +112,27 @@ export function ThemeImport({ api, onClose }: Props) {
   };
 
   const onPickFile = () => fileRef.current?.click();
+
+  // Drag-and-drop: accept a dropped ZIP (or HTML/templates) straight into the
+  // modal, routing to the same onFiles path as the picker. preventDefault on
+  // both dragover and drop, else the browser opens the file and navigates away.
+  const hasFiles = (e: DragEvent) => Array.from(e.dataTransfer.types).includes("Files");
+  const onDragOver = (e: DragEvent) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    if (!dragOver) setDragOver(true);
+  };
+  const onDragLeave = (e: DragEvent) => {
+    // Ignore leaves into a child element (relatedTarget still inside the panel).
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+    setDragOver(false);
+  };
+  const onDrop = (e: DragEvent) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    setDragOver(false);
+    void onFiles(e.dataTransfer.files);
+  };
 
   const isZip = (f: File) =>
     /\.zip$/i.test(f.name) || f.type === "application/zip" || f.type === "application/x-zip-compressed";
@@ -287,7 +309,21 @@ export function ThemeImport({ api, onClose }: Props) {
   return (
     <div className="pcms-modal" role="dialog" aria-modal="true" aria-label={t("themeImport.title")}>
       <div className="pcms-modal__backdrop" onClick={onClose} />
-      <div className="pcms-modal__panel pcms-modal__panel--wide" ref={ref} tabIndex={-1}>
+      <div
+        className={`pcms-modal__panel pcms-modal__panel--wide${dragOver ? " is-dragover" : ""}`}
+        ref={ref}
+        tabIndex={-1}
+        onDragOver={onDragOver}
+        onDragEnter={onDragOver}
+        onDragLeave={onDragLeave}
+        onDrop={onDrop}
+      >
+        {dragOver && (
+          <div className="pcms-themeimport__dropzone" aria-hidden="true">
+            <Icon name="folder" size={28} />
+            <span>{t("themeImport.dropHint")}</span>
+          </div>
+        )}
         <header className="pcms-modal__head">
           <h2>{t("themeImport.title")}</h2>
           <div className="pcms-modal__spacer" />

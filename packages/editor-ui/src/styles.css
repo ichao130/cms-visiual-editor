@@ -1374,6 +1374,23 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline: non
 .pcms-contentpane__list { background: var(--pcms-panel); }
 
 /* Theme import modal */
+.pcms-modal__panel.is-dragover { outline: 2px dashed var(--pcms-accent); outline-offset: -6px; }
+.pcms-themeimport__dropzone {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--pcms-panel) 85%, transparent);
+  color: var(--pcms-accent);
+  font-size: 0.95rem;
+  font-weight: 600;
+  pointer-events: none;
+}
 .pcms-themeimport__hint { font-size: 0.82rem; color: var(--pcms-muted); line-height: 1.6; margin: 0 0 0.8rem; }
 .pcms-themeimport__figmahint { font-size: 0.8rem; color: var(--pcms-accent); background: var(--pcms-accent-weak); border-radius: var(--pcms-radius); padding: 0.5rem 0.7rem; line-height: 1.6; margin: 0 0 0.8rem; }
 .pcms-themeimport__filehint { font-size: 0.78rem; color: var(--pcms-muted); align-self: center; }
