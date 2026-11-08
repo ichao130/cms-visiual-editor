@@ -584,6 +584,7 @@ const ja = {
   "themeImport.wpKind.unknown": "WordPressテーマを変換しました。",
   "themeImport.wpTemplates": "テンプレート {count}件",
   "themeImport.wpAssets": "アセット（CSS・画像）{count}件",
+  "themeImport.wpJs": "スクリプト（JS）{count}件を取り込みます。",
   "themeImport.newThemeName": "テーマ名",
   "themeImport.asNewTheme": "新しいテーマとして取り込む",
   "themeImport.addToCurrent": "現在のテーマにパーツとして追加",

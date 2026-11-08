@@ -54,8 +54,8 @@ function slugify(name: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-/** Images larger than this are not inlined (keeps the saved HTML reasonable). */
-const ASSET_SIZE_CAP = 512 * 1024;
+/** Images larger than this are skipped (keeps the saved theme reasonable). */
+const ASSET_SIZE_CAP = 4 * 1024 * 1024;
 
 const MIME_BY_EXT: Record<string, string> = {
   png: "image/png",
@@ -112,18 +112,30 @@ function buildWpThemeFiles(
   wp: WpImportResult,
   cssText: string,
   imageAssets: Record<string, string>,
+  jsAssets: Record<string, string>,
 ): Record<string, string> {
   const files: Record<string, string> = {};
   const f = wp.files;
   if (f["theme.json"]) files["theme.json"] = f["theme.json"];
-  if (f["layout.html"]) files["layout.html"] = f["layout.html"];
   for (const [k, v] of Object.entries(f.templates)) files[`templates/${k}.html`] = v;
   for (const [k, v] of Object.entries(f.sections)) files[`sections/${k}.html`] = v;
   for (const [k, v] of Object.entries(f.blocks)) files[`blocks/${k}.html`] = v;
   if (cssText.trim() !== "") files["assets/style.css"] = cssText;
-  for (const base of f.assets) {
-    const url = imageAssets[base];
-    if (url) files[`assets/${base}`] = url;
+  // Carry EVERY image from the archive (not only referenced ones).
+  for (const [base, url] of Object.entries(imageAssets)) files[`assets/${base}`] = url;
+  // Carry EVERY script, and reference them from the layout so the theme's JS runs.
+  for (const [base, text] of Object.entries(jsAssets)) files[`assets/${base}`] = text;
+  let layout = f["layout.html"] ?? "";
+  if (layout) {
+    const tags = Object.keys(jsAssets)
+      .map((base) => `    <script src="/assets/${base}" defer></script>`)
+      .join("\n");
+    if (tags) {
+      layout = layout.includes("</body>")
+        ? layout.replace("</body>", `${tags}\n  </body>`)
+        : `${layout}\n${tags}`;
+    }
+    files["layout.html"] = layout;
   }
   return files;
 }
@@ -218,8 +230,10 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
     const decoder = new TextDecoder();
     const items: BatchItem[] = [];
     // Every text file in the archive, for WordPress theme detection/conversion,
-    // and all CSS folded together (the single stylesheet layout.html links).
+    // all CSS folded together (the single stylesheet layout.html links), and
+    // every script carried verbatim (the theme's own JS).
     const wpFiles: WpImportFile[] = [];
+    const jsAssets: Record<string, string> = {};
     let cssText = "";
     for (const [path, bytes] of Object.entries(entries)) {
       if (/\/$/.test(path)) continue;
@@ -229,6 +243,9 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
         if (/\.css$/i.test(path)) {
           cssText += `${cssText ? "\n\n" : ""}/* ${baseName(path)} */\n${text}`;
         }
+      } else if (/\.m?js$/i.test(path)) {
+        // Keep every script — the theme's own JS (minified or not).
+        jsAssets[baseName(path)] = decoder.decode(bytes);
       }
       if (classifyZipEntry(path) !== "markup") continue;
       const r = importThemeHtml(decoder.decode(bytes));
@@ -261,14 +278,17 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
     const wpKind = detectWpThemeKind(wpFiles);
     if (wpKind !== "unknown") {
       const wp = importWpTheme(wpFiles);
-      const files = buildWpThemeFiles(wp, cssText, assets);
+      const files = buildWpThemeFiles(wp, cssText, assets, jsAssets);
       const name = readWpThemeName(wp.files["theme.json"]) ?? baseName(file.name).replace(/\.zip$/i, "");
+      const wpNotes = [...notes, ...wp.notes];
+      const jsCount = Object.keys(jsAssets).length;
+      if (jsCount > 0) wpNotes.push(t("themeImport.wpJs").replace("{count}", String(jsCount)));
       setResult(null);
       setRaw("");
       setBatch(null);
       setZipNote(notes.join(" "));
       setThemeNameInput(name);
-      setWpImport({ name, kind: wpKind, files, notes: [...notes, ...wp.notes], fallbackBatch: items });
+      setWpImport({ name, kind: wpKind, files, notes: wpNotes, fallbackBatch: items });
       return;
     }
 

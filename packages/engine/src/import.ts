@@ -423,7 +423,7 @@ const CLASS_LABELS: Record<string, string> = {
  * declare one are left alone. This makes an imported theme block-capable from
  * the start (CLAUDE.md: sections host blocks), instead of frozen markup.
  */
-function addBlockSlots(html: string): { html: string; count: number } {
+export function addBlockSlots(html: string): { html: string; count: number } {
   const root = parse(html, { comment: false });
   let count = 0;
   for (const sec of root.querySelectorAll("[data-section]")) {
@@ -434,7 +434,7 @@ function addBlockSlots(html: string): { html: string; count: number } {
   return { html: root.toString(), count };
 }
 
-function relabelSections(html: string): { html: string; count: number } {
+export function relabelSections(html: string): { html: string; count: number } {
   const root = parse(html, { comment: false });
   let count = 0;
   for (const sec of root.querySelectorAll("[data-section]")) {

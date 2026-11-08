@@ -1,7 +1,7 @@
-import { parse } from "node-html-parser";
+import { parse, type HTMLElement } from "node-html-parser";
 import type { ThemeConfig } from "@pcms/shared";
-import { type AiIssue } from "./ai.js";
-import { cleanImportedHtml, importThemeHtml } from "./import.js";
+import { themeifyHtml, validateThemeHtml, type AiIssue } from "./ai.js";
+import { addBlockSlots, relabelSections } from "./import.js";
 
 /**
  * WordPress-aware theme import. Unlike the generic single-blob `importThemeHtml`
@@ -335,12 +335,33 @@ const TAG_REMOVE: RegExp[] = [
 ];
 
 /**
+ * Neutralize any PHP that sits INSIDE an HTML attribute value, so the element-
+ * producing rules below never inject a `<span>` into an attribute (which would
+ * corrupt the whole document when it is parsed — the classic cause of a theme's
+ * `<head>`/`<!doctype>` leaking into a layout slot). `charset` gets a real
+ * value; every other attribute keeps its literal text with the PHP removed.
+ */
+function neutralizePhpInAttributes(input: string): string {
+  let s = input;
+  // charset="<?php bloginfo('charset'); ?>" → charset="utf-8"
+  s = s.replace(/\bcharset\s*=\s*(["'])\s*<\?php[\s\S]*?\?>\s*\1/gi, 'charset="utf-8"');
+  // Any attr="…<?php…?>…" / attr='…<?php…?>…' → drop the PHP, keep the literal.
+  const stripIn = (quote: string) =>
+    new RegExp(`([\\w:-]+)\\s*=\\s*${quote}([^${quote}]*)${quote}`, "g");
+  const clean = (m: string, name: string, val: string, q: string): string =>
+    val.includes("<?php") ? `${name}=${q}${val.replace(/<\?php[\s\S]*?\?>/g, "").trim()}${q}` : m;
+  s = s.replace(stripIn('"'), (m, name, val) => clean(m, name, val, '"'));
+  s = s.replace(stripIn("'"), (m, name, val) => clean(m, name, val, "'"));
+  return s;
+}
+
+/**
  * Convert the common WordPress template tags into pcms `data-field` bindings
  * before the PHP is stripped — this is the fidelity core for classic themes.
  * Permalinks collapse to `#`, asset-path helpers collapse to a relative path
  * (so `normalizeAssets` can fold them into `assets/`), menus become a dynamic
- * `data-loop="menu"`. Anything left is removed by `cleanImportedHtml` later, so
- * no PHP reaches the output.
+ * `data-loop="menu"`. PHP inside an attribute is neutralized first (never turned
+ * into an element). Anything left is removed later, so no PHP reaches the output.
  */
 export function mapTemplateTags(html: string): { html: string; notes: string[] } {
   const notes: string[] = [];
@@ -355,11 +376,15 @@ export function mapTemplateTags(html: string): { html: string; notes: string[] }
 
   // Asset path helpers inside a URL: drop the PHP, keep the trailing path.
   s = s.replace(
-    /<\?php\s+(?:echo\s+)?(?:get_template_directory_uri|get_stylesheet_directory_uri|get_theme_file_uri|get_stylesheet_uri)\s*\([\s\S]*?\)\s*;?\s*\?>/gi,
+    /<\?php\s+(?:echo\s+)?(?:get_template_directory_uri|get_stylesheet_directory_uri|get_theme_file_uri|get_stylesheet_uri|home_url|site_url|esc_url)\s*\([\s\S]*?\)\s*;?\s*\?>/gi,
     "",
   );
   // Permalinks (often inside href="…").
   s = s.replace(phpCall("the_permalink|get_permalink|get_the_permalink"), "#");
+
+  // Neutralize PHP left inside attributes BEFORE any element-producing rule,
+  // so an attribute never receives a <span data-field> (which breaks parsing).
+  s = neutralizePhpInAttributes(s);
 
   // wp_nav_menu(...) → a single dynamic menu item.
   if (/wp_nav_menu/i.test(s)) {
@@ -433,12 +458,86 @@ function layoutSkeleton(headerMarkup: string, footerMarkup: string, lang: string
   );
 }
 
-/** The body markup of a header/footer partial, cleaned of PHP/scripts. */
-function partialMarkup(raw: string): string {
-  const { html } = cleanImportedHtml(mapTemplateTags(raw).html);
-  // cleanImportedHtml may re-add a <style> block; keep only element markup for
-  // the header/footer region (shared CSS lives in assets/style.css).
-  return html.replace(/<style>[\s\S]*?<\/style>\s*/i, "").trim();
+/** Rewrite one local asset URL to `assets/<file>`; leave external/inline refs. */
+function localizeAssetUrl(url: string): string {
+  const u = url.trim();
+  if (u === "" || u.startsWith("#") || /^(https?:)?\/\//i.test(u) || /^data:/i.test(u)) return url;
+  if (/^(mailto:|tel:|javascript:)/i.test(u)) return url;
+  const base = u.split("#")[0]?.split("?")[0]?.split("/").filter(Boolean).pop() ?? "";
+  return base ? `assets/${base}` : url;
+}
+
+/** Normalize every local asset reference in a parsed tree to `assets/<file>`. */
+function normalizeWpAssets(root: HTMLElement): void {
+  for (const el of root.querySelectorAll("img,source,script,link,a,use,embed,video,audio,track")) {
+    for (const attr of ["src", "href", "poster", "data-src", "xlink:href"]) {
+      const v = el.getAttribute(attr);
+      if (v == null || v.trim() === "") continue;
+      // Only localize things that look like files (have an extension or a known asset dir).
+      if (attr === "href" && el.tagName?.toLowerCase() === "a" && !/\.[a-z0-9]{2,4}($|[?#])/i.test(v)) continue;
+      el.setAttribute(attr, localizeAssetUrl(v));
+    }
+    const srcset = el.getAttribute("srcset");
+    if (srcset) {
+      el.setAttribute(
+        "srcset",
+        srcset
+          .split(",")
+          .map((p) => {
+            const bits = p.trim().split(/\s+/);
+            bits[0] = localizeAssetUrl(bits[0] ?? "");
+            return bits.join(" ");
+          })
+          .join(", "),
+      );
+    }
+  }
+  // url(...) in inline styles and <style> blocks.
+  const fixCss = (css: string) =>
+    css.replace(/url\(\s*(['"]?)([^'")]+)\1\s*\)/gi, (_m, q: string, ref: string) => `url(${q}${localizeAssetUrl(ref)}${q})`);
+  for (const el of root.querySelectorAll("[style]")) {
+    const st = el.getAttribute("style") ?? "";
+    if (st.includes("url(")) el.setAttribute("style", fixCss(st));
+  }
+  for (const st of root.querySelectorAll("style")) {
+    if (st.innerHTML.includes("url(")) st.set_content(fixCss(st.innerHTML));
+  }
+}
+
+/**
+ * Clean a piece of WordPress markup for the output while keeping fidelity:
+ * remove residual PHP/ASP, drop inline event handlers and `javascript:` links,
+ * normalize local asset paths to `assets/<file>`, and KEEP `<script>` tags (the
+ * theme's own JS, which the operator deliberately imported). Returns the body's
+ * inner markup (chrome/head is dropped — the layout skeleton provides it).
+ */
+function cleanWpMarkup(raw: string): string {
+  let s = raw
+    .replace(/<\?[\s\S]*?\?>/g, "")
+    .replace(/<%[\s\S]*?%>/g, "")
+    .replace(/\{%[\s\S]*?%\}/g, "")
+    .replace(/\{\{[\s\S]*?\}\}/g, "");
+  // Strip the document wrapper so a partial header.php (doctype + head + <body>
+  // with no </body>) never leaks its <head>/<!doctype> into a layout slot. The
+  // shared chrome (charset, viewport, stylesheet) is supplied by layoutSkeleton.
+  s = s
+    .replace(/<!doctype[^>]*>/gi, "")
+    .replace(/<head[\s\S]*?<\/head>/gi, "")
+    .replace(/<\/?(?:html|head|body)\b[^>]*>/gi, "");
+  const root = parse(s, { comment: true });
+  // Drop inline event handlers / javascript: links (keep <script> elements).
+  for (const el of root.querySelectorAll("*")) {
+    for (const name of Object.keys(el.attributes)) {
+      const lower = name.toLowerCase();
+      if (lower.startsWith("on")) el.removeAttribute(name);
+      else if ((lower === "href" || lower === "src") && /^\s*javascript:/i.test(el.getAttribute(name) ?? "")) {
+        el.setAttribute(name, "#");
+      }
+    }
+  }
+  normalizeWpAssets(root);
+  const body = root.querySelector("body");
+  return (body ? body.innerHTML : root.toString()).trim();
 }
 
 function buildLayout(kind: WpImportResult["kind"], files: WpImportFile[], byBase: Map<string, string>): string | null {
@@ -447,13 +546,13 @@ function buildLayout(kind: WpImportResult["kind"], files: WpImportFile[], byBase
   if (kind === "block") {
     const hp = files.find((f) => /(^|\/)parts\/(header|site-header)\.html$/i.test(f.path));
     const fp = files.find((f) => /(^|\/)parts\/(footer|site-footer)\.html$/i.test(f.path));
-    if (hp) header = gutenbergToHtml(parseGutenberg(hp.text));
-    if (fp) footer = gutenbergToHtml(parseGutenberg(fp.text));
+    if (hp) header = cleanWpMarkup(gutenbergToHtml(parseGutenberg(hp.text)));
+    if (fp) footer = cleanWpMarkup(gutenbergToHtml(parseGutenberg(fp.text)));
   } else {
     const hp = byBase.get("header.php");
     const fp = byBase.get("footer.php");
-    if (hp) header = partialMarkup(hp);
-    if (fp) footer = partialMarkup(fp);
+    if (hp) header = cleanWpMarkup(mapTemplateTags(hp).html);
+    if (fp) footer = cleanWpMarkup(mapTemplateTags(fp).html);
   }
   if (!header && !footer) return null;
   return layoutSkeleton(header, footer, "ja");
@@ -500,7 +599,36 @@ function collectBlockTemplates(files: WpImportFile[]): Map<string, string> {
   return out;
 }
 
-/** Collect classic templates (php hierarchy) keyed by pcms name, includes inlined. */
+/**
+ * Compose a classic template's BODY: the page-specific middle only. The theme's
+ * chrome (get_header/get_footer) is dropped — it lives in layout.html — while
+ * content includes (get_template_part/get_sidebar) are inlined. Recursion-guarded.
+ */
+function composeTemplateBody(stem: string, files: Map<string, string>): string {
+  const seen = new Set<string>();
+  const expand = (html: string): string => {
+    let s = html.replace(phpCall("get_header"), "").replace(phpCall("get_footer"), "");
+    s = s.replace(
+      /<\?php\s+(?:get_template_part|get_sidebar)\s*\(\s*(['"])([^'"]+)\1(?:\s*,\s*(['"])([^'"]+)\3)?[\s\S]*?\)\s*;?\s*\?>/gi,
+      (_m, _q1: string, slug: string, _q3: string, part?: string) => {
+        for (const c of [part ? `${slug}-${part}` : "", slug].filter(Boolean)) {
+          const key = c.toLowerCase();
+          if (seen.has(key)) continue;
+          const found = files.get(`${c}.php`) ?? files.get(baseName(c) + ".php");
+          if (found) {
+            seen.add(key);
+            return expand(found);
+          }
+        }
+        return "";
+      },
+    );
+    return s;
+  };
+  return expand(files.get(`${stem}.php`) ?? "");
+}
+
+/** Collect classic templates (php hierarchy) keyed by pcms name, body only. */
 function collectClassicTemplates(files: WpImportFile[]): Map<string, string> {
   const php = new Map<string, string>();
   for (const f of files) {
@@ -512,9 +640,23 @@ function collectClassicTemplates(files: WpImportFile[]): Map<string, string> {
     if (!php.has(`${stem}.php`)) continue;
     const name = pcmsTemplateName(stem);
     if (!name || out.has(name)) continue;
-    out.set(name, composeClassicTemplate(stem, php));
+    out.set(name, composeTemplateBody(stem, php));
   }
   return out;
+}
+
+/**
+ * Turn a piece of mapped template markup into a finished pcms template: clean it
+ * (keep scripts, normalize assets), split it into editable `data-section`s whose
+ * headings/paragraphs/images become `data-field`s, name the sections, and add a
+ * block slot to each. This is what makes imported parts individually editable.
+ */
+function toTemplateHtml(markup: string): { html: string; issues: AiIssue[] } {
+  const body = cleanWpMarkup(markup);
+  const themed = themeifyHtml(body);
+  const relabelled = relabelSections(themed).html;
+  const withBlocks = addBlockSlots(relabelled).html;
+  return { html: withBlocks, issues: validateThemeHtml(withBlocks) };
 }
 
 /** Dedupe notes while keeping order. */
@@ -550,15 +692,15 @@ export function importWpTheme(files: WpImportFile[]): WpImportResult {
     }
   }
 
-  // Templates.
+  // Templates. Each is cleaned (scripts kept, asset paths normalized) and split
+  // into editable sections (headings/paragraphs/images → data-field).
   const sources = kind === "block" ? collectBlockTemplates(files) : collectClassicTemplates(files);
   const issues: AiIssue[] = [];
   for (const [name, rawHtml] of sources) {
-    const pre = kind === "block" ? gutenbergToHtml(parseGutenberg(rawHtml)) : mapTemplateTags(rawHtml).html;
-    const r = importThemeHtml(pre);
+    const mapped = kind === "block" ? gutenbergToHtml(parseGutenberg(rawHtml)) : mapTemplateTags(rawHtml).html;
+    const r = toTemplateHtml(mapped);
     out.templates[name] = r.html;
     issues.push(...r.issues);
-    notes.push(...r.notes);
   }
 
   // Layout from header/footer.
