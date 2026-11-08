@@ -11,7 +11,7 @@ import type {
   TaxonomyDef,
   ThemeConfig,
 } from "@pcms/shared";
-import { renderComposedPage, renderTemplate, RESPONSIVE_CSS } from "./renderer.js";
+import { mergeRegions, renderComposedPage, renderTemplate, RESPONSIVE_CSS } from "./renderer.js";
 import { mergeThemeConfig } from "./theme-style.js";
 import type { RenderScope, TermContext } from "./context.js";
 import { archivePagePath, archivePageUrl, paginate } from "./pagination.js";
@@ -111,6 +111,13 @@ export function generateSite(input: SiteInput): GeneratedSite {
     // Operator-added CSS / JS under assets/ are auto-linked into every page.
     assets: input.theme.assets,
   };
+  // A page may override the header/footer for itself (PageSettings.regions);
+  // merge its override onto the site-wide regions (page wins per region). Pages
+  // without an override reuse the shared `layoutOpts` object unchanged.
+  const layoutOptsFor = (page: PageSettings): typeof layoutOpts =>
+    page.regions === undefined
+      ? layoutOpts
+      : { ...layoutOpts, regions: mergeRegions(input.settings.regions, page.regions) };
   const pageSize = input.site.archivePageSize ?? 10;
 
   const mediaByPath: Record<string, MediaItem> = {};
@@ -205,14 +212,15 @@ export function generateSite(input: SiteInput): GeneratedSite {
   // 1. Explicit pages from settings.json (composed instances, or a template).
   for (const [id, page] of Object.entries(input.settings.pages)) {
     let html: string;
+    const pageLayoutOpts = layoutOptsFor(page);
     if (page.instances && page.instances.length > 0) {
-      html = renderComposedPage(page.instances, input.theme.sections ?? {}, baseScope, layoutOpts);
+      html = renderComposedPage(page.instances, input.theme.sections ?? {}, baseScope, pageLayoutOpts);
     } else {
       const templateName = page.template ?? id;
       const template = pickTemplate(input.theme, [templateName, "page"]);
       if (template == null) continue;
       const scope: RenderScope = { ...baseScope, page };
-      html = renderTemplate(template, scope, layoutOpts);
+      html = renderTemplate(template, scope, pageLayoutOpts);
     }
     const outPath = pagePathForId(id);
     const isHome = outPath === "index.html";
@@ -230,7 +238,7 @@ export function generateSite(input: SiteInput): GeneratedSite {
     if (template == null) continue;
     const page: PageSettings = input.settings.pages[item.type] ?? {};
     const scope: RenderScope = { ...baseScope, page, item };
-    const html = renderTemplate(template, scope, layoutOpts);
+    const html = renderTemplate(template, scope, layoutOptsFor(page));
     const url = itemUrl(item, input.site);
     const outPath = itemPath(item, input.site);
     if (item.noindex) noindexPaths.add(outPath);

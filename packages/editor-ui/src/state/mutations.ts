@@ -6,6 +6,7 @@ import type {
   SectionInstance,
   SectionState,
   SectionStyle,
+  SiteRegions,
   SiteSettings,
   ThemeConfig,
 } from "@pcms/shared";
@@ -271,11 +272,28 @@ function cloneInstance(src: SectionInstance): SectionInstance {
 // one SiteSettings carries the body and the shared header/footer. CLAUDE.md:
 // edit the header/footer once, applies to every page (Shopify-style).
 
+// Region instances live either in the site-wide `settings.regions` (shared by
+// every page) or, when a page overrides its header/footer, in that page's own
+// `settings.pages[pageId].regions`. The optional trailing `pageId` on each
+// region mutation selects which store to edit; omitted means the site-wide one,
+// so existing call sites are unchanged.
 function withRegion(
   settings: SiteSettings,
   region: RegionName,
   update: (list: SectionInstance[]) => SectionInstance[],
+  pageId?: string,
 ): SiteSettings {
+  if (pageId !== undefined) {
+    const page = settings.pages[pageId] ?? {};
+    const regions = page.regions ?? {};
+    return {
+      ...settings,
+      pages: {
+        ...settings.pages,
+        [pageId]: { ...page, regions: { ...regions, [region]: update(regions[region] ?? []) } },
+      },
+    };
+  }
   const regions = settings.regions ?? {};
   return {
     ...settings,
@@ -288,9 +306,13 @@ function withRegionInstance(
   region: RegionName,
   id: string,
   update: (inst: SectionInstance) => SectionInstance,
+  pageId?: string,
 ): SiteSettings {
-  return withRegion(settings, region, (list) =>
-    list.map((inst) => (inst.id === id ? update(inst) : inst)),
+  return withRegion(
+    settings,
+    region,
+    (list) => list.map((inst) => (inst.id === id ? update(inst) : inst)),
+    pageId,
   );
 }
 
@@ -299,21 +321,28 @@ export function addRegionInstance(
   region: RegionName,
   type: string,
   at?: number,
+  pageId?: string,
 ): SiteSettings {
   const instance: SectionInstance = { id: newInstanceId(type), type };
-  return withRegion(settings, region, (list) => {
-    const next = [...list];
-    next.splice(at ?? next.length, 0, instance);
-    return next;
-  });
+  return withRegion(
+    settings,
+    region,
+    (list) => {
+      const next = [...list];
+      next.splice(at ?? next.length, 0, instance);
+      return next;
+    },
+    pageId,
+  );
 }
 
 export function removeRegionInstance(
   settings: SiteSettings,
   region: RegionName,
   id: string,
+  pageId?: string,
 ): SiteSettings {
-  return withRegion(settings, region, (list) => list.filter((i) => i.id !== id));
+  return withRegion(settings, region, (list) => list.filter((i) => i.id !== id), pageId);
 }
 
 export function moveRegionInstance(
@@ -321,29 +350,41 @@ export function moveRegionInstance(
   region: RegionName,
   from: number,
   to: number,
+  pageId?: string,
 ): SiteSettings {
-  return withRegion(settings, region, (list) => {
-    if (from < 0 || from >= list.length || to < 0 || to >= list.length) return list;
-    const next = [...list];
-    const [moved] = next.splice(from, 1);
-    next.splice(to, 0, moved as SectionInstance);
-    return next;
-  });
+  return withRegion(
+    settings,
+    region,
+    (list) => {
+      if (from < 0 || from >= list.length || to < 0 || to >= list.length) return list;
+      const next = [...list];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved as SectionInstance);
+      return next;
+    },
+    pageId,
+  );
 }
 
 export function duplicateRegionInstance(
   settings: SiteSettings,
   region: RegionName,
   id: string,
+  pageId?: string,
 ): SiteSettings {
-  return withRegion(settings, region, (list) => {
-    const idx = list.findIndex((i) => i.id === id);
-    const src = list[idx];
-    if (idx < 0 || !src) return list;
-    const next = [...list];
-    next.splice(idx + 1, 0, cloneInstance(src));
-    return next;
-  });
+  return withRegion(
+    settings,
+    region,
+    (list) => {
+      const idx = list.findIndex((i) => i.id === id);
+      const src = list[idx];
+      if (idx < 0 || !src) return list;
+      const next = [...list];
+      next.splice(idx + 1, 0, cloneInstance(src));
+      return next;
+    },
+    pageId,
+  );
 }
 
 export function pasteRegionInstance(
@@ -351,20 +392,33 @@ export function pasteRegionInstance(
   region: RegionName,
   snapshot: SectionInstance,
   at?: number,
+  pageId?: string,
 ): SiteSettings {
-  return withRegion(settings, region, (list) => {
-    const next = [...list];
-    next.splice(at ?? next.length, 0, cloneInstance(snapshot));
-    return next;
-  });
+  return withRegion(
+    settings,
+    region,
+    (list) => {
+      const next = [...list];
+      next.splice(at ?? next.length, 0, cloneInstance(snapshot));
+      return next;
+    },
+    pageId,
+  );
 }
 
 export function toggleRegionInstanceHidden(
   settings: SiteSettings,
   region: RegionName,
   id: string,
+  pageId?: string,
 ): SiteSettings {
-  return withRegionInstance(settings, region, id, (inst) => ({ ...inst, hidden: !inst.hidden }));
+  return withRegionInstance(
+    settings,
+    region,
+    id,
+    (inst) => ({ ...inst, hidden: !inst.hidden }),
+    pageId,
+  );
 }
 
 export function setRegionInstanceField(
@@ -373,11 +427,15 @@ export function setRegionInstanceField(
   id: string,
   path: string,
   value: FieldValue,
+  pageId?: string,
 ): SiteSettings {
-  return withRegionInstance(settings, region, id, (inst) => ({
-    ...inst,
-    fields: { ...inst.fields, [path]: value },
-  }));
+  return withRegionInstance(
+    settings,
+    region,
+    id,
+    (inst) => ({ ...inst, fields: { ...inst.fields, [path]: value } }),
+    pageId,
+  );
 }
 
 export function setRegionInstanceRepeat(
@@ -386,11 +444,15 @@ export function setRegionInstanceRepeat(
   id: string,
   name: string,
   rows: Array<Record<string, FieldValue>>,
+  pageId?: string,
 ): SiteSettings {
-  return withRegionInstance(settings, region, id, (inst) => ({
-    ...inst,
-    repeats: { ...inst.repeats, [name]: rows },
-  }));
+  return withRegionInstance(
+    settings,
+    region,
+    id,
+    (inst) => ({ ...inst, repeats: { ...inst.repeats, [name]: rows } }),
+    pageId,
+  );
 }
 
 export function setRegionInstanceStyle(
@@ -398,8 +460,48 @@ export function setRegionInstanceStyle(
   region: RegionName,
   id: string,
   patch: Partial<SectionStyle>,
+  pageId?: string,
 ): SiteSettings {
-  return withRegionInstance(settings, region, id, (inst) => applyStylePatch(inst, patch));
+  return withRegionInstance(settings, region, id, (inst) => applyStylePatch(inst, patch), pageId);
+}
+
+// --- Per-page header / footer override --------------------------------------
+// A page can opt out of the shared header/footer and carry its own. The page's
+// regions are seeded from the current site-wide ones (a deep copy, so later
+// edits to one don't leak into the other) so the page starts identical and then
+// diverges. Removing the override drops `page.regions`, so the page falls back
+// to the site-wide header/footer again (see engine `mergeRegions`).
+
+/** Whether this page carries its own header/footer override. */
+export function hasPageRegions(settings: SiteSettings, pageId: string): boolean {
+  return getPage(settings, pageId).regions !== undefined;
+}
+
+/** Turn on a page-specific header/footer, seeded from the site-wide regions. */
+export function enablePageRegions(settings: SiteSettings, pageId: string): SiteSettings {
+  const site = settings.regions ?? {};
+  const seed: SiteRegions = {};
+  // Only copy regions the site actually manages: a region the site leaves
+  // undefined uses the layout's own markup, and the page should keep doing the
+  // same rather than pin an empty (content-hiding) region.
+  if (site.header !== undefined) seed.header = cloneInstanceList(site.header);
+  if (site.footer !== undefined) seed.footer = cloneInstanceList(site.footer);
+  return withPage(settings, pageId, (page) => ({ ...page, regions: seed }));
+}
+
+/** Turn off a page-specific header/footer, reverting to the site-wide regions. */
+export function disablePageRegions(settings: SiteSettings, pageId: string): SiteSettings {
+  return withPage(settings, pageId, (page) => {
+    if (page.regions === undefined) return page;
+    const next = { ...page };
+    delete next.regions;
+    return next;
+  });
+}
+
+/** A faithful deep copy of a region's instance list (ids and all). */
+function cloneInstanceList(list: SectionInstance[]): SectionInstance[] {
+  return JSON.parse(JSON.stringify(list)) as SectionInstance[];
 }
 
 // --- Nested blocks inside a section instance --------------------------------
@@ -408,10 +510,14 @@ export function setRegionInstanceStyle(
 // mutations serves both (no body/region duplication). Blocks mirror the section
 // instance model but carry only id/type/fields.
 
-/** Where a section instance lives: a page body, or a site-wide region. */
+/**
+ * Where a section instance lives: a page body, or a region. A region instance
+ * is site-wide unless `pageId` is set, in which case it lives in that page's own
+ * header/footer override (`settings.pages[pageId].regions`).
+ */
 export type InstanceLoc =
   | { kind: "body"; pageId: string }
-  | { kind: "region"; region: RegionName };
+  | { kind: "region"; region: RegionName; pageId?: string };
 
 function withInstanceAt(
   settings: SiteSettings,
@@ -421,7 +527,7 @@ function withInstanceAt(
 ): SiteSettings {
   return loc.kind === "body"
     ? withInstance(settings, loc.pageId, sectionId, update)
-    : withRegionInstance(settings, loc.region, sectionId, update);
+    : withRegionInstance(settings, loc.region, sectionId, update, loc.pageId);
 }
 
 function withBlocks(

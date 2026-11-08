@@ -206,6 +206,14 @@ export interface PageSettings {
    * Absent values fall back to the theme's own default content.
    */
   fields?: Record<string, FieldValue>;
+  /**
+   * Per-page header / footer override. When present, these regions replace the
+   * site-wide `SiteSettings.regions` for this page only (merged per region, so a
+   * page can override just the header or just the footer; the page value wins).
+   * Absent (the default for existing data) means the page uses the site-wide
+   * header/footer, so this is backward compatible and needs no migration.
+   */
+  regions?: SiteRegions;
 }
 
 export interface SectionState {

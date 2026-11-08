@@ -29,6 +29,7 @@ const ja = {
   "region.header": "ヘッダー",
   "region.body": "本文",
   "region.footer": "フッター",
+  "region.pageOverride": "このページ専用のヘッダー/フッターを使う",
   "block.manage": "ブロック",
   "block.empty": "ブロックがありません。下の「追加」から入れられます。",
   "block.add": "ブロックを追加",

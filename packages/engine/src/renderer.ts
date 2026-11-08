@@ -137,6 +137,30 @@ function wrapRegion(region: RegionName | "body", inner: string): string {
 }
 
 /**
+ * Merge a page's header/footer override onto the site-wide regions. The page
+ * value wins per region (header / footer independently), so a page can replace
+ * just its header, just its footer, or both. A region the page leaves undefined
+ * falls back to the site-wide one. With no override (`override` undefined) the
+ * site-wide regions are returned unchanged, so pages without an override render
+ * exactly as before. Pure: used by both the generator and the live preview so
+ * published output and preview agree.
+ */
+export function mergeRegions(
+  base: SiteRegions | undefined,
+  override: SiteRegions | undefined,
+): SiteRegions | undefined {
+  if (override === undefined) return base;
+  const merged: SiteRegions = {};
+  const header = override.header !== undefined ? override.header : base?.header;
+  const footer = override.footer !== undefined ? override.footer : base?.footer;
+  // Keep a region absent (rather than present-but-empty) when neither side sets
+  // it, so `fillLayout` leaves the layout's own markup untouched for that slot.
+  if (header !== undefined) merged.header = header;
+  if (footer !== undefined) merged.footer = footer;
+  return merged;
+}
+
+/**
  * The theme asset files that are auto-linked into a layout, split by kind. A
  * file qualifies when it is a `.css` / `.js` directly under `assets/` whose
  * basename does not start with `_` (drafts). Shared by the generator (real

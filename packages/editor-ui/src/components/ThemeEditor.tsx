@@ -5,6 +5,7 @@ import type {
   SectionInstance,
   SectionSchema,
   SectionStyle,
+  SiteSettings,
 } from "@pcms/shared";
 import { useSiteWorkspace } from "../state/SiteWorkspace.js";
 import type { ContentTypeDef, MenuItem, TaxonomyDef } from "@pcms/shared";
@@ -33,6 +34,8 @@ import {
   duplicateBlock,
   duplicateInstance,
   duplicateRegionInstance,
+  enablePageRegions,
+  disablePageRegions,
   moveBlock,
   moveInstance,
   moveRegionInstance,
@@ -291,8 +294,19 @@ export function ThemeEditor() {
   // The page body is "composed" when it has an instances list (vs a fixed
   // template). Header/footer always use the composed region model.
   const pageComposed = target?.kind === "page" && page.instances != null;
-  const regions = doc.settings.regions;
+  // A page can override the shared header/footer with its own. When it does,
+  // the region editor reads and writes that page's regions (via `regionPageId`,
+  // threaded into the region mutations) instead of the site-wide ones.
+  const pageOverridesRegions = target?.kind === "page" && page.regions != null;
+  const regionPageId = pageOverridesRegions ? pageId : undefined;
+  const regions = pageOverridesRegions ? page.regions : doc.settings.regions;
   const hasRegions = regions != null;
+  // Resolve the active region store from a settings object (page override or
+  // site-wide), for re-reads right after a region mutation.
+  const regionsOf = useCallback(
+    (s: SiteSettings) => (regionPageId != null ? s.pages[regionPageId]?.regions : s.regions),
+    [regionPageId],
+  );
 
   const listFor = useCallback(
     (scope: Scope): SectionInstance[] =>
@@ -346,8 +360,10 @@ export function ThemeEditor() {
   // Where the currently-edited section instance lives, for block mutations.
   const locFor = useCallback(
     (scope: Scope): InstanceLoc =>
-      scope === "body" ? { kind: "body", pageId } : { kind: "region", region: scope },
-    [pageId],
+      scope === "body"
+        ? { kind: "body", pageId }
+        : { kind: "region", region: scope, pageId: regionPageId },
+    [pageId, regionPageId],
   );
 
   // The inline (on-preview) editor is showing — collapse the right panel. When
@@ -373,27 +389,27 @@ export function ThemeEditor() {
   const buildToggle = (s: Scope, id: string) =>
     s === "body"
       ? toggleInstanceHidden(doc.settings, pageId, id)
-      : toggleRegionInstanceHidden(doc.settings, s, id);
+      : toggleRegionInstanceHidden(doc.settings, s, id, regionPageId);
   const buildMove = (s: Scope, from: number, to: number) =>
     s === "body"
       ? moveInstance(doc.settings, pageId, from, to)
-      : moveRegionInstance(doc.settings, s, from, to);
+      : moveRegionInstance(doc.settings, s, from, to, regionPageId);
   const buildRemove = (s: Scope, id: string) =>
     s === "body"
       ? removeInstance(doc.settings, pageId, id)
-      : removeRegionInstance(doc.settings, s, id);
+      : removeRegionInstance(doc.settings, s, id, regionPageId);
   const buildAdd = (s: Scope, type: string, at?: number) =>
     s === "body"
       ? addInstance(doc.settings, pageId, type, at)
-      : addRegionInstance(doc.settings, s, type, at);
+      : addRegionInstance(doc.settings, s, type, at, regionPageId);
   const buildDuplicate = (s: Scope, id: string) =>
     s === "body"
       ? duplicateInstance(doc.settings, pageId, id)
-      : duplicateRegionInstance(doc.settings, s, id);
+      : duplicateRegionInstance(doc.settings, s, id, regionPageId);
   const buildPaste = (s: Scope, snap: SectionInstance) =>
     s === "body"
       ? pasteInstance(doc.settings, pageId, snap)
-      : pasteRegionInstance(doc.settings, s, snap);
+      : pasteRegionInstance(doc.settings, s, snap, undefined, regionPageId);
 
   const onToggleInstanceHidden = useCallback(
     (id: string, scope: Scope = editScope) => {
@@ -424,13 +440,13 @@ export function ThemeEditor() {
     (type: string, at?: number, scope: Scope = editScope) => {
       const settings = buildAdd(scope, type, at);
       commit({ ...doc, settings });
-      const list = scope === "body" ? settings.pages[pageId]?.instances ?? [] : settings.regions?.[scope] ?? [];
+      const list = scope === "body" ? settings.pages[pageId]?.instances ?? [] : regionsOf(settings)?.[scope] ?? [];
       const added = list[at ?? list.length - 1];
       setEditScope(scope);
       if (added) setSelectedId(added.id);
       setDirty(true);
     },
-    [commit, doc, pageId, editScope],
+    [commit, doc, pageId, editScope, regionsOf],
   );
 
   const onInstanceField = useCallback(
@@ -439,11 +455,11 @@ export function ThemeEditor() {
       const next =
         editScope === "body"
           ? setInstanceField(doc.settings, pageId, selectedId, path, value)
-          : setRegionInstanceField(doc.settings, editScope, selectedId, path, value);
+          : setRegionInstanceField(doc.settings, editScope, selectedId, path, value, regionPageId);
       commit({ ...doc, settings: next }, `inst:${editScope}:${selectedId}:${path}`);
       setDirty(true);
     },
-    [commit, doc, pageId, selectedId, editScope],
+    [commit, doc, pageId, selectedId, editScope, regionPageId],
   );
 
   const onInstanceRepeat = useCallback(
@@ -452,11 +468,11 @@ export function ThemeEditor() {
       const next =
         editScope === "body"
           ? setInstanceRepeat(doc.settings, pageId, selectedId, name, rows)
-          : setRegionInstanceRepeat(doc.settings, editScope, selectedId, name, rows);
+          : setRegionInstanceRepeat(doc.settings, editScope, selectedId, name, rows, regionPageId);
       commit({ ...doc, settings: next }, `instrep:${editScope}:${selectedId}:${name}`);
       setDirty(true);
     },
-    [commit, doc, pageId, selectedId, editScope],
+    [commit, doc, pageId, selectedId, editScope, regionPageId],
   );
 
   const onCopyInstance = useCallback(() => {
@@ -468,13 +484,13 @@ export function ThemeEditor() {
       if (!clipboard) return;
       const settings = buildPaste(scope, clipboard);
       commit({ ...doc, settings });
-      const list = scope === "body" ? settings.pages[pageId]?.instances ?? [] : settings.regions?.[scope] ?? [];
+      const list = scope === "body" ? settings.pages[pageId]?.instances ?? [] : regionsOf(settings)?.[scope] ?? [];
       const added = list[list.length - 1];
       setEditScope(scope);
       if (added) setSelectedId(added.id);
       setDirty(true);
     },
-    [clipboard, doc, pageId, commit, setDirty, editScope],
+    [clipboard, doc, pageId, commit, setDirty, editScope, regionsOf],
   );
 
   const onInstanceStyle = useCallback(
@@ -483,11 +499,11 @@ export function ThemeEditor() {
       const next =
         editScope === "body"
           ? setInstanceStyle(doc.settings, pageId, selectedId, patch)
-          : setRegionInstanceStyle(doc.settings, editScope, selectedId, patch);
+          : setRegionInstanceStyle(doc.settings, editScope, selectedId, patch, regionPageId);
       commit({ ...doc, settings: next }, `inststyle:${editScope}:${selectedId}`);
       setDirty(true);
     },
-    [commit, doc, pageId, selectedId, editScope, setDirty],
+    [commit, doc, pageId, selectedId, editScope, setDirty, regionPageId],
   );
 
   const onDuplicateInstance = useCallback(
@@ -504,7 +520,7 @@ export function ThemeEditor() {
       let next;
       if (scope !== "body") {
         if (!section) return;
-        next = setRegionInstanceField(doc.settings, scope, section, field, value);
+        next = setRegionInstanceField(doc.settings, scope, section, field, value, regionPageId);
       } else if (pageComposed && section) {
         next = setInstanceField(doc.settings, pageId, section, field, value);
       } else {
@@ -513,7 +529,7 @@ export function ThemeEditor() {
       commit({ ...doc, settings: next }, key);
       setDirty(true);
     },
-    [commit, doc, pageId, pageComposed],
+    [commit, doc, pageId, pageComposed, regionPageId],
   );
 
   // --- Nested blocks (within a section instance) ---------------------------
@@ -523,10 +539,10 @@ export function ThemeEditor() {
       const list =
         scope === "body"
           ? doc.settings.pages[pageId]?.instances ?? []
-          : doc.settings.regions?.[scope] ?? [];
+          : regionsOf(doc.settings)?.[scope] ?? [];
       return list.find((i) => i.id === sectionId)?.blocks ?? [];
     },
-    [doc, pageId],
+    [doc, pageId, regionsOf],
   );
 
   const onSelectBlock = useCallback((sectionId: string, blockId: string | null) => {
@@ -542,7 +558,7 @@ export function ThemeEditor() {
       const settings = addBlock(doc.settings, locFor(scope), sectionId, type, at, seed);
       commit({ ...doc, settings });
       const list =
-        (scope === "body" ? settings.pages[pageId]?.instances : settings.regions?.[scope])?.find(
+        (scope === "body" ? settings.pages[pageId]?.instances : regionsOf(settings)?.[scope])?.find(
           (i) => i.id === sectionId,
         )?.blocks ?? [];
       const added = list[at ?? list.length - 1];
@@ -551,7 +567,7 @@ export function ThemeEditor() {
       if (added) setSelectedBlockId(added.id);
       setDirty(true);
     },
-    [commit, doc, pageId, locFor, isLayoutType],
+    [commit, doc, pageId, locFor, isLayoutType, regionsOf],
   );
 
   // --- Column mutations for a selected layout (columns) block ----------------
@@ -842,6 +858,21 @@ export function ThemeEditor() {
     setSelectedBlockId(null);
   }, []);
 
+  // Toggle this page's own header/footer. On: seed the override from the
+  // site-wide regions so the page starts identical, then edits stay on the page.
+  // Off: drop the override and fall back to the shared header/footer. Either way
+  // the body selection is cleared (the region lists it referenced just changed).
+  const onTogglePageRegions = useCallback(() => {
+    if (target?.kind !== "page") return;
+    const next = pageOverridesRegions
+      ? disablePageRegions(doc.settings, pageId)
+      : enablePageRegions(doc.settings, pageId);
+    commit({ ...doc, settings: next });
+    setSelectedId(null);
+    setSelectedBlockId(null);
+    setDirty(true);
+  }, [target, pageOverridesRegions, doc, pageId, commit]);
+
   // Messages from the preview runtime: select, reorder (op/move), insert. Each
   // carries the `region` it happened in (body / header / footer); we switch the
   // edit scope to that region and route the mutation to its instance list.
@@ -1076,6 +1107,16 @@ export function ThemeEditor() {
           </nav>
         ) : (
           <div className="pcms-sections-col">
+            {doc.settings.regions != null && (
+              <label className="pcms-page-regions-toggle">
+                <input
+                  type="checkbox"
+                  checked={pageOverridesRegions}
+                  onChange={onTogglePageRegions}
+                />
+                <span>{t("region.pageOverride")}</span>
+              </label>
+            )}
             {hasRegions && (
               <div className="pcms-scope-switch" role="tablist" aria-label={t("region.switch")}>
                 {(["header", "body", "footer"] as Scope[]).map((s) => (

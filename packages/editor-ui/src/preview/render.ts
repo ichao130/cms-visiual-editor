@@ -1,5 +1,6 @@
 import {
   autoLinkedAssets,
+  mergeRegions,
   mergeThemeConfig,
   parseTemplate,
   renderComposedPage,
@@ -10,6 +11,7 @@ import type {
   ContentItem,
   MediaItem,
   SiteConfig,
+  SiteRegions,
   ThemeTemplateSchema,
 } from "@pcms/shared";
 import type { ProjectData } from "../api/types.js";
@@ -120,19 +122,22 @@ export function renderPreview(
   const collections = buildCollections(state.content, site);
   const base = { site, theme, menus: state.menus, collections };
 
-  // Site-wide header/footer regions are composed into the layout on every
-  // target (same look as the published site, and editable in preview).
-  const layoutOpts = {
+  // Header/footer regions are composed into the layout on every target (same
+  // look as the published site, and editable in preview). A page with its own
+  // override uses that header/footer; otherwise the site-wide regions apply —
+  // the same per-page merge the generator does, so preview matches output.
+  const layoutOptsFor = (page: { regions?: SiteRegions }) => ({
     layout: project.theme.layout,
     markEditable: true,
-    regions: state.settings.regions,
+    regions: mergeRegions(state.settings.regions, page.regions),
     sections: project.theme.sections,
     blocks: project.theme.blocks,
-  };
+  });
 
   let html: string;
   if (target.kind === "page") {
     const page = state.settings.pages[target.id] ?? {};
+    const layoutOpts = layoutOptsFor(page);
     if (page.instances && page.instances.length > 0) {
       html = renderComposedPage(page.instances, project.theme.sections ?? {}, base, layoutOpts);
     } else {
@@ -147,13 +152,10 @@ export function renderPreview(
       fields: { ...item.fields, url: itemUrl(item, site) },
       bodyHtml: item.body,
     };
-    const scope: RenderScope = {
-      ...base,
-      page: state.settings.pages[target.type] ?? {},
-      item: prepared,
-    };
+    const page = state.settings.pages[target.type] ?? {};
+    const scope: RenderScope = { ...base, page, item: prepared };
     const name = contentTemplateName(project, target.type);
-    html = renderTemplate(templateHtml(project, name), scope, layoutOpts);
+    html = renderTemplate(templateHtml(project, name), scope, layoutOptsFor(page));
   }
 
   // Remove any theme scripts (untrusted) before adding our trusted runtime.

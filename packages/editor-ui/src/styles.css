@@ -464,6 +464,16 @@ button.pcms-themebtn:hover:not(:disabled) { background: var(--pcms-hover); }
   border-right: 1px solid var(--pcms-border);
 }
 .pcms-sections-col .pcms-sections { border-right: none; flex: 1; }
+.pcms-page-regions-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.6rem 0.6rem 0;
+  font-size: 0.78rem;
+  color: var(--pcms-muted);
+  cursor: pointer;
+}
+.pcms-page-regions-toggle input { cursor: pointer; }
 .pcms-scope-switch {
   display: flex;
   gap: 0.25rem;

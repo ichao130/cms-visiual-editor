@@ -27,6 +27,7 @@ export { themeStyleTag, themeRootCss, mergeThemeConfig } from "./theme-style.js"
 export {
   renderTemplate,
   renderComposedPage,
+  mergeRegions,
   autoLinkedAssets,
   RESPONSIVE_CSS,
   type RenderOptions,
