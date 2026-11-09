@@ -404,6 +404,54 @@ export function mapTemplateTags(html: string): { html: string; notes: string[] }
 }
 
 /**
+ * A `get_template_part` / `get_sidebar` include, matched ANYWHERE — not only as
+ * its own `<?php … ?>` tag. _s-based themes wrap the content include in the loop
+ * `<?php while ( have_posts() ) : the_post(); get_template_part(…); endwhile; ?>`,
+ * so a tag-anchored match misses it and the body is lost to PHP stripping. The
+ * args may hold one level of nested parens, e.g. `get_post_type()`.
+ */
+const PART_CALL_RE = /(get_template_part|get_sidebar)\s*\(([^()]*(?:\([^()]*\)[^()]*)*)\)\s*;?/gi;
+
+/** Candidate part stems for an include, in WP's resolution order. */
+function partCandidates(fn: string, rawArgs: string): string[] {
+  const strings = [...rawArgs.matchAll(/(['"])([^'"]+)\1/g)].map((m) => m[2]!);
+  if (/sidebar/i.test(fn)) {
+    const name = strings[0];
+    return [name ? `sidebar-${name}` : "", "sidebar"].filter(Boolean);
+  }
+  // get_template_part(slug, name) → slug-name.php then slug.php. `name` may be a
+  // non-literal (a function call like get_post_type()); then only slug.php is tried.
+  const slug = strings[0] ?? "";
+  const name = strings[1];
+  return [name ? `${slug}-${name}` : "", slug].filter(Boolean);
+}
+
+/**
+ * Inline get_template_part / get_sidebar includes wherever they appear, including
+ * inside the have_posts() loop. Each call is replaced with `?>…part HTML…<?php`,
+ * which splits the enclosing PHP block so the part lands as real markup (the
+ * residual `<?php … ?>` fragments are stripped later). Recursion-guarded via `seen`.
+ */
+function inlineParts(
+  s: string,
+  files: Map<string, string>,
+  seen: Set<string>,
+  expand: (html: string) => string,
+): string {
+  return s.replace(PART_CALL_RE, (_m, fn: string, rawArgs: string) => {
+    for (const c of partCandidates(fn, rawArgs)) {
+      const key = c.toLowerCase();
+      const found = files.get(`${c}.php`) ?? files.get(baseName(c) + ".php");
+      if (found === undefined) continue;
+      if (seen.has(key)) return ""; // already inlined on this branch — stop recursion
+      seen.add(key);
+      return `?>${expand(found)}<?php`;
+    }
+    return "";
+  });
+}
+
+/**
  * Inline a classic theme's PHP includes so one template file is a whole page:
  * `get_header()` → header.php, `get_footer()` → footer.php,
  * `get_template_part('x','y')` → x-y.php / x.php. Recursion-guarded.
@@ -421,17 +469,7 @@ export function composeClassicTemplate(stem: string, files: Map<string, string>)
     let s = html;
     s = s.replace(phpCall("get_header"), () => resolve("header"));
     s = s.replace(phpCall("get_footer"), () => resolve("footer"));
-    s = s.replace(
-      /<\?php\s+(?:get_template_part|get_sidebar)\s*\(\s*(['"])([^'"]+)\1(?:\s*,\s*(['"])([^'"]+)\3)?[\s\S]*?\)\s*;?\s*\?>/gi,
-      (_m, _q1: string, slug: string, _q3: string, part?: string) => {
-        const candidates = [part ? `${slug}-${part}` : "", slug, `sidebar`].filter(Boolean);
-        for (const c of candidates) {
-          const found = files.get(`${c}.php`) ?? files.get(baseName(c) + ".php");
-          if (found) return expand(found);
-        }
-        return "";
-      },
-    );
+    s = inlineParts(s, files, seen, expand);
     return s;
   };
   const start = files.get(`${stem}.php`) ?? "";
@@ -701,23 +739,8 @@ function collectBlockTemplates(files: WpImportFile[]): Map<string, string> {
 function composeTemplateBody(stem: string, files: Map<string, string>): string {
   const seen = new Set<string>();
   const expand = (html: string): string => {
-    let s = html.replace(phpCall("get_header"), "").replace(phpCall("get_footer"), "");
-    s = s.replace(
-      /<\?php\s+(?:get_template_part|get_sidebar)\s*\(\s*(['"])([^'"]+)\1(?:\s*,\s*(['"])([^'"]+)\3)?[\s\S]*?\)\s*;?\s*\?>/gi,
-      (_m, _q1: string, slug: string, _q3: string, part?: string) => {
-        for (const c of [part ? `${slug}-${part}` : "", slug].filter(Boolean)) {
-          const key = c.toLowerCase();
-          if (seen.has(key)) continue;
-          const found = files.get(`${c}.php`) ?? files.get(baseName(c) + ".php");
-          if (found) {
-            seen.add(key);
-            return expand(found);
-          }
-        }
-        return "";
-      },
-    );
-    return s;
+    const s = html.replace(phpCall("get_header"), "").replace(phpCall("get_footer"), "");
+    return inlineParts(s, files, seen, expand);
   };
   return expand(files.get(`${stem}.php`) ?? "");
 }
