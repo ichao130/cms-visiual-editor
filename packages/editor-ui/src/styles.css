@@ -1204,7 +1204,11 @@ button:has(> .pcms-icon:only-child) { display: inline-flex; align-items: center;
 .pcms-filetree__newrow { display: flex; gap: 0.3rem; padding: 0.3rem 0.4rem 0.5rem; }
 .pcms-filetree__newinput { flex: 1; min-width: 0; font: inherit; font-size: 0.82rem; padding: 0.3rem 0.4rem; border: 1px solid var(--pcms-border); border-radius: 5px; }
 .pcms-filetree__newrow button { font-size: 0.78rem; padding: 0.25rem 0.5rem; }
-.pcms-filetree__dir { font-size: 0.75rem; color: var(--pcms-muted); padding: 0.3rem 0.4rem 0.1rem; }
+.pcms-filetree__dir { display: flex; align-items: center; gap: 0.3rem; width: 100%; text-align: left; border: none; background: none; cursor: pointer; font-size: 0.75rem; color: var(--pcms-muted); padding: 0.3rem 0.4rem 0.1rem; }
+.pcms-filetree__dir:hover { color: var(--pcms-text); }
+.pcms-filetree__diricon { width: 0.8em; display: inline-block; font-size: 0.7rem; }
+.pcms-filetree__dirname { flex: 1; }
+.pcms-filetree__dircount { font-variant-numeric: tabular-nums; opacity: 0.7; }
 .pcms-filetree__file { display: flex; align-items: center; gap: 0.35rem; width: 100%; text-align: left; border: none; background: none; padding: 0.25rem 0.6rem; border-radius: 5px; font-size: 0.85rem; font-family: ui-monospace, monospace; }
 .pcms-filetree__file:hover { background: var(--pcms-hover); }
 .pcms-filetree__file.is-active { background: var(--pcms-accent-weak); color: var(--pcms-accent); }

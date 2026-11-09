@@ -177,7 +177,18 @@ export function CodeEditorView({ api }: Props) {
   const [copied, setCopied] = useState<string | null>(null);
   // Right-click context menu on a file-tree entry.
   const [menu, setMenu] = useState<{ x: number; y: number; file: ThemeFileNode } | null>(null);
+  // Collapsed directory groups in the file tree (an imported theme can ship
+  // dozens of asset files, so each folder can be folded away).
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const fileInput = useRef<HTMLInputElement>(null);
+
+  const toggleDir = (dir: string) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(dir)) next.delete(dir);
+      else next.add(dir);
+      return next;
+    });
 
   // The active node is derived from the current list, so its custom/edited flags
   // stay correct after a save/delete/reset refresh.
@@ -465,28 +476,48 @@ export function CodeEditorView({ api }: Props) {
             )}
           </div>
         )}
-        {grouped.map(([dir, nodes]) => (
-          <div key={dir} className="pcms-filetree__group">
-            {dir && <div className="pcms-filetree__dir">{dir}/</div>}
-            {nodes.map((f) => (
-              <button
-                key={f.path}
-                className={`pcms-filetree__file${active?.path === f.path ? " is-active" : ""}`}
-                onClick={() => setActivePath(f.path)}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  setActivePath(f.path);
-                  setMenu({ x: e.clientX, y: e.clientY, file: f });
-                }}
-                style={{ paddingLeft: dir ? "1.4rem" : "0.6rem" }}
-              >
-                <span className="pcms-filetree__name">{basename(f.path)}</span>
-                {f.custom && <span className="pcms-filetree__tag is-new">{t("code.tag.new")}</span>}
-                {f.edited && <span className="pcms-filetree__tag is-edited">{t("code.tag.edited")}</span>}
-              </button>
-            ))}
-          </div>
-        ))}
+        {grouped.map(([dir, nodes]) => {
+          // While searching, keep every group open so matches are never hidden.
+          const isCollapsed = dir !== "" && !q && collapsed.has(dir);
+          return (
+            <div key={dir} className="pcms-filetree__group">
+              {dir && (
+                <button
+                  type="button"
+                  className={`pcms-filetree__dir${isCollapsed ? " is-collapsed" : ""}`}
+                  onClick={() => toggleDir(dir)}
+                  aria-expanded={!isCollapsed}
+                >
+                  <span className="pcms-filetree__diricon" aria-hidden="true">
+                    {isCollapsed ? "▸" : "▾"}
+                  </span>
+                  <span className="pcms-filetree__dirname">{dir}/</span>
+                  <span className="pcms-filetree__dircount">{nodes.length}</span>
+                </button>
+              )}
+              {!isCollapsed &&
+                nodes.map((f) => (
+                  <button
+                    key={f.path}
+                    className={`pcms-filetree__file${active?.path === f.path ? " is-active" : ""}`}
+                    onClick={() => setActivePath(f.path)}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      setActivePath(f.path);
+                      setMenu({ x: e.clientX, y: e.clientY, file: f });
+                    }}
+                    style={{ paddingLeft: dir ? "1.4rem" : "0.6rem" }}
+                  >
+                    <span className="pcms-filetree__name">{basename(f.path)}</span>
+                    {f.custom && <span className="pcms-filetree__tag is-new">{t("code.tag.new")}</span>}
+                    {f.edited && (
+                      <span className="pcms-filetree__tag is-edited">{t("code.tag.edited")}</span>
+                    )}
+                  </button>
+                ))}
+            </div>
+          );
+        })}
         <div className="pcms-filetree__foot">
           {confirm === "reset" ? (
             <div className="pcms-confirm">
