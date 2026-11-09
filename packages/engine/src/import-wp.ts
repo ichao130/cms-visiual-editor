@@ -319,8 +319,11 @@ function phpCall(names: string): RegExp {
   return new RegExp(`<\\?php\\s+(?:echo\\s+)?(?:${names})\\s*\\([\\s\\S]*?\\)\\s*;?\\s*\\?>`, "gi");
 }
 
+/** The editable title field injected for `the_title` / `get_the_title`. */
+const TITLE_FIELD = '<span data-field="post.title" data-type="text" data-label="タイトル"></span>';
+
 const TAG_RULES: TagRule[] = [
-  { re: phpCall("the_title|get_the_title"), repl: '<span data-field="post.title" data-type="text" data-label="タイトル"></span>' },
+  { re: phpCall("the_title|get_the_title"), repl: TITLE_FIELD },
   { re: phpCall("the_content"), repl: '<div data-slot="content" data-field="post.body" data-type="richtext" data-label="本文"></div>' },
   { re: phpCall("the_excerpt|get_the_excerpt"), repl: '<span data-field="post.excerpt" data-type="text" data-label="抜粋"></span>' },
   { re: phpCall("the_post_thumbnail|get_the_post_thumbnail"), repl: '<img data-field="post.image" data-type="image" data-label="アイキャッチ" src="" alt="" />' },
@@ -393,6 +396,24 @@ export function mapTemplateTags(html: string): { html: string; notes: string[] }
       '<nav><a data-loop="menu" data-field="item.url" data-type="link" href="#"><span data-field="item.label" data-type="text" data-label="ラベル">メニュー</span></a></nav>',
     );
     notes.push("メニュー（wp_nav_menu）を動的メニューに変換しました。");
+  }
+
+  // the_title( '<h1 class="…">', '</h1>' ) — keep the heading wrapper the theme
+  // chose (its class carries the styling) rather than flattening the whole call to
+  // a bare <span>. When the wrapper is a single element, the field goes on it;
+  // otherwise the field is nested inside the given markup.
+  if (/the_title\s*\(\s*['"]/i.test(s)) {
+    s = s.replace(
+      /<\?php\s+(?:echo\s+)?the_title\s*\(\s*(['"])([\s\S]*?)\1\s*(?:,\s*(['"])([\s\S]*?)\3\s*)?\)\s*;?\s*\?>/gi,
+      (_m, _q1: string, before: string, _q3: string, after?: string) => {
+        const open = /^\s*<([a-z0-9]+)([^>]*)>\s*$/i.exec(before || "");
+        if (open && after && new RegExp(`^\\s*</${open[1]}>\\s*$`, "i").test(after)) {
+          return `<${open[1]}${open[2]} data-field="post.title" data-type="text" data-label="タイトル"></${open[1]}>`;
+        }
+        return `${before ?? ""}${TITLE_FIELD}${after ?? ""}`;
+      },
+    );
+    notes.push("見出しタグ付きのタイトルを維持しました。");
   }
 
   for (const rule of TAG_RULES) apply(rule.re, rule.repl, `WordPressのテンプレートタグを編集項目に変換しました。`);
@@ -795,6 +816,34 @@ function isEmptyTemplate(html: string): boolean {
   return html.replace(/<[^>]+>/g, "").trim() === "";
 }
 
+/** The editable body slot a post/page template must carry. */
+const CONTENT_SLOT =
+  '<div data-slot="content" data-field="post.body" data-type="richtext" data-label="本文"></div>';
+
+/**
+ * Guarantee a post/page template has an editable body slot. Some themes build the
+ * content wrapper in a part but leave `the_content()` out of it (the branberyheag
+ * `content.php` ships an empty `<div class="richtext">`), so the composed template
+ * has real structure yet no `data-slot="content"` — the body would be uneditable.
+ * Inject the slot into the first empty content-ish container (richtext /
+ * entry-content / post-content), else append it to the main section, so the post
+ * body is always editable without discarding the theme's own markup.
+ */
+function ensureContentSlot(html: string): { html: string; added: boolean } {
+  if (/data-slot\s*=\s*["']content["']/i.test(html)) return { html, added: false };
+  const root = parse(html);
+  for (const el of root.querySelectorAll("div,section,article,main")) {
+    const cls = el.getAttribute("class") ?? "";
+    if (/\b(richtext|entry-content|post-content|the-content|post_content)\b/i.test(cls) && el.innerHTML.trim() === "") {
+      el.set_content(CONTENT_SLOT);
+      return { html: root.toString(), added: true };
+    }
+  }
+  const host = root.querySelector("[data-section]") ?? root;
+  host.set_content(host.innerHTML + CONTENT_SLOT);
+  return { html: root.toString(), added: true };
+}
+
 /** Dedupe notes while keeping order. */
 function dedupe(notes: string[]): string[] {
   return [...new Set(notes)];
@@ -842,6 +891,12 @@ export function importWpTheme(files: WpImportFile[]): WpImportResult {
     if ((name === "page" || name === "post") && isEmptyTemplate(r.html)) {
       r = toTemplateHtml(GENERIC_ENTRY);
       notes.push(`${name}テンプレートの本文を抽出できず、汎用テンプレート（タイトル＋本文）で補いました。`);
+    } else if (name === "page" || name === "post") {
+      const slot = ensureContentSlot(r.html);
+      if (slot.added) {
+        r = { html: slot.html, issues: validateThemeHtml(slot.html) };
+        notes.push(`${name}テンプレートに本文の編集欄（本文スロット）を補いました。`);
+      }
     }
     out.templates[name] = r.html;
     issues.push(...r.issues);
