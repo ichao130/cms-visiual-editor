@@ -73,6 +73,8 @@ import {
   listThemes,
   createTheme,
   setActiveTheme,
+  renameTheme,
+  deleteTheme,
   listThemeFiles,
   readThemeFile,
   writeThemeFile,
@@ -252,6 +254,8 @@ function registerIpc(): void {
       createTheme(meta, files),
   );
   ipcMain.handle("pcms:setActiveTheme", (_event, id: string) => setActiveTheme(id));
+  ipcMain.handle("pcms:renameTheme", (_event, id: string, name: string) => renameTheme(id, name));
+  ipcMain.handle("pcms:deleteTheme", (_event, id: string) => deleteTheme(id));
   ipcMain.handle("pcms:listThemeFiles", () => listThemeFiles());
   ipcMain.handle("pcms:readThemeFile", (_event, path: string) => readThemeFile(path));
   ipcMain.handle("pcms:writeThemeFile", (_event, path: string, content: string) =>

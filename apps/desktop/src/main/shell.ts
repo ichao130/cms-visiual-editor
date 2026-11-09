@@ -25,6 +25,8 @@ import {
   listThemes as loadThemes,
   createTheme as createThemeOnDisk,
   setActiveTheme as setActiveThemeOnDisk,
+  renameTheme as renameThemeOnDisk,
+  deleteTheme as deleteThemeOnDisk,
 } from "./project.js";
 import {
   overlayDelete,
@@ -220,6 +222,14 @@ export async function createTheme(
 
 export async function setActiveTheme(id: string): Promise<void> {
   setActiveThemeOnDisk(id);
+}
+
+export async function renameTheme(id: string, name: string): Promise<void> {
+  renameThemeOnDisk(id, name);
+}
+
+export async function deleteTheme(id: string): Promise<void> {
+  deleteThemeOnDisk(id);
 }
 
 function themeFiles(project: ProjectData): Record<string, string> {

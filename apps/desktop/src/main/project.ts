@@ -5,6 +5,7 @@ import {
   existsSync,
   readdirSync,
   unlinkSync,
+  rmSync,
 } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { app } from "electron";
@@ -41,7 +42,7 @@ import {
 } from "@pcms/engine";
 import type { FileSet } from "@pcms/deploy";
 import type { MediaUpload, ProjectData, ThemeSummary } from "@pcms/editor-ui";
-import { applyThemeOverlay, overlayHas, overlayGet } from "./theme-overlay.js";
+import { applyThemeOverlay, overlayHas, overlayGet, removeOverlayForTheme } from "./theme-overlay.js";
 import {
   activeThemeId,
   readThemeMeta,
@@ -548,6 +549,39 @@ export function setActiveTheme(id: string): void {
   }
   setActiveThemeId(id);
   saveDraft(presetSettingsFor(id));
+}
+
+/**
+ * Rename an imported theme (updates its `theme-meta.json` display name). The
+ * bundled sample's name is fixed, so it is rejected. The id never changes, so
+ * the active pointer, overlay and working copy stay valid.
+ */
+export function renameTheme(id: string, name: string): void {
+  const trimmed = name.trim();
+  if (id === SAMPLE_THEME_ID) throw new Error("cannot rename the bundled sample theme");
+  const meta = readThemeMeta(id);
+  if (!meta) throw new Error(`theme not found: ${id}`);
+  if (!trimmed) throw new Error("theme name must not be empty");
+  writeFileSync(
+    join(themeRoot(id), "theme-meta.json"),
+    JSON.stringify({ ...meta, id, name: trimmed }, null, 2),
+    "utf8",
+  );
+}
+
+/**
+ * Delete an imported theme: remove its folder on disk and its working-copy
+ * overlay. The bundled sample is never deletable (it is the fallback). If the
+ * deleted theme was active, switch back to the sample so the app never points at
+ * a missing theme. Content (posts/pages/media/site.json) is never touched.
+ */
+export function deleteTheme(id: string): void {
+  if (id === SAMPLE_THEME_ID) throw new Error("cannot delete the bundled sample theme");
+  if (!readThemeMeta(id)) throw new Error(`theme not found: ${id}`);
+  const wasActive = activeThemeId() === id;
+  if (wasActive) setActiveTheme(SAMPLE_THEME_ID);
+  removeOverlayForTheme(id);
+  rmSync(themeRoot(id), { recursive: true, force: true });
 }
 
 export { saveContent };

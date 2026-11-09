@@ -6,6 +6,9 @@ import { PreviewThumb } from "../../components/PreviewThumb.js";
 import { renderHomeThumbnail } from "../../preview/render.js";
 import { t } from "../../i18n.js";
 
+/** The bundled sample theme is the fallback; it is never renamed or deleted. */
+const SAMPLE_THEME_ID = "sample-cafe";
+
 interface Props {
   api: PcmsApi;
   siteId: string;
@@ -54,6 +57,27 @@ export function ThemeView({ api, siteId, onNavigate }: Props) {
       .finally(() => setSwitching(false));
   };
 
+  // Rename / delete apply to imported themes only; the bundled sample is fixed
+  // and is the fallback, so it is never renamed or removed here.
+  const renameTheme = (th: ThemeSummary) => {
+    const name = window.prompt(t("theme.renamePrompt"), th.name)?.trim();
+    if (!name || name === th.name) return;
+    setSwitching(true);
+    void api
+      .renameTheme(th.id, name)
+      .then(reload)
+      .finally(() => setSwitching(false));
+  };
+
+  const deleteTheme = (th: ThemeSummary) => {
+    if (!window.confirm(t("theme.deleteConfirm").replace("{name}", th.name))) return;
+    setSwitching(true);
+    void api
+      .deleteTheme(th.id)
+      .then(reload)
+      .finally(() => setSwitching(false));
+  };
+
   return (
     <div className="pcms-themeview">
       <div className="pcms-listhead">
@@ -87,6 +111,20 @@ export function ThemeView({ api, siteId, onNavigate }: Props) {
                 <button disabled={switching} onClick={() => useTheme(th.id)}>
                   {t("theme.use")}
                 </button>
+              )}
+              {th.id !== SAMPLE_THEME_ID && (
+                <>
+                  <button disabled={switching} onClick={() => renameTheme(th)}>
+                    {t("theme.rename")}
+                  </button>
+                  <button
+                    className="pcms-danger"
+                    disabled={switching}
+                    onClick={() => deleteTheme(th)}
+                  >
+                    {t("theme.delete")}
+                  </button>
+                </>
               )}
             </div>
           </div>

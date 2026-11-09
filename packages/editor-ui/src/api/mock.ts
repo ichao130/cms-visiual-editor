@@ -1266,6 +1266,30 @@ export function createMockApi(): PcmsApi {
       delete next.theme; // clear the old theme's colour overrides
       saveJson(DRAFT_KEY, next);
     },
+    async renameTheme(id: string, name: string): Promise<void> {
+      const trimmed = name.trim();
+      if (id === SAMPLE_THEME_ID) throw new Error("cannot rename the bundled sample theme");
+      if (!trimmed) throw new Error("theme name must not be empty");
+      const themes = createdThemes();
+      const theme = themes[id];
+      if (!theme) throw new Error(`theme not found: ${id}`);
+      theme.meta = { ...theme.meta, name: trimmed };
+      saveJson(THEMES_KEY, themes);
+    },
+    async deleteTheme(id: string): Promise<void> {
+      if (id === SAMPLE_THEME_ID) throw new Error("cannot delete the bundled sample theme");
+      const themes = createdThemes();
+      if (!themes[id]) throw new Error(`theme not found: ${id}`);
+      // Switch away before removing, so nothing points at the deleted theme.
+      if (activeThemeId() === id) await this.setActiveTheme(SAMPLE_THEME_ID);
+      delete themes[id];
+      saveJson(THEMES_KEY, themes);
+      try {
+        localStorage.removeItem(workingKey(id));
+      } catch {
+        /* ignore storage failures in the mock */
+      }
+    },
     async listThemeFiles(): Promise<ThemeFileNode[]> {
       const base = baseThemeFiles();
       const working = themeWorkingCopy();

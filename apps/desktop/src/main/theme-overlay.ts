@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { app } from "electron";
 import type { ProjectData } from "@pcms/editor-ui";
@@ -84,6 +84,25 @@ export function overlayDelete(path: string): void {
 export function overlayClear(): void {
   store().clear();
   persist();
+}
+
+/**
+ * Delete the persisted working-copy overlay for a specific theme (used when that
+ * theme is removed). Targets the file by id directly — not the active theme — and
+ * drops the in-memory cache if it was holding that theme's overlay.
+ */
+export function removeOverlayForTheme(id: string): void {
+  const dir = join(app.getPath("userData"), "site");
+  const file = join(dir, id === SAMPLE_THEME_ID ? "theme-overlay.json" : `theme-overlay.${id}.json`);
+  try {
+    if (existsSync(file)) rmSync(file);
+  } catch {
+    /* best effort — a missing overlay is fine */
+  }
+  if (cacheId === id) {
+    cache = null;
+    cacheId = null;
+  }
 }
 
 /**

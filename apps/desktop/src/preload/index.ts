@@ -80,6 +80,8 @@ const api: PcmsApi = {
   createTheme: (meta: { name: string; description?: string; source?: string }, files: Record<string, string>) =>
     ipcRenderer.invoke("pcms:createTheme", meta, files),
   setActiveTheme: (id: string) => ipcRenderer.invoke("pcms:setActiveTheme", id),
+  renameTheme: (id: string, name: string) => ipcRenderer.invoke("pcms:renameTheme", id, name),
+  deleteTheme: (id: string) => ipcRenderer.invoke("pcms:deleteTheme", id),
   listThemeFiles: () => ipcRenderer.invoke("pcms:listThemeFiles"),
   readThemeFile: (path: string) => ipcRenderer.invoke("pcms:readThemeFile", path),
   writeThemeFile: (path: string, content: string) =>

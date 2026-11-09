@@ -163,6 +163,14 @@ export interface PcmsApi {
    * to the new theme's defaults; content (posts/pages/media/menus) is preserved.
    */
   setActiveTheme(id: string): Promise<void>;
+  /** Rename an imported theme (its display name). The bundled sample is fixed. */
+  renameTheme(id: string, name: string): Promise<void>;
+  /**
+   * Delete an imported theme and its working copy. The bundled sample cannot be
+   * deleted; deleting the active theme falls back to the sample. Content
+   * (posts/pages/media) is preserved.
+   */
+  deleteTheme(id: string): Promise<void>;
 
   // Theme source files — for theme development / part authoring in the code
   // editor. Distinct from operator content editing; writes target a theme
