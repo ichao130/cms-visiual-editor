@@ -246,7 +246,14 @@ function themeFiles(project: ProjectData): Record<string, string> {
     files[`blocks/${name}.html`] = html;
   }
   files["theme.json"] = JSON.stringify(theme.config ?? {}, null, 2);
-  // The stylesheet, so the code editor can edit site-wide CSS directly.
+  // Text assets the theme ships (its own JS, extra CSS) so they show in the file
+  // tree and can be read/edited — not just the images. An imported theme carries
+  // its scripts under assets/; without this they exist on disk but are invisible.
+  for (const [path, text] of Object.entries(project.themeTextAssets ?? {})) {
+    files[path] = text;
+  }
+  // The stylesheet, so the code editor can edit site-wide CSS directly (also the
+  // canonical copy if it was among the text assets above).
   files["assets/style.css"] = project.previewCss ?? "";
   // Binary assets (images/fonts) as data URLs, so the editor can list/preview
   // them. Operator-added assets also surface via the overlay (see below).
