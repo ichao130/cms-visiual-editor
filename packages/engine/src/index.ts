@@ -106,6 +106,7 @@ export {
   composeClassicTemplate,
   localizeCssUrls,
   collectEnqueuedScripts,
+  collectEnqueuedStyles,
   type WpImportFile,
   type WpThemeFiles,
   type WpImportResult,

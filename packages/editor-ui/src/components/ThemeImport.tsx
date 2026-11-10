@@ -239,7 +239,11 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
     // every script carried verbatim (the theme's own JS).
     const wpFiles: WpImportFile[] = [];
     const jsAssets: Record<string, string> = {};
+    // Every CSS in the archive, kept both as one blind concatenation (the fallback
+    // when we can't tell which CSS the theme loads) and keyed by basename (so a WP
+    // import can fold in ONLY the stylesheets it actually references, in order).
     let cssText = "";
+    const cssByBase: Record<string, string> = {};
     for (const [path, bytes] of Object.entries(entries)) {
       if (/\/$/.test(path)) continue;
       if (/\.(php|html?|json|css|txt|liquid|twig)$/i.test(path)) {
@@ -247,6 +251,7 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
         wpFiles.push({ path, text });
         if (/\.css$/i.test(path)) {
           cssText += `${cssText ? "\n\n" : ""}/* ${baseName(path)} */\n${text}`;
+          cssByBase[baseName(path).toLowerCase()] = text;
         }
       } else if (/\.m?js$/i.test(path)) {
         // Keep every script — the theme's own JS (minified or not).
@@ -283,7 +288,18 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
     const wpKind = detectWpThemeKind(wpFiles);
     if (wpKind !== "unknown") {
       const wp = importWpTheme(wpFiles);
-      const files = buildWpThemeFiles(wp, cssText, assets, jsAssets);
+      // Fold in ONLY the stylesheets the theme actually loads, in load order (the
+      // engine resolved them from <link>/wp_enqueue_style). This drops the dead
+      // vendor/RTL/docs CSS that otherwise overrides the real design — the main
+      // fidelity fix. Fall back to every CSS when the engine found no references.
+      const refced = wp.files.styles
+        .map((b) => ({ b, text: cssByBase[b.toLowerCase()] }))
+        .filter((x): x is { b: string; text: string } => typeof x.text === "string");
+      const wpCss =
+        refced.length > 0
+          ? refced.map((x) => `/* ${x.b} */\n${x.text}`).join("\n\n")
+          : cssText;
+      const files = buildWpThemeFiles(wp, wpCss, assets, jsAssets);
       const name = readWpThemeName(wp.files["theme.json"]) ?? baseName(file.name).replace(/\.zip$/i, "");
       const wpNotes = [...notes, ...wp.notes];
       const jsCount = Object.keys(jsAssets).length;

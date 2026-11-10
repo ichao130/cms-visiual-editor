@@ -34,6 +34,13 @@ export interface WpThemeFiles {
   blocks: Record<string, string>;
   /** Image/asset base names referenced by the produced HTML (for the UI to inline). */
   assets: string[];
+  /**
+   * Base names of the stylesheets the theme ACTUALLY loads, in load order — the
+   * CSS the UI should fold into assets/style.css, and ONLY that CSS. Empty when
+   * the theme referenced none (the UI then folds every CSS as a fallback). See
+   * collectEnqueuedStyles.
+   */
+  styles: string[];
 }
 
 export interface WpImportResult {
@@ -507,12 +514,14 @@ function layoutSkeleton(
   footerMarkup: string,
   lang: string,
   scriptTags = "",
+  externalStyleTags = "",
 ): string {
   return (
     `<!doctype html>\n<html lang="${lang}">\n  <head>\n` +
     `    <meta charset="utf-8" />\n` +
     `    <meta name="viewport" content="width=device-width, initial-scale=1" />\n` +
     `    <title data-field="site.name"></title>\n` +
+    (externalStyleTags ? `${externalStyleTags}\n` : "") +
     `    <link rel="stylesheet" href="/assets/style.css" />\n` +
     `  </head>\n  <body>\n` +
     `    <div data-slot="header">${headerMarkup}</div>\n\n` +
@@ -564,6 +573,87 @@ export function collectEnqueuedScripts(
         seen.add(key);
         out.push({ external, base, url: external ? raw : `/assets/${base}` });
       }
+    }
+  }
+  return out;
+}
+
+/**
+ * The stylesheets a theme ACTUALLY loads, in load order — the CSS counterpart of
+ * collectEnqueuedScripts, and the single biggest fidelity lever. A WordPress
+ * theme archive ships far more CSS than it uses: vendor libraries it never
+ * enqueues (a 100 KB bootstrap, slick, rellax), a JS library's own documentation-
+ * site CSS, and the RTL mirror (style-rtl.css, loaded only for RTL locales).
+ * Folding ALL of them into one stylesheet lets that dead CSS win the cascade —
+ * global resets and demo-page body rules override the real design — so the import
+ * looks nothing like the original. So, exactly as with scripts, take only the CSS
+ * the theme references: `<link rel="stylesheet">` in its templates (header/footer),
+ * and wp_enqueue_style / wp_register_style (get_stylesheet_uri() = the theme's own
+ * style.css). External (CDN) URLs are kept verbatim for a layout <link>; local
+ * paths collapse to their basename (the flattened asset folder), first seen wins.
+ */
+export function collectEnqueuedStyles(
+  files: WpImportFile[],
+): { external: boolean; base: string; url: string }[] {
+  const seen = new Set<string>();
+  const out: { external: boolean; base: string; url: string }[] = [];
+  const add = (raw0: string): void => {
+    const raw = raw0.trim();
+    const path = raw.split(/[?#]/)[0] ?? "";
+    if (!/\.css$/i.test(path)) return;
+    const external = /^(https?:)?\/\//i.test(raw);
+    const base = baseName(path);
+    if (!external && !base) return;
+    // style-rtl.css is the RTL mirror WP loads only for RTL locales; pulling it
+    // into an LTR import would flip/override the real rules.
+    if (!external && /-rtl\.css$/i.test(base)) return;
+    const key = external ? raw : base.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push({ external, base, url: external ? raw : base });
+  };
+  // A WordPress theme archive bundles whole vendor libraries, each with its own
+  // demo/documentation HTML full of <link> tags to that library's CSS. Those are
+  // not the theme's templates, so scanning them would pull in exactly the dead CSS
+  // we're trying to exclude. Only the theme's own source counts: its PHP, and (for
+  // block themes) templates/*.html + parts/*.html.
+  const path = (f: WpImportFile): string => f.path.replace(/\\/g, "/");
+  const isVendor = (p: string): boolean =>
+    /(^|\/)(vendors?|node_modules|bower_components)\//i.test(p);
+  const isTemplateHtml = (p: string): boolean => /(^|\/)(templates|parts)\/[^/]+\.html$/i.test(p);
+  // 1) <link rel="stylesheet" href="…"> in a template. PHP is stripped first so an
+  //    asset-path helper inside the href (`href="<?php … ?>/css/x.css"`) — whose
+  //    `?>` would otherwise truncate the tag at its `>` and lose the URL — leaves
+  //    a plain path behind.
+  const linkRe = /<link\b[^>]*>/gi;
+  const hrefRe = /href\s*=\s*(['"])([\s\S]*?)\1/i;
+  for (const f of files) {
+    const p = path(f);
+    if (isVendor(p)) continue;
+    if (!/\.php$/i.test(p) && !isTemplateHtml(p)) continue;
+    const noPhp = f.text.replace(/<\?[\s\S]*?\?>/g, "");
+    for (const tag of noPhp.match(linkRe) ?? []) {
+      if (!/\brel\s*=\s*(['"])[^'"]*stylesheet[^'"]*\1/i.test(tag)) continue;
+      const h = hrefRe.exec(tag);
+      if (h) add(h[2] ?? "");
+    }
+  }
+  // 2) wp_enqueue_style / wp_register_style(handle, src, …). The src is the one
+  //    string literal ending in .css; get_stylesheet_uri() → the theme's style.css.
+  const enqRe = /wp_(?:enqueue|register)_style\s*\(/gi;
+  for (const f of files) {
+    if (isVendor(path(f))) continue;
+    if (!/\.php$/i.test(f.path)) continue;
+    let m: RegExpExecArray | null;
+    enqRe.lastIndex = 0;
+    while ((m = enqRe.exec(f.text)) !== null) {
+      const windowText = f.text.slice(m.index, m.index + 600);
+      const end = windowText.indexOf(";");
+      const args = end >= 0 ? windowText.slice(0, end) : windowText;
+      if (/get_stylesheet_uri\s*\(/i.test(args)) add("style.css");
+      const lit = /(['"])(.*?)\1/g;
+      let s: RegExpExecArray | null;
+      while ((s = lit.exec(args)) !== null) add((s[2] ?? "").trim());
     }
   }
   return out;
@@ -686,7 +776,12 @@ function cleanWpMarkup(raw: string): string {
   return (body ? body.innerHTML : root.toString()).trim();
 }
 
-function buildLayout(kind: WpImportResult["kind"], files: WpImportFile[], byBase: Map<string, string>): string | null {
+function buildLayout(
+  kind: WpImportResult["kind"],
+  files: WpImportFile[],
+  byBase: Map<string, string>,
+  externalStyles: string[] = [],
+): string | null {
   let header = "";
   let footer = "";
   if (kind === "block") {
@@ -708,7 +803,10 @@ function buildLayout(kind: WpImportResult["kind"], files: WpImportFile[], byBase
     .filter((s) => s.external || !alreadyInline.has(s.base))
     .map((s) => `    <script src="${s.url}" defer></script>`)
     .join("\n");
-  return layoutSkeleton(header, footer, "ja", scriptTags);
+  const styleTags = externalStyles
+    .map((url) => `    <link rel="stylesheet" href="${url}" />`)
+    .join("\n");
+  return layoutSkeleton(header, footer, "ja", scriptTags, styleTags);
 }
 
 const ASSET_URL = /(?:src|href)\s*=\s*"([^"]+)"|url\(\s*(['"]?)([^'")]+)\2\s*\)/gi;
@@ -860,7 +958,7 @@ export function importWpTheme(files: WpImportFile[]): WpImportResult {
   const kind = detectWpThemeKind(files);
   const notes: string[] = [];
   const byBase = new Map(files.map((f) => [baseName(f.path).toLowerCase(), f.text]));
-  const out: WpThemeFiles = { templates: {}, sections: {}, blocks: {}, assets: [] };
+  const out: WpThemeFiles = { templates: {}, sections: {}, blocks: {}, assets: [], styles: [] };
 
   // theme.json tokens.
   const themeJson = files.find((f) => /(^|\/)theme\.json$/i.test(f.path.replace(/\\/g, "/")));
@@ -911,8 +1009,20 @@ export function importWpTheme(files: WpImportFile[]): WpImportResult {
     }
   }
 
+  // The CSS the theme actually loads (in load order) — the single biggest
+  // fidelity lever. Only this CSS is folded into assets/style.css; the rest of the
+  // archive's stylesheets (vendor libs, a library's docs CSS, the RTL mirror) are
+  // left out so they can't override the real design. External (CDN) stylesheets
+  // are linked from the layout head instead.
+  const styleRefs = collectEnqueuedStyles(files);
+  out.styles = styleRefs.filter((s) => !s.external).map((s) => s.base);
+  const externalStyles = styleRefs.filter((s) => s.external).map((s) => s.url);
+  if (out.styles.length > 0) {
+    notes.push(`テーマが読み込むCSS（${out.styles.length}件）だけを使い、未使用のCSSは除外しました。`);
+  }
+
   // Layout from header/footer.
-  const layout = buildLayout(kind, files, byBase);
+  const layout = buildLayout(kind, files, byBase, externalStyles);
   if (layout) {
     out["layout.html"] = layout;
     notes.push("ヘッダー・フッターから共通レイアウト（layout.html）を作成しました。");
