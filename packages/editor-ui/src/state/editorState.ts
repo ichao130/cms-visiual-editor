@@ -98,8 +98,11 @@ function typeLabel(state: EditorState, type: string): string {
 export function listTargets(state: EditorState): EditorTarget[] {
   const targets: EditorTarget[] = [];
 
-  for (const id of Object.keys(state.settings.pages)) {
-    targets.push({ kind: "page", id, label: id === "index" ? "ホーム" : id });
+  for (const [id, page] of Object.entries(state.settings.pages)) {
+    // Prefer the page's own title (imported 固定ページ carry their Template Name, e.g.
+    // "サービス一覧") so the page switcher is readable; fall back to the id.
+    const label = id === "index" ? "ホーム" : (page.title?.trim() || id);
+    targets.push({ kind: "page", id, label });
   }
 
   for (const item of state.content) {
