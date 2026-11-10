@@ -889,6 +889,19 @@ function presetSettingsFor(id: string): Pick<SiteSettings, "pages" | "regions"> 
   if (id === SAMPLE_THEME_ID) {
     return { pages: defaultSettings.pages, regions: defaultSettings.regions };
   }
+  // An imported theme ships its default page composition (home + each imported
+  // 固定ページ) in presets/pages.json; use it so switching brings in those pages.
+  const raw = baseThemeFiles(id)["presets/pages.json"];
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw) as Partial<SiteSettings>;
+      if (parsed && parsed.pages) {
+        return { pages: parsed.pages, regions: parsed.regions ?? {} };
+      }
+    } catch {
+      // fall through to the minimal default
+    }
+  }
   return { pages: { index: { template: "index" } }, regions: {} };
 }
 

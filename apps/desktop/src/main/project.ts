@@ -474,9 +474,22 @@ export function saveDraft(settings: SiteSettings): void {
 /** The default page/region layout for a theme, used when it becomes active. */
 function presetSettingsFor(id: string): SiteSettings {
   if (id === SAMPLE_THEME_ID) return defaultSettings;
-  // Imported themes render their templates directly (a page with no section
-  // instances renders templates/<template>.html), so the index page just names
-  // its template; header/footer come from the theme's own layout.html.
+  // An imported theme ships its own default page composition in presets/pages.json
+  // (the home page plus each imported 固定ページ, each naming its template). Use it so
+  // switching to the theme brings in its Service/About/… pages, not just the home.
+  const preset = join(themeRoot(id), "presets", "pages.json");
+  if (existsSync(preset)) {
+    try {
+      const parsed = JSON.parse(readFileSync(preset, "utf8")) as Partial<SiteSettings>;
+      if (parsed && parsed.pages) {
+        return { pages: parsed.pages, regions: parsed.regions ?? {} };
+      }
+    } catch {
+      // fall through to the minimal default below
+    }
+  }
+  // Fallback: a page with no section instances renders templates/<template>.html,
+  // so the index page just names its template; header/footer come from layout.html.
   return { pages: { index: { template: "index" } }, regions: {} };
 }
 

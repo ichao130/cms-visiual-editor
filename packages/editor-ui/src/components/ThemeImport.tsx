@@ -137,6 +137,9 @@ function buildWpThemeFiles(
   // theme that manages its own scripts).
   for (const [base, text] of Object.entries(jsAssets)) files[`assets/${base}`] = text;
   if (f["layout.html"]) files["layout.html"] = f["layout.html"];
+  // The theme's default page composition (home + each imported 固定ページ). The
+  // backend's presetSettingsFor reads this when the theme becomes active.
+  if (f.preset) files["presets/pages.json"] = f.preset;
   return files;
 }
 

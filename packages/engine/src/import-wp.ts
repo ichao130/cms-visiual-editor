@@ -41,6 +41,13 @@ export interface WpThemeFiles {
    * collectEnqueuedStyles.
    */
   styles: string[];
+  /**
+   * The theme's default page composition as a JSON `{ pages, regions }` string
+   * (SiteSettings shape), written to `presets/pages.json`. Lists the home page and
+   * every imported 固定ページ (each naming its own template). presetSettingsFor reads
+   * it when the theme becomes active. Absent only for themes we produced none for.
+   */
+  preset?: string;
 }
 
 export interface WpImportResult {
@@ -830,6 +837,33 @@ function collectAssetBasenames(html: string): string[] {
 // Template-hierarchy mapping + orchestrator
 // ---------------------------------------------------------------------------
 
+/**
+ * PHP stems that are part of the WordPress template hierarchy or theme plumbing —
+ * never a custom 固定ページ template. (`home` carries a `Template Name:` in some _s
+ * themes but is the blog index here; index.php is the real home, so it is reserved.)
+ */
+const RESERVED_PHP_STEMS = new Set([
+  "index", "front-page", "home", "single", "singular", "page", "archive", "category",
+  "tag", "taxonomy", "author", "search", "404", "header", "footer", "sidebar",
+  "functions", "comments", "searchform", "attachment", "embed", "date", "image",
+]);
+
+/** The `Template Name:` from a page template's leading doc-comment, if any. */
+function templateNameOf(php: string): string | undefined {
+  const m = /Template Name\s*:\s*(.+)/i.exec(php.slice(0, 2000));
+  if (!m) return undefined;
+  const name = (m[1] ?? "").replace(/\*\/.*$/, "").trim();
+  return name || undefined;
+}
+
+/** "page-service" / "about_us" → "Page Service" / "About Us" (title fallback). */
+function titleCase(slug: string): string {
+  return slug
+    .replace(/[-_]+/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .trim();
+}
+
 /** WordPress template file stem → pcms template name. */
 function pcmsTemplateName(stem: string): string | null {
   if (["index", "front-page", "home"].includes(stem)) return "index";
@@ -1007,6 +1041,55 @@ export function importWpTheme(files: WpImportFile[]): WpImportResult {
       out.templates[name] = r.html;
       issues.push(...r.issues);
     }
+  }
+
+  // Custom page templates — the designed 固定ページ (Service / About / Project …).
+  // A classic theme ships one PHP file per such page: `page-<slug>.php` (WP's
+  // slug-specific page template) or any file carrying a `Template Name:` header
+  // (an operator-selectable page template). Without this they collapse into the
+  // generic `page` template and lose their bespoke layout. Each becomes its own
+  // template plus a page entry in the theme preset, so the generated site ships
+  // /<slug>/ with its real design, individually editable. (Block themes model
+  // pages differently; they fall back to the generic `page`.)
+  const pageDescriptors: { id: string; template: string; title?: string }[] = [];
+  if (kind !== "block") {
+    const php = new Map<string, string>();
+    for (const f of files) {
+      if (/\.php$/i.test(f.path)) php.set(baseName(f.path).toLowerCase(), f.text);
+    }
+    const seenSlug = new Set<string>();
+    for (const [file, text] of php) {
+      const stem = file.replace(/\.php$/i, "");
+      if (RESERVED_PHP_STEMS.has(stem)) continue;
+      const isPagePrefixed = /^page-.+/.test(stem);
+      const tname = templateNameOf(text);
+      if (!isPagePrefixed && !tname) continue;
+      const slug = isPagePrefixed ? stem.replace(/^page-/, "") : stem;
+      if (!slug || seenSlug.has(slug) || out.templates[stem]) continue;
+      seenSlug.add(slug);
+      const mapped = mapTemplateTags(composeTemplateBody(stem, php)).html;
+      let r = toTemplateHtml(mapped);
+      if (isEmptyTemplate(r.html)) r = toTemplateHtml(GENERIC_ENTRY);
+      out.templates[stem] = r.html;
+      issues.push(...r.issues);
+      pageDescriptors.push({ id: slug, template: stem, title: tname ?? titleCase(slug) });
+    }
+    if (pageDescriptors.length > 0) {
+      notes.push(`固定ページ（${pageDescriptors.length}件）をそれぞれのデザインで取り込みました。`);
+    }
+  }
+
+  // The theme's default page composition (presets/pages.json): the home page plus
+  // each imported 固定ページ, each naming its own template. presetSettingsFor applies
+  // this when the theme becomes active; content (posts/pages/media) is untouched.
+  {
+    const pages: Record<string, { template: string; title?: string }> = {
+      index: { template: "index" },
+    };
+    for (const d of pageDescriptors) {
+      pages[d.id] = d.title ? { template: d.template, title: d.title } : { template: d.template };
+    }
+    out.preset = JSON.stringify({ pages, regions: {} }, null, 2);
   }
 
   // The CSS the theme actually loads (in load order) — the single biggest
