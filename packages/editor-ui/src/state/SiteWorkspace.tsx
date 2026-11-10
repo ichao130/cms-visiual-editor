@@ -43,6 +43,12 @@ export interface SiteWorkspace {
   /** Re-fetch the project (e.g. after editing theme files), refreshing the
    *  section catalog and preview base without touching the editable document. */
   reloadProject: () => void;
+  /** Re-fetch the project AND reset the editable document to the new project's
+   *  initial state. Used after switching the active theme, where the page
+   *  composition (settings.pages/regions) changes to the new theme's preset — so
+   *  the whole editor (preview, section catalog, settings) reflects the new theme,
+   *  not just the thumbnail. Discards unsaved edits, like loading the site fresh. */
+  reloadWorkspace: () => void;
 }
 
 const Ctx = createContext<SiteWorkspace | null>(null);
@@ -94,6 +100,14 @@ export function SiteWorkspaceProvider({ api, siteId, onDirtyChange, children }: 
     void api.loadProject().then(setProject);
   }, [api]);
 
+  const reloadWorkspace = useCallback(() => {
+    void api.loadProject().then((data) => {
+      setProject(data);
+      reset(initialState(data));
+      setDirty(false);
+    });
+  }, [api, reset]);
+
   const save = useCallback(() => {
     void Promise.all([
       api.saveSite(doc.site),
@@ -138,6 +152,7 @@ export function SiteWorkspaceProvider({ api, siteId, onDirtyChange, children }: 
     setDirty,
     save,
     reloadProject,
+    reloadWorkspace,
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

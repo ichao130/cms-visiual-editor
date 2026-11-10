@@ -4,6 +4,7 @@ import type { Route } from "../../state/route.js";
 import { ThemeImport } from "../../components/ThemeImport.js";
 import { PreviewThumb } from "../../components/PreviewThumb.js";
 import { renderHomeThumbnail } from "../../preview/render.js";
+import { useSiteWorkspace } from "../../state/SiteWorkspace.js";
 import { t } from "../../i18n.js";
 
 /** The bundled sample theme is the fallback; it is never renamed or deleted. */
@@ -17,6 +18,10 @@ interface Props {
 
 /** Theme selection, and the entry point into the theme editor. */
 export function ThemeView({ api, siteId, onNavigate }: Props) {
+  // Switching the active theme must refresh the shared workspace (project +
+  // editable document), not just this screen's thumbnail — otherwise the editor
+  // keeps rendering the old theme and the design appears not to change.
+  const { reloadWorkspace } = useSiteWorkspace();
   const [themes, setThemes] = useState<ThemeSummary[]>([]);
   const [importing, setImporting] = useState(false);
   const [switching, setSwitching] = useState(false);
@@ -53,7 +58,10 @@ export function ThemeView({ api, siteId, onNavigate }: Props) {
     setSwitching(true);
     void api
       .setActiveTheme(id)
-      .then(reload)
+      .then(() => {
+        reloadWorkspace(); // refresh the editor/preview with the new theme
+        return reload();
+      })
       .finally(() => setSwitching(false));
   };
 
@@ -137,7 +145,12 @@ export function ThemeView({ api, siteId, onNavigate }: Props) {
         <ThemeImport
           api={api}
           onClose={() => setImporting(false)}
-          onImported={() => void reload()}
+          onImported={() => {
+            // A WP import can become the active theme, so refresh the whole
+            // workspace (not just the list) — same as switching.
+            reloadWorkspace();
+            void reload();
+          }}
         />
       )}
     </div>
