@@ -90,3 +90,24 @@ describe("importWpTheme — header integration", () => {
     expect(layout).toContain('<li data-loop="menu">');
   });
 });
+
+describe("importWpTheme — Gutenberg block delimiters never leak", () => {
+  it("strips <!-- wp:… --> from a classic/mixed import, keeping the inner HTML", () => {
+    // Block patterns (PHP) and FSE templates carry `<!-- wp: -->` markup; the classic
+    // path doesn't parse it, so it must at least be stripped (CLAUDE.md: テンプレ記法を除去).
+    const files: WpImportFile[] = [
+      { path: "style.css", text: `/*\nTheme Name: Demo\n*/` },
+      {
+        path: "index.php",
+        text: `<?php get_header(); ?><main><!-- wp:paragraph {"x":1} --><p>Hello</p><!-- /wp:paragraph --></main><?php get_footer(); ?>`,
+      },
+      { path: "header.php", text: `<header>H</header>` },
+      { path: "footer.php", text: `<footer>F</footer>` },
+    ];
+    const r = importWpTheme(files);
+    const all = Object.values(r.files.templates).join("") + (r.files["layout.html"] ?? "");
+    expect(all).not.toContain("<!-- wp:");
+    expect(all).not.toContain("wp:paragraph");
+    expect(all).toContain("Hello"); // the real content survives
+  });
+});

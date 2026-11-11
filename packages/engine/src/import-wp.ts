@@ -849,7 +849,14 @@ function cleanWpMarkup(raw: string): string {
     .replace(/<\?[\s\S]*?\?>/g, "")
     .replace(/<%[\s\S]*?%>/g, "")
     .replace(/\{%[\s\S]*?%\}/g, "")
-    .replace(/\{\{[\s\S]*?\}\}/g, "");
+    .replace(/\{\{[\s\S]*?\}\}/g, "")
+    // Gutenberg block delimiters (`<!-- wp:… -->` / `<!-- /wp:… -->`). These are
+    // WordPress's block-template SYNTAX, not content, and CLAUDE.md requires template
+    // syntax be removed from the output. The classic path doesn't parse them (only the
+    // block path does), so a classic/mixed theme that bundles block markup — a pattern
+    // PHP file, an FSE template — would leak raw `<!-- wp: -->` comments into the page.
+    // Strip the delimiters, keeping the real HTML between them.
+    .replace(/<!--\s*\/?wp:[\s\S]*?-->/g, "");
   // Unterminated trailing PHP: WP templates routinely end with `<?php\nget_footer();`
   // and NO closing `?>` (the PHP tag runs to EOF). Those never match the terminated
   // rules above, so strip any remaining open `<?php`/`<?=` through end-of-string.
