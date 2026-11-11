@@ -403,11 +403,28 @@ export function mapTemplateTags(html: string): { html: string; notes: string[] }
   // so an attribute never receives a <span data-field> (which breaks parsing).
   s = neutralizePhpInAttributes(s);
 
-  // wp_nav_menu(...) → a single dynamic menu item.
+  // wp_nav_menu(...) → a dynamic menu that matches the theme's own markup. WP
+  // outputs `<container class="container_class"><ul class="menu_class" id="menu_id">
+  // <li><a>…</a></li>…</ul></container>`, and the theme's CSS + nav toggle target
+  // that `<ul>` (e.g. `.gnav`). Emitting a bare `<nav><a>` instead left the menu
+  // unstyled and the hamburger pointing at nothing. Honour the container args and
+  // put `data-loop="menu"` on the `<li>`, so each menu item becomes a styled <li>.
   if (/wp_nav_menu/i.test(s)) {
+    const arg = (args: string, key: string): string | undefined =>
+      new RegExp(`['"]${key}['"]\\s*=>\\s*['"]([^'"]*)['"]`, "i").exec(args)?.[1];
+    const item =
+      '<li data-loop="menu"><a data-field="item.url" data-type="link" href="#">' +
+      '<span data-field="item.label" data-type="text" data-label="ラベル">メニュー</span></a></li>';
     s = s.replace(
-      phpCall("wp_nav_menu"),
-      '<nav><a data-loop="menu" data-field="item.url" data-type="link" href="#"><span data-field="item.label" data-type="text" data-label="ラベル">メニュー</span></a></nav>',
+      /<\?php\s+(?:echo\s+)?wp_nav_menu\s*\(([\s\S]*?)\)\s*;?\s*\?>/gi,
+      (_m, args: string) => {
+        const container = (arg(args, "container") ?? "ul").toLowerCase();
+        const cls = arg(args, "container_class") ?? arg(args, "menu_class") ?? "";
+        const id = arg(args, "menu_id") ?? "";
+        const attrs = `${cls ? ` class="${cls}"` : ""}${id ? ` id="${id}"` : ""}`;
+        const ul = `<ul${attrs}>${item}</ul>`;
+        return container === "ul" ? ul : `<${container}>${ul}</${container}>`;
+      },
     );
     notes.push("メニュー（wp_nav_menu）を動的メニューに変換しました。");
   }
@@ -748,8 +765,87 @@ function normalizeWpAssets(root: HTMLElement): void {
  * theme's own JS, which the operator deliberately imported). Returns the body's
  * inner markup (chrome/head is dropped — the layout skeleton provides it).
  */
+/**
+ * Collapse PHP alternative-syntax conditionals (`if (…) : … elseif (…) : … else : …
+ * endif;`), keeping only the FIRST branch. A static import can't evaluate the
+ * condition, and stripping PHP naively leaves EVERY branch's HTML — so a theme that
+ * renders a logo (or a menu, a widget) differently per `if/else` ends up emitting it
+ * twice. Keeping the first branch matches what the live site shows for the common
+ * default state and removes the duplicate. Nested conditionals collapse too; other
+ * `<?php … ?>` blocks (the_content, wp_nav_menu, …) are left untouched for the later
+ * passes. Brace-syntax `if () { } else { }` is left alone (rare in output markup).
+ */
+export function collapsePhpConditionals(html: string): string {
+  const TOKEN = /<\?php\s+(if\b[\s\S]*?:|elseif\b[\s\S]*?:|else\s*:|endif\s*;?)\s*\?>/gi;
+  type Kind = "if" | "elseif" | "else" | "endif" | "text";
+  const parts: { kind: Kind; text: string }[] = [];
+  let last = 0;
+  let m: RegExpExecArray | null;
+  TOKEN.lastIndex = 0;
+  while ((m = TOKEN.exec(html)) !== null) {
+    if (m.index > last) parts.push({ kind: "text", text: html.slice(last, m.index) });
+    const kw = (m[1] ?? "").toLowerCase();
+    const kind: Kind = kw.startsWith("if")
+      ? "if"
+      : kw.startsWith("elseif")
+        ? "elseif"
+        : kw.startsWith("else")
+          ? "else"
+          : "endif";
+    parts.push({ kind, text: m[0] });
+    last = m.index + m[0].length;
+  }
+  parts.push({ kind: "text", text: html.slice(last) });
+  if (!parts.some((p) => p.kind === "if")) return html; // nothing to do
+
+  let i = 0;
+  // Read one branch (up to this level's elseif/else/endif); recurse into nested ifs
+  // so their terminators are consumed and don't end this branch. `keep` controls
+  // whether the content is emitted (first branch) or discarded (else branches).
+  const readBranch = (keep: boolean): string => {
+    let out = "";
+    while (i < parts.length) {
+      const p = parts[i]!;
+      if (p.kind === "text") {
+        if (keep) out += p.text;
+        i++;
+      } else if (p.kind === "if") {
+        i++;
+        out += readIf(keep);
+      } else {
+        return out; // elseif / else / endif of the current level
+      }
+    }
+    return out;
+  };
+  // `if` token already consumed: keep the first branch, discard the rest, consume endif.
+  const readIf = (keep: boolean): string => {
+    const first = readBranch(keep);
+    while (i < parts.length && parts[i]!.kind !== "endif") {
+      i++; // consume elseif / else
+      readBranch(false); // discard that branch
+    }
+    if (i < parts.length && parts[i]!.kind === "endif") i++; // consume endif
+    return first;
+  };
+  let result = "";
+  while (i < parts.length) {
+    const p = parts[i]!;
+    if (p.kind === "text") {
+      result += p.text;
+      i++;
+    } else if (p.kind === "if") {
+      i++;
+      result += readIf(true);
+    } else {
+      i++; // stray elseif/else/endif (unbalanced) — drop the token
+    }
+  }
+  return result;
+}
+
 function cleanWpMarkup(raw: string): string {
-  let s = raw
+  let s = collapsePhpConditionals(raw)
     .replace(/<\?[\s\S]*?\?>/g, "")
     .replace(/<%[\s\S]*?%>/g, "")
     .replace(/\{%[\s\S]*?%\}/g, "")

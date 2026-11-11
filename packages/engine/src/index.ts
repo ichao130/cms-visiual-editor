@@ -107,6 +107,7 @@ export {
   localizeCssUrls,
   collectEnqueuedScripts,
   collectEnqueuedStyles,
+  collapsePhpConditionals,
   type WpImportFile,
   type WpThemeFiles,
   type WpImportResult,
