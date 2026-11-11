@@ -67,10 +67,32 @@ function hasFile(files: WpImportFile[], re: RegExp): boolean {
   return files.some((f) => re.test(f.path.replace(/\\/g, "/")));
 }
 
+/** Theme subdirectories that hold patterns/parts/includes, never hierarchy templates. */
+const NON_HIERARCHY_DIR = /(^|\/)(patterns|parts|template-parts|templates|inc|includes|src|build|assets|vendor|node_modules)\//i;
+/** The classic template-hierarchy and chrome stems (a block theme has none at its root). */
+const CLASSIC_STEM = /^(index|single|singular|page|archive|category|tag|taxonomy|author|search|404|front-page|home|header|footer|sidebar)$/i;
+
+/**
+ * True when the archive carries a real classic template-hierarchy PHP file —
+ * one at the theme root (not a Gutenberg *pattern* like `patterns/footer.php`,
+ * which only looks like `footer.php`). Block themes register patterns as PHP, so
+ * matching those as a classic signal is what made FSE themes misclassify as mixed.
+ */
+function hasClassicTemplate(files: WpImportFile[]): boolean {
+  return files.some((f) => {
+    const p = f.path.replace(/\\/g, "/");
+    if (!/\.php$/i.test(p)) return false;
+    if (NON_HIERARCHY_DIR.test(p)) return false;
+    return CLASSIC_STEM.test(stemOf(p));
+  });
+}
+
 /**
  * Classify a WordPress theme archive: a block theme ships `theme.json` plus
  * `templates/*.html` (and usually `parts/*.html`); a classic theme ships PHP
- * template files (index.php/style.css with a theme header). Both present = mixed.
+ * template files (index.php/style.css with a theme header). A block theme wins
+ * even when it also ships pattern/part PHP — only a real root-level PHP hierarchy
+ * alongside block templates is genuinely "mixed".
  */
 export function detectWpThemeKind(files: WpImportFile[]): WpImportResult["kind"] {
   // Block themes are defined by theme.json + templates/*.html (they also ship a
@@ -78,12 +100,10 @@ export function detectWpThemeKind(files: WpImportFile[]): WpImportResult["kind"]
   const block =
     hasFile(files, /(^|\/)theme\.json$/i) &&
     hasFile(files, /(^|\/)templates\/[^/]+\.html$/i);
-  // Classic themes are defined by their PHP template files.
-  const classic =
-    hasFile(files, /(^|\/)index\.php$/i) ||
-    hasFile(files, /(^|\/)(single|page|archive|header|footer|front-page|home)\.php$/i);
-  if (block && classic) return "mixed";
-  if (block) return "block";
+  // Classic themes are defined by their root-level PHP template files, ignoring
+  // the pattern/part PHP a block theme ships (those are not hierarchy templates).
+  const classic = hasClassicTemplate(files);
+  if (block) return classic ? "mixed" : "block";
   if (classic) return "classic";
   // A style.css theme header with no templates we recognise.
   if (hasFile(files, /(^|\/)style\.css$/i) && files.some((f) => /Theme Name\s*:/i.test(f.text))) {
@@ -154,6 +174,15 @@ export function parseGutenberg(html: string): WpBlock[] {
   return roots;
 }
 
+/**
+ * The dynamic-menu list item shared by the classic `wp_nav_menu` mapping and the
+ * block `core/navigation` mapping: one `<li data-loop="menu">` the engine repeats
+ * per menu entry. Kept in one place so both import paths produce the same markup.
+ */
+const MENU_LOOP_ITEM =
+  '<li data-loop="menu"><a data-field="item.url" data-type="link" href="#">' +
+  '<span data-field="item.label" data-type="text" data-label="ラベル">メニュー</span></a></li>';
+
 /** Add data-field/type/label to the first matching element in a fragment. */
 function annotate(fragment: string, selector: string, field: string, type: string, label: string): string {
   const root = parse(fragment || "", { comment: false });
@@ -172,13 +201,40 @@ function annotate(fragment: string, selector: string, field: string, type: strin
 }
 
 /**
+ * Context for `gutenbergToHtml`: lets `core/template-part` resolve a referenced
+ * `parts/<slug>.html` and inline it. `skipChromeParts` drops header/footer parts
+ * when rendering a template BODY (the layout owns the chrome), and the `seen` set
+ * guards against a part that references itself.
+ */
+export interface BlockRenderCtx {
+  /** slug (lowercased) → raw part HTML, from `parts/<slug>.html`. */
+  parts: Map<string, string>;
+  /** Drop `core/template-part` for header/footer (layout renders those). */
+  skipChromeParts: boolean;
+  /** Recursion guard: part slugs currently being inlined. */
+  seen: Set<string>;
+}
+
+/** The `slug` a `core/template-part` block points at (e.g. "header", "footer"). */
+function templatePartSlug(attrs: Record<string, unknown>): string {
+  const slug = attrs.slug ?? attrs.theme ?? "";
+  return typeof slug === "string" ? slug.toLowerCase().replace(/^.*\//, "") : "";
+}
+
+/**
  * Render a Gutenberg block tree to pcms-annotated HTML. Core text/media blocks
  * become editable `data-field` elements; container blocks (group/columns) keep
- * their structure and recurse; unknown blocks keep their saved HTML verbatim
+ * their structure and recurse; the chrome blocks (`site-logo`/`site-title`/
+ * `navigation`) become the same editable markup their classic equivalents do; a
+ * `template-part` is inlined from `ctx.parts`; a `query`/`post-template` becomes a
+ * `data-loop="posts"` list; unknown blocks keep their saved HTML verbatim
  * (fidelity over cleverness). A later `importThemeHtml` pass wraps the result in
  * `data-section`s and adds block slots.
  */
-export function gutenbergToHtml(blocks: WpBlock[]): string {
+export function gutenbergToHtml(blocks: WpBlock[], ctx?: Partial<BlockRenderCtx>): string {
+  const parts = ctx?.parts ?? new Map<string, string>();
+  const skipChromeParts = ctx?.skipChromeParts ?? false;
+  const seen = ctx?.seen ?? new Set<string>();
   let n = 0;
   const field = (base: string): string => `${base}${++n}`;
   const render = (blk: WpBlock): string => {
@@ -189,19 +245,47 @@ export function gutenbergToHtml(blocks: WpBlock[]): string {
       case "core/heading":
         return annotate(blk.innerHtml || "<h2></h2>", "h1,h2,h3,h4,h5,h6", field("heading"), "text", "見出し");
       case "core/image":
-      case "core/post-featured-image":
         return annotate(blk.innerHtml || '<img src="" alt="" />', "img", field("image"), "image", "画像");
+      case "core/post-featured-image":
+        return `<img data-field="post.image" data-type="image" data-label="アイキャッチ" src="" alt="" />`;
       case "core/button": {
         const html = blk.innerHtml || '<a class="btn" href="#"></a>';
-        const withLink = annotate(html, "a", field("link"), "link", "ボタンのリンク");
-        return annotate(withLink, "a", field("link"), "link", "ボタンのリンク");
+        return annotate(html, "a", field("link"), "link", "ボタンのリンク");
       }
       case "core/post-title":
         return `<h1 data-field="post.title" data-type="text" data-label="タイトル"></h1>`;
       case "core/post-content":
         return `<div data-slot="content" data-field="post.body" data-type="richtext" data-label="本文"></div>`;
+      case "core/post-excerpt":
+        return `<p data-field="post.excerpt" data-type="text" data-label="抜粋"></p>`;
       case "core/post-date":
         return `<p data-field="post.date" data-type="text" data-label="日付"></p>`;
+      case "core/site-title":
+        return `<span data-field="site.name" data-type="text" data-label="サイト名"></span>`;
+      case "core/site-logo":
+        return (
+          '<a class="site-logo" data-field="site.name" data-type="link" href="#">' +
+          '<img data-field="site.logo" data-type="image" data-label="ロゴ" src="" alt="" /></a>'
+        );
+      case "core/navigation":
+        return `<ul class="wp-block-navigation">${MENU_LOOP_ITEM}</ul>`;
+      case "core/query":
+        // The wrapper: the post-template inside carries the data-loop.
+        return `<div class="wp-block-query">${inner}</div>`;
+      case "core/post-template":
+        // One iteration of the loop; the engine repeats it per post.
+        return `<div class="wp-block-post" data-loop="posts" data-limit="10">${inner}</div>`;
+      case "core/template-part": {
+        const slug = templatePartSlug(blk.attrs);
+        if (skipChromeParts && /header|footer/.test(slug)) return ""; // layout owns chrome
+        if (!slug || seen.has(slug)) return inner;
+        const raw = parts.get(slug);
+        if (raw == null) return inner; // part not in the archive
+        seen.add(slug);
+        const out = gutenbergToHtml(parseGutenberg(raw), { parts, skipChromeParts, seen });
+        seen.delete(slug);
+        return out;
+      }
       case "core/group":
       case "core/columns":
       case "core/column":
@@ -215,18 +299,22 @@ export function gutenbergToHtml(blocks: WpBlock[]): string {
       case "core/spacer":
       case "core/html":
         return blk.innerHtml + inner;
-      case "core/template-part":
-      case "core/site-title":
-      case "core/site-logo":
-      case "core/navigation":
-        // Chrome blocks — handled by the layout; render minimally.
-        return inner;
       default:
         // Unknown block: keep its saved HTML so appearance is preserved.
         return blk.innerHtml + inner;
     }
   };
   return blocks.map(render).join("\n");
+}
+
+/** Map of `parts/<slug>.html` by lowercased slug, for template-part inlining. */
+function collectBlockParts(files: WpImportFile[]): Map<string, string> {
+  const parts = new Map<string, string>();
+  for (const f of files) {
+    const m = /(^|\/)parts\/([^/]+)\.html$/i.exec(f.path.replace(/\\/g, "/"));
+    if (m) parts.set((m[2] ?? "").toLowerCase(), f.text);
+  }
+  return parts;
 }
 
 // ---------------------------------------------------------------------------
@@ -412,9 +500,6 @@ export function mapTemplateTags(html: string): { html: string; notes: string[] }
   if (/wp_nav_menu/i.test(s)) {
     const arg = (args: string, key: string): string | undefined =>
       new RegExp(`['"]${key}['"]\\s*=>\\s*['"]([^'"]*)['"]`, "i").exec(args)?.[1];
-    const item =
-      '<li data-loop="menu"><a data-field="item.url" data-type="link" href="#">' +
-      '<span data-field="item.label" data-type="text" data-label="ラベル">メニュー</span></a></li>';
     s = s.replace(
       /<\?php\s+(?:echo\s+)?wp_nav_menu\s*\(([\s\S]*?)\)\s*;?\s*\?>/gi,
       (_m, args: string) => {
@@ -422,7 +507,7 @@ export function mapTemplateTags(html: string): { html: string; notes: string[] }
         const cls = arg(args, "container_class") ?? arg(args, "menu_class") ?? "";
         const id = arg(args, "menu_id") ?? "";
         const attrs = `${cls ? ` class="${cls}"` : ""}${id ? ` id="${id}"` : ""}`;
-        const ul = `<ul${attrs}>${item}</ul>`;
+        const ul = `<ul${attrs}>${MENU_LOOP_ITEM}</ul>`;
         return container === "ul" ? ul : `<${container}>${ul}</${container}>`;
       },
     );
@@ -894,16 +979,22 @@ function buildLayout(
 ): string | null {
   let header = "";
   let footer = "";
-  if (kind === "block") {
-    const hp = files.find((f) => /(^|\/)parts\/(header|site-header)\.html$/i.test(f.path));
-    const fp = files.find((f) => /(^|\/)parts\/(footer|site-footer)\.html$/i.test(f.path));
-    if (hp) header = cleanWpMarkup(gutenbergToHtml(parseGutenberg(hp.text)));
-    if (fp) footer = cleanWpMarkup(gutenbergToHtml(parseGutenberg(fp.text)));
+  // A block theme keeps its chrome in parts/header.html + parts/footer.html; a
+  // classic theme in header.php + footer.php. A mixed theme may have either, so
+  // prefer the block parts when present and fall back to the PHP chrome.
+  const parts = collectBlockParts(files);
+  const hp = files.find((f) => /(^|\/)parts\/(header|site-header)\.html$/i.test(f.path));
+  const fp = files.find((f) => /(^|\/)parts\/(footer|site-footer)\.html$/i.test(f.path));
+  const useBlockChrome = (kind === "block" || kind === "mixed") && (hp != null || fp != null);
+  if (useBlockChrome) {
+    const ctx = (): Partial<BlockRenderCtx> => ({ parts, skipChromeParts: false, seen: new Set() });
+    if (hp) header = cleanWpMarkup(gutenbergToHtml(parseGutenberg(hp.text), ctx()));
+    if (fp) footer = cleanWpMarkup(gutenbergToHtml(parseGutenberg(fp.text), ctx()));
   } else {
-    const hp = byBase.get("header.php");
-    const fp = byBase.get("footer.php");
-    if (hp) header = cleanWpMarkup(mapTemplateTags(hp).html);
-    if (fp) footer = cleanWpMarkup(mapTemplateTags(fp).html);
+    const php = byBase.get("header.php");
+    const pfp = byBase.get("footer.php");
+    if (php) header = cleanWpMarkup(mapTemplateTags(php).html);
+    if (pfp) footer = cleanWpMarkup(mapTemplateTags(pfp).html);
   }
   if (!header && !footer) return null;
   // Load only the scripts the theme enqueues that aren't already linked inline
@@ -957,6 +1048,28 @@ function templateNameOf(php: string): string | undefined {
   if (!m) return undefined;
   const name = (m[1] ?? "").replace(/\*\/.*$/, "").trim();
   return name || undefined;
+}
+
+/**
+ * Titles for a block theme's custom page templates, from `theme.json`'s
+ * `customTemplates` (`[{ name:"page-wide", title:"幅広", postTypes:["page"] }]`).
+ * Keyed by template name (= the `templates/<name>.html` stem). Lets an imported
+ * 固定ページ carry the theme's own label instead of a title-cased slug.
+ */
+function parseCustomTemplateTitles(themeJsonText: string | undefined): Map<string, string> {
+  const out = new Map<string, string>();
+  if (!themeJsonText) return out;
+  try {
+    const data = JSON.parse(themeJsonText) as { customTemplates?: { name?: string; title?: string }[] };
+    for (const t of data.customTemplates ?? []) {
+      if (typeof t.name === "string" && typeof t.title === "string" && t.title.trim()) {
+        out.set(t.name.toLowerCase(), t.title.trim());
+      }
+    }
+  } catch {
+    /* ignore malformed theme.json */
+  }
+  return out;
 }
 
 /** "page-service" / "about_us" → "Page Service" / "About Us" (title fallback). */
@@ -1093,6 +1206,17 @@ function dedupe(notes: string[]): string[] {
  */
 export function importWpTheme(files: WpImportFile[]): WpImportResult {
   const kind = detectWpThemeKind(files);
+  // A block theme's Gutenberg templates — and a mixed theme's — go through the
+  // block pipeline (parse `<!-- wp: -->` → editable fields), not the classic PHP
+  // one. Routing this correctly is what stops block markup from being flattened
+  // by the classic strip (the old "mixed falls to classic" bug).
+  const useBlockPipeline = kind === "block" || kind === "mixed";
+  const blockParts = collectBlockParts(files);
+  const blockCtx = (): Partial<BlockRenderCtx> => ({
+    parts: blockParts,
+    skipChromeParts: true, // the layout owns header/footer; a body must not repeat them
+    seen: new Set<string>(),
+  });
   const notes: string[] = [];
   const byBase = new Map(files.map((f) => [baseName(f.path).toLowerCase(), f.text]));
   const out: WpThemeFiles = { templates: {}, sections: {}, blocks: {}, assets: [], styles: [] };
@@ -1114,10 +1238,12 @@ export function importWpTheme(files: WpImportFile[]): WpImportResult {
 
   // Templates. Each is cleaned (scripts kept, asset paths normalized) and split
   // into editable sections (headings/paragraphs/images → data-field).
-  const sources = kind === "block" ? collectBlockTemplates(files) : collectClassicTemplates(files);
+  const sources = useBlockPipeline ? collectBlockTemplates(files) : collectClassicTemplates(files);
   const issues: AiIssue[] = [];
   for (const [name, rawHtml] of sources) {
-    const mapped = kind === "block" ? gutenbergToHtml(parseGutenberg(rawHtml)) : mapTemplateTags(rawHtml).html;
+    const mapped = useBlockPipeline
+      ? gutenbergToHtml(parseGutenberg(rawHtml), blockCtx())
+      : mapTemplateTags(rawHtml).html;
     let r = toTemplateHtml(mapped);
     // A single-entry template (page/post) that composed to nothing — content in
     // an absent template-part, or a loop that yielded no markup — would render a
@@ -1147,20 +1273,37 @@ export function importWpTheme(files: WpImportFile[]): WpImportResult {
   }
 
   // Custom page templates — the designed 固定ページ (Service / About / Project …).
-  // A classic theme ships one PHP file per such page: `page-<slug>.php` (WP's
-  // slug-specific page template) or any file carrying a `Template Name:` header
-  // (an operator-selectable page template). Without this they collapse into the
-  // generic `page` template and lose their bespoke layout. Each becomes its own
-  // template plus a page entry in the theme preset, so the generated site ships
-  // /<slug>/ with its real design, individually editable. (Block themes model
-  // pages differently; they fall back to the generic `page`.)
+  // Each becomes its own template plus a page entry in the theme preset, so the
+  // generated site ships /<slug>/ with its real design, individually editable.
+  //  • A classic theme ships one PHP file per such page: `page-<slug>.php` (WP's
+  //    slug-specific page template) or any file carrying a `Template Name:` header.
+  //  • A block theme ships `templates/page-<slug>.html` (the FSE equivalent), with
+  //    a human title in theme.json `customTemplates`.
+  // Without this they collapse into the generic `page` template and lose their
+  // bespoke layout.
   const pageDescriptors: { id: string; template: string; title?: string }[] = [];
-  if (kind !== "block") {
+  const seenSlug = new Set<string>();
+  if (useBlockPipeline) {
+    const titles = parseCustomTemplateTitles(themeJson?.text);
+    for (const f of files) {
+      const m = /(^|\/)templates\/(page-[^/]+)\.html$/i.exec(f.path.replace(/\\/g, "/"));
+      if (!m) continue;
+      const stem = (m[2] ?? "").toLowerCase(); // e.g. "page-about"
+      const slug = stem.replace(/^page-/, "");
+      if (!slug || seenSlug.has(slug) || out.templates[stem]) continue;
+      seenSlug.add(slug);
+      const mapped = gutenbergToHtml(parseGutenberg(f.text), blockCtx());
+      let r = toTemplateHtml(mapped);
+      if (isEmptyTemplate(r.html)) r = toTemplateHtml(GENERIC_ENTRY);
+      out.templates[stem] = r.html;
+      issues.push(...r.issues);
+      pageDescriptors.push({ id: slug, template: stem, title: titles.get(stem) ?? titleCase(slug) });
+    }
+  } else {
     const php = new Map<string, string>();
     for (const f of files) {
       if (/\.php$/i.test(f.path)) php.set(baseName(f.path).toLowerCase(), f.text);
     }
-    const seenSlug = new Set<string>();
     for (const [file, text] of php) {
       const stem = file.replace(/\.php$/i, "");
       if (RESERVED_PHP_STEMS.has(stem)) continue;
@@ -1177,9 +1320,9 @@ export function importWpTheme(files: WpImportFile[]): WpImportResult {
       issues.push(...r.issues);
       pageDescriptors.push({ id: slug, template: stem, title: tname ?? titleCase(slug) });
     }
-    if (pageDescriptors.length > 0) {
-      notes.push(`固定ページ（${pageDescriptors.length}件）をそれぞれのデザインで取り込みました。`);
-    }
+  }
+  if (pageDescriptors.length > 0) {
+    notes.push(`固定ページ（${pageDescriptors.length}件）をそれぞれのデザインで取り込みました。`);
   }
 
   // The theme's default page composition (presets/pages.json): the home page plus
