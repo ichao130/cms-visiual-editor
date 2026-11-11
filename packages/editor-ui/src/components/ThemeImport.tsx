@@ -9,6 +9,7 @@ import {
   inlineThemeAssets,
   detectWpThemeKind,
   importWpTheme,
+  synthesizeFseCss,
   localizeCssUrls,
   bytesToDataUrl,
   assetContentType,
@@ -298,13 +299,25 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
       const refced = wp.files.styles
         .map((b) => ({ b, text: cssByBase[b.toLowerCase()] }))
         .filter((x): x is { b: string; text: string } => typeof x.text === "string");
-      const wpCss =
+      const themeCss =
         refced.length > 0
           ? refced.map((x) => `/* ${x.b} */\n${x.text}`).join("\n\n")
           : cssText;
+      // A block/FSE theme keeps most of its look in theme.json presets, which WP
+      // turns into --wp--preset--* variables + .has-* utilities + block layout CSS
+      // at runtime; the saved markup references them, so without that layer the
+      // import renders almost unstyled. Synthesize it from the original theme.json
+      // and PREPEND it, so the theme's own CSS still wins the cascade.
+      const rawThemeJson = wpFiles.find((x) =>
+        /(^|\/)theme\.json$/i.test(x.path.replace(/\\/g, "/")),
+      )?.text;
+      const { css: fseCss, notes: fseNotes } = synthesizeFseCss(rawThemeJson);
+      const wpCss = fseCss
+        ? `/* pcms: theme.json presets */\n${fseCss}\n\n${themeCss}`
+        : themeCss;
       const files = buildWpThemeFiles(wp, wpCss, assets, jsAssets);
       const name = readWpThemeName(wp.files["theme.json"]) ?? baseName(file.name).replace(/\.zip$/i, "");
-      const wpNotes = [...notes, ...wp.notes];
+      const wpNotes = [...notes, ...wp.notes, ...fseNotes];
       const jsCount = Object.keys(jsAssets).length;
       if (jsCount > 0) wpNotes.push(t("themeImport.wpJs").replace("{count}", String(jsCount)));
       setResult(null);

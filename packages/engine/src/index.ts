@@ -24,6 +24,7 @@ export {
 } from "./asset.js";
 export { cssColor, cssValue } from "./css.js";
 export { themeStyleTag, themeRootCss, mergeThemeConfig } from "./theme-style.js";
+export { synthesizeFseCss } from "./fse-css.js";
 export {
   renderTemplate,
   renderComposedPage,
