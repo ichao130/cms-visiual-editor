@@ -112,6 +112,7 @@ export {
   type WpImportFile,
   type WpThemeFiles,
   type WpImportResult,
+  type WpImportWizard,
   type WpBlock,
 } from "./import-wp.js";
 export { THEME_FILE_TOMBSTONE, isThemeTombstone } from "./theme-files.js";

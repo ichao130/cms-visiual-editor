@@ -50,11 +50,29 @@ export interface WpThemeFiles {
   preset?: string;
 }
 
+/**
+ * What the post-import wizard needs to let the operator confirm the shape of the
+ * import before it becomes a theme: which template is the site's top page (a theme
+ * can ship front-page / home / index), which 固定ページ to create, and what the
+ * theme fills dynamically (Customizer / custom functions / post loops) that a
+ * theme ZIP can't carry — so the operator knows to fill those in after importing.
+ */
+export interface WpImportWizard {
+  /** Candidate top-page templates present in the theme; `chosen` is the default. */
+  home: { chosen: string; candidates: { stem: string; label: string; html: string }[] };
+  /** The importable 固定ページ (each a template + default title); the operator toggles these. */
+  pages: { id: string; template: string; title: string }[];
+  /** Content the theme renders dynamically and the ZIP does not contain — fill after import. */
+  unresolved: string[];
+}
+
 export interface WpImportResult {
   kind: "classic" | "block" | "mixed" | "unknown";
   files: WpThemeFiles;
   issues: AiIssue[];
   notes: string[];
+  /** Data for the import wizard (top-page choice, pages, unresolved content). */
+  wizard: WpImportWizard;
 }
 
 function baseName(path: string): string {
@@ -1080,6 +1098,43 @@ function titleCase(slug: string): string {
     .trim();
 }
 
+/** Human labels for the top-page candidate templates, shown in the wizard. */
+const HOME_LABELS: Record<string, string> = {
+  "front-page": "トップページ専用（front-page）",
+  home: "ブログのトップ（home）",
+  index: "一覧（index）",
+};
+/** Home-candidate stems, in the order WordPress itself prefers them. */
+const HOME_STEMS = ["front-page", "home", "index"] as const;
+
+/**
+ * Detect content the theme renders dynamically, which a theme ZIP doesn't carry
+ * (it lives in the WordPress database): Customizer theme-mods, a custom logo,
+ * widgets, and post loops. The wizard shows these so the operator knows the hero
+ * text / logo / news list will be empty until they fill them in. Returns ready-to
+ * -show Japanese labels, deduped.
+ */
+function detectUnresolvedContent(files: WpImportFile[]): string[] {
+  const text = files
+    .filter((f) => /\.(php|html?)$/i.test(f.path))
+    .map((f) => f.text)
+    .join("\n");
+  const out: string[] = [];
+  if (/get_theme_mod\s*\(|[a-z0-9_]*_mod\s*\(\s*['"]/i.test(text)) {
+    out.push("カスタマイザー（外観＞カスタマイズ）の設定値：ヒーローの文言・色など");
+  }
+  if (/the_custom_logo\s*\(|get_custom_logo\s*\(|[a-z0-9_]*_logo\s*\(/i.test(text)) {
+    out.push("ロゴ画像");
+  }
+  if (/dynamic_sidebar\s*\(|is_active_sidebar\s*\(/i.test(text)) {
+    out.push("ウィジェット（サイドバー・フッター）");
+  }
+  if (/have_posts\s*\(\s*\)/i.test(text) || /wp:query\b/i.test(text)) {
+    out.push("記事・お知らせの一覧（記事データ）");
+  }
+  return [...new Set(out)];
+}
+
 /** WordPress template file stem → pcms template name. */
 function pcmsTemplateName(stem: string): string | null {
   if (["index", "front-page", "home"].includes(stem)) return "index";
@@ -1368,5 +1423,40 @@ export function importWpTheme(files: WpImportFile[]): WpImportResult {
     notes.push("テンプレートを抽出できませんでした（WordPressテーマとして認識されなかった可能性）。");
   }
 
-  return { kind, files: out, issues, notes: dedupe(notes) };
+  // Wizard data: the operator confirms the import's shape before it becomes a
+  // theme. Top-page candidates (a theme can ship front-page / home / index), each
+  // composed through the same pipeline so the UI can swap templates/index.html to
+  // the chosen one; the importable 固定ページ; and the dynamic content the ZIP
+  // can't carry (so the operator knows to fill it in).
+  const phpMap = new Map<string, string>();
+  for (const f of files) {
+    if (/\.php$/i.test(f.path)) phpMap.set(baseName(f.path).toLowerCase(), f.text);
+  }
+  const composeHomeHtml = (stem: string): string | undefined => {
+    if (useBlockPipeline) {
+      const f = files.find((x) =>
+        new RegExp(`(^|/)templates/${stem}\\.html$`, "i").test(x.path.replace(/\\/g, "/")),
+      );
+      return f ? toTemplateHtml(gutenbergToHtml(parseGutenberg(f.text), blockCtx())).html : undefined;
+    }
+    if (!phpMap.has(`${stem}.php`)) return undefined;
+    return toTemplateHtml(mapTemplateTags(composeTemplateBody(stem, phpMap)).html).html;
+  };
+  const homeCandidates: { stem: string; label: string; html: string }[] = [];
+  for (const stem of HOME_STEMS) {
+    const html = composeHomeHtml(stem);
+    if (html && !isEmptyTemplate(html)) {
+      homeCandidates.push({ stem, label: HOME_LABELS[stem] ?? stem, html });
+    }
+  }
+  if (homeCandidates.length === 0 && out.templates.index) {
+    homeCandidates.push({ stem: "index", label: HOME_LABELS.index!, html: out.templates.index });
+  }
+  const wizard: WpImportWizard = {
+    home: { chosen: homeCandidates[0]?.stem ?? "index", candidates: homeCandidates },
+    pages: pageDescriptors.map((d) => ({ id: d.id, template: d.template, title: d.title ?? titleCase(d.id) })),
+    unresolved: detectUnresolvedContent(files),
+  };
+
+  return { kind, files: out, issues, notes: dedupe(notes), wizard };
 }

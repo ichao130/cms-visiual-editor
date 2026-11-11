@@ -17,6 +17,7 @@ import {
   type ImportSource,
   type WpImportFile,
   type WpImportResult,
+  type WpImportWizard,
 } from "@pcms/engine";
 import type { PcmsApi } from "../api/types.js";
 import { useDialog } from "../state/useDialog.js";
@@ -37,6 +38,8 @@ interface WpThemeImport {
   files: Record<string, string>;
   notes: string[];
   fallbackBatch: BatchItem[];
+  /** Wizard data: top-page candidates, importable 固定ページ, unresolved content. */
+  wizard: WpImportWizard;
 }
 
 const SOURCES: ImportSource[] = ["auto", "wordpress", "shopify", "figma", "html", "other"];
@@ -145,6 +148,32 @@ function buildWpThemeFiles(
 }
 
 /**
+ * Apply the import wizard's choices to the theme files before they are saved:
+ *  • the chosen top-page template becomes templates/index.html (a theme can ship
+ *    front-page / home / index — the operator picks which is the home);
+ *  • presets/pages.json is rebuilt to the home plus only the 固定ページ the operator
+ *    kept checked, so excluded template-variant pages don't ship as real pages.
+ * The theme's own template files are left intact; only index.html and the preset
+ * change, so nothing else about the import is disturbed.
+ */
+function applyWizardChoices(
+  wp: WpThemeImport,
+  homeChoice: string,
+  includedPages: Record<string, boolean>,
+): Record<string, string> {
+  const files = { ...wp.files };
+  const chosen = wp.wizard.home.candidates.find((c) => c.stem === homeChoice);
+  if (chosen) files["templates/index.html"] = chosen.html;
+  const pages: Record<string, { template: string; title?: string }> = { index: { template: "index" } };
+  for (const p of wp.wizard.pages) {
+    if (includedPages[p.id] === false) continue;
+    pages[p.id] = { template: p.template, title: p.title };
+  }
+  files["presets/pages.json"] = JSON.stringify({ pages, regions: {} }, null, 2);
+  return files;
+}
+
+/**
  * Import an external theme/template (WordPress, Shopify, any HTML) and optimize
  * it into a pcms theme fragment: strip server/template code and scripts, add
  * editable data-* annotations, validate, preview, then save it as a reusable
@@ -162,6 +191,9 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
   const [batch, setBatch] = useState<BatchItem[] | null>(null);
   const [wpImport, setWpImport] = useState<WpThemeImport | null>(null);
   const [themeNameInput, setThemeNameInput] = useState("");
+  // Import-wizard choices: which template is the top page, and which 固定ページ to create.
+  const [homeChoice, setHomeChoice] = useState("");
+  const [includedPages, setIncludedPages] = useState<Record<string, boolean>>({});
   const [zipNote, setZipNote] = useState<string | null>(null);
   const [aiBusy, setAiBusy] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -325,7 +357,9 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
       setBatch(null);
       setZipNote(notes.join(" "));
       setThemeNameInput(name);
-      setWpImport({ name, kind: wpKind, files, notes: wpNotes, fallbackBatch: items });
+      setHomeChoice(wp.wizard.home.chosen);
+      setIncludedPages(Object.fromEntries(wp.wizard.pages.map((p) => [p.id, true])));
+      setWpImport({ name, kind: wpKind, files, notes: wpNotes, fallbackBatch: items, wizard: wp.wizard });
       return;
     }
 
@@ -411,9 +445,10 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
     const name = themeNameInput.trim() || wpImport.name;
     setSaving(true);
     try {
+      const files = applyWizardChoices(wpImport, homeChoice, includedPages);
       const summary = await api.createTheme(
         { name, source: source === "auto" ? "wordpress" : source },
-        wpImport.files,
+        files,
       );
       await api.setActiveTheme(summary.id);
       toast(t("themeImport.importedAsTheme").replace("{name}", name));
@@ -587,6 +622,58 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
                 String(Object.keys(wpImport.files).filter((p) => p.startsWith("assets/")).length),
               )}</li>
             </ul>
+
+            {wpImport.wizard.home.candidates.length > 1 && (
+              <fieldset className="pcms-themeimport__wiz">
+                <legend>{t("themeImport.wizHome")}</legend>
+                <p className="pcms-themeimport__hint">{t("themeImport.wizHomeHint")}</p>
+                {wpImport.wizard.home.candidates.map((c) => (
+                  <label key={c.stem} className="pcms-themeimport__wizrow">
+                    <input
+                      type="radio"
+                      name="pcms-wiz-home"
+                      checked={homeChoice === c.stem}
+                      onChange={() => setHomeChoice(c.stem)}
+                    />
+                    <span>{c.label}</span>
+                  </label>
+                ))}
+              </fieldset>
+            )}
+
+            {wpImport.wizard.pages.length > 0 && (
+              <fieldset className="pcms-themeimport__wiz">
+                <legend>{t("themeImport.wizPages")}</legend>
+                <p className="pcms-themeimport__hint">{t("themeImport.wizPagesHint")}</p>
+                {wpImport.wizard.pages.map((p) => (
+                  <label key={p.id} className="pcms-themeimport__wizrow">
+                    <input
+                      type="checkbox"
+                      checked={includedPages[p.id] !== false}
+                      onChange={(e) =>
+                        setIncludedPages((prev) => ({ ...prev, [p.id]: e.target.checked }))
+                      }
+                    />
+                    <span>
+                      {p.title} <code>/{p.id}/</code>
+                    </span>
+                  </label>
+                ))}
+              </fieldset>
+            )}
+
+            {wpImport.wizard.unresolved.length > 0 && (
+              <div className="pcms-themeimport__wizwarn" role="note">
+                <strong>{t("themeImport.wizUnresolved")}</strong>
+                <p className="pcms-themeimport__hint">{t("themeImport.wizUnresolvedHint")}</p>
+                <ul>
+                  {wpImport.wizard.unresolved.map((u, i) => (
+                    <li key={i}>{u}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             {wpImport.notes.length > 0 && (
               <ul className="pcms-themeimport__log">
                 {wpImport.notes.map((n, i) => (
