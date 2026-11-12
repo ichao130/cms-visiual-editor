@@ -521,33 +521,82 @@ export interface ThemeModDefaults {
 }
 
 export function collectThemeModDefaults(files: WpImportFile[]): ThemeModDefaults {
-  const wrappers = new Set<string>(["get_theme_mod"]);
+  // get_option / get_field / the_field are the other common getter names a theme
+  // reads option values through (theme-options frameworks, ACF). Echoes that call
+  // them — or a `$var = get_field('k')` assignment — resolve to a default below.
+  const wrappers = new Set<string>(["get_theme_mod", "get_option", "get_field", "the_field"]);
   const values = new Map<string, string>();
   const set = (key: string, raw: string): void => {
     const v = phpLiteral(raw);
     if (key && v !== undefined && v !== "" && !values.has(key)) values.set(key, v);
   };
+  // ACF field groups saved as JSON (acf-json/*.json): name + default_value.
+  const mineAcfJson = (raw: string): void => {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      return;
+    }
+    const walk = (node: unknown): void => {
+      if (Array.isArray(node)) {
+        node.forEach(walk);
+        return;
+      }
+      if (node && typeof node === "object") {
+        const o = node as Record<string, unknown>;
+        if (typeof o.name === "string" && typeof o.default_value === "string") {
+          set(o.name, JSON.stringify(o.default_value)); // re-quote so phpLiteral reads it
+        }
+        Object.values(o).forEach(walk);
+      }
+    };
+    walk(parsed);
+  };
   for (const f of files) {
+    if (/(^|\/)acf-json\/.*\.json$/i.test(f.path.replace(/\\/g, "/"))) {
+      mineAcfJson(f.text);
+      continue;
+    }
     if (!/\.php$/i.test(f.path)) continue;
     const text = f.text;
     // Wrapper getters: `function foo( $key ) { … get_theme_mod( $key … ) … }`.
     const fnRe = /function\s+([a-z_]\w*)\s*\(\s*\$[a-z_]\w*\s*\)/gi;
     let fm: RegExpExecArray | null;
     while ((fm = fnRe.exec(text)) !== null) {
-      if (/get_theme_mod\s*\(/.test(text.slice(fm.index, fm.index + 800))) wrappers.add(fm[1]!);
+      if (/get_theme_mod\s*\(|get_option\s*\(/.test(text.slice(fm.index, fm.index + 800)))
+        wrappers.add(fm[1]!);
     }
-    // Only mine defaults from files that configure the Customizer.
-    if (!/get_theme_mod|add_setting|customiz/i.test(text)) continue;
+    // Only mine defaults from files that configure options (Customizer / Kirki /
+    // theme-options / ACF). A theme's templates rarely hold defaults, so this gate
+    // keeps the positional-array heuristic off ordinary data arrays.
+    if (!/get_theme_mod|add_setting|customiz|kirki|get_option|acf_add_local_field|default_value/i.test(text))
+      continue;
     let m: RegExpExecArray | null;
-    // get_theme_mod('key', <literal>)
-    const gm = new RegExp(`get_theme_mod\\s*\\(\\s*['"]([^'"]+)['"]\\s*,\\s*(${PHP_LIT})`, "gi");
+    // get_theme_mod('key', <literal>) and get_option('key', <literal>).
+    const gm = new RegExp(`get_(?:theme_mod|option)\\s*\\(\\s*['"]([^'"]+)['"]\\s*,\\s*(${PHP_LIT})`, "gi");
     while ((m = gm.exec(text)) !== null) set(m[1]!, m[2]!);
-    // add_setting('key', array( … 'default' => <literal> … ))
+    // add_setting('key', array( … 'default' => <literal> … )).
     const as = new RegExp(`add_setting\\s*\\(\\s*['"]([^'"]+)['"]\\s*,\\s*array\\(([\\s\\S]*?)\\)`, "gi");
     while ((m = as.exec(text)) !== null) {
       const d = new RegExp(`['"]default['"]\\s*=>\\s*(${PHP_LIT})`, "i").exec(m[2] ?? "");
       if (d) set(m[1]!, d[1]!);
     }
+    // Kirki: a field config carrying 'settings'=>'key' and a sibling 'default'=>…
+    // (Kirki::add_field([...]) or new Kirki\Field\…([...])). Kirki's idiom lists
+    // 'default' AFTER 'settings', so scan forward only — bounded by the NEXT
+    // 'settings' key — so one field never borrows the previous field's default.
+    const kk = new RegExp(`['"]settings['"]\\s*=>\\s*['"]([^'"]+)['"]`, "gi");
+    while ((m = kk.exec(text)) !== null) {
+      const start = m.index + m[0].length;
+      const next = text.slice(start).search(/['"]settings['"]\s*=>/i);
+      const window = text.slice(start, next === -1 ? start + 300 : start + next);
+      const d = new RegExp(`['"]default['"]\\s*=>\\s*(${PHP_LIT})`, "i").exec(window);
+      if (d) set(m[1]!, d[1]!);
+    }
+    // ACF registered in PHP: 'name' => 'key' … 'default_value' => <literal> (same field array).
+    const acf = new RegExp(`['"]name['"]\\s*=>\\s*['"]([^'"]+)['"][\\s\\S]{0,400}?['"]default_value['"]\\s*=>\\s*(${PHP_LIT})`, "gi");
+    while ((m = acf.exec(text)) !== null) set(m[1]!, m[2]!);
     // _s-style field table: 'key' => array( __('label'[, 'domain']) | <lit>, '<default>', … )
     const firstEl = `__\\(\\s*(?:${PHP_LIT})\\s*(?:,\\s*(?:${PHP_LIT})\\s*)?\\)|${PHP_LIT}`;
     const pa = new RegExp(`['"]([a-z0-9_]+)['"]\\s*=>\\s*array\\(\\s*(?:${firstEl})\\s*,\\s*(${PHP_LIT})`, "gi");
@@ -580,7 +629,7 @@ function resolveThemeModEchoes(input: string, defs: ThemeModDefaults): { html: s
     return /nl2br/i.test(tag) ? esc.replace(/\r?\n/g, "<br>") : esc.replace(/\r?\n/g, " ");
   };
   const direct = new RegExp(`(?:${wrapperAlt})\\s*\\(\\s*['"]([^'"]+)['"]`, "i");
-  const html = input.replace(/<\?php\s+echo\b[\s\S]*?\?>|<\?=[\s\S]*?\?>/gi, (tag) => {
+  let html = input.replace(/<\?php\s+echo\b[\s\S]*?\?>|<\?=[\s\S]*?\?>/gi, (tag) => {
     const d = direct.exec(tag);
     if (d && defs.values.has(d[1]!)) return render(d[1]!, tag);
     for (const [v, key] of varKey) {
@@ -588,6 +637,12 @@ function resolveThemeModEchoes(input: string, defs: ThemeModDefaults): { html: s
     }
     return tag;
   });
+  // ACF `the_field('k')` / WP `the_option(...)` print directly (no `echo`), so a
+  // whole-tag replacement is safe when the tag is just that one printing call.
+  html = html.replace(
+    /<\?php\s+the_field\s*\(\s*['"]([^'"]+)['"]\s*\)\s*;?\s*\?>/gi,
+    (tag, key: string) => (defs.values.has(key) ? render(key, tag) : tag),
+  );
   return { html, hit };
 }
 

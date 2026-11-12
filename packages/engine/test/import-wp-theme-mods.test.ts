@@ -78,6 +78,78 @@ describe("collectThemeModDefaults", () => {
     ];
     expect(collectThemeModDefaults(files).values.size).toBe(0);
   });
+
+  it("mines Kirki field defaults ('settings' + 'default' in one config)", () => {
+    const files: WpImportFile[] = [
+      {
+        path: "theme/inc/kirki.php",
+        text: `<?php
+          Kirki::add_field( 'theme_config', array(
+            'type'     => 'text',
+            'settings' => 'footer_copy',
+            'label'    => 'Footer',
+            'default'  => '© 2026 海洋協会',
+          ) );
+          new \\Kirki\\Field\\Text( array( 'settings' => 'phone', 'default' => '03-0000-0000' ) );
+        `,
+      },
+    ];
+    const defs = collectThemeModDefaults(files);
+    expect(defs.values.get("footer_copy")).toBe("© 2026 海洋協会");
+    expect(defs.values.get("phone")).toBe("03-0000-0000");
+  });
+
+  it("mines get_option() defaults and marks get_option a wrapper", () => {
+    const defs = collectThemeModDefaults([
+      { path: "theme/inc/options.php", text: `<?php $c = get_option( 'company_name', '海洋協会' );` },
+    ]);
+    expect(defs.values.get("company_name")).toBe("海洋協会");
+    expect(defs.wrappers.has("get_option")).toBe(true);
+  });
+
+  it("mines ACF default_value from acf-json and from PHP registration", () => {
+    const defs = collectThemeModDefaults([
+      {
+        path: "theme/acf-json/group_1.json",
+        text: JSON.stringify({
+          key: "group_1",
+          fields: [
+            { key: "field_1", name: "cta_heading", type: "text", default_value: "お問い合わせはこちら" },
+            { key: "field_2", name: "no_default", type: "text" },
+          ],
+        }),
+      },
+      {
+        path: "theme/inc/acf.php",
+        text: `<?php acf_add_local_field_group( array( 'fields' => array(
+          array( 'name' => 'lead_text', 'type' => 'textarea', 'default_value' => '私たちの使命です。' ),
+        ) ) );`,
+      },
+    ]);
+    expect(defs.values.get("cta_heading")).toBe("お問い合わせはこちら");
+    expect(defs.values.get("lead_text")).toBe("私たちの使命です。");
+    expect(defs.values.has("no_default")).toBe(false);
+  });
+});
+
+describe("mapTemplateTags with ACF / option getters", () => {
+  const defs = collectThemeModDefaults([
+    {
+      path: "theme/acf-json/g.json",
+      text: JSON.stringify({ fields: [{ name: "cta_heading", default_value: "まずはご相談ください" }] }),
+    },
+    { path: "theme/inc/options.php", text: `<?php $x = get_option( 'company_name', '海洋協会' );` },
+  ]);
+
+  it("fills a the_field('k') direct-print tag (no echo) with the ACF default", () => {
+    const html = `<h2><?php the_field( 'cta_heading' ); ?></h2>`;
+    expect(mapTemplateTags(html, defs).html).toContain("<h2>まずはご相談ください</h2>");
+  });
+
+  it("fills a get_option echo with the option default", () => {
+    const html = `<span><?php echo esc_html( get_option( 'company_name' ) ); ?></span>`;
+    expect(mapTemplateTags(html, defs).html).toContain("海洋協会");
+  });
 });
 
 describe("mapTemplateTags with theme-mod defaults", () => {
