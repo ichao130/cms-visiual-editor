@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useSiteWorkspace } from "../../state/SiteWorkspace.js";
 import { createContent, uniqueSlug } from "../../state/editorState.js";
 import { NewContentModal } from "../../components/NewContentModal.js";
+import { ContentImport } from "../../components/ContentImport.js";
 import { ContentEditorPanel } from "./ContentEditorPanel.js";
 import { Icon } from "../../components/Icon.js";
 import { t } from "../../i18n.js";
@@ -13,6 +14,7 @@ export function PagesView() {
   const { doc, commit, setDirty } = useSiteWorkspace();
   const [selected, setSelected] = useState<string | null>(null);
   const [newOpen, setNewOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [query, setQuery] = useState("");
 
   const pages = doc.content.filter((i) => i.type === PAGE_TYPE);
@@ -81,6 +83,9 @@ export function PagesView() {
         <div className="pcms-listhead">
           <h1 className="pcms-page__title">{t("site.tab.pages")}</h1>
           <div className="pcms-listhead__actions">
+            <button onClick={() => setImportOpen(true)}>
+              <Icon name="folder" size={14} /> {t("contentImport.open")}
+            </button>
             <button className="pcms-primary" onClick={() => setNewOpen(true)}>
               <Icon name="plus" size={14} /> {t("pages.new")}
             </button>
@@ -159,6 +164,8 @@ export function PagesView() {
           resolveSlug={(type, slug) => uniqueSlug(doc, type, slug)}
         />
       )}
+
+      {importOpen && <ContentImport onClose={() => setImportOpen(false)} />}
     </div>
   );
 }

@@ -12,6 +12,7 @@ import {
 } from "../../state/editorState.js";
 import type { ContentItem, FieldValue } from "@pcms/shared";
 import { NewContentModal } from "../../components/NewContentModal.js";
+import { ContentImport } from "../../components/ContentImport.js";
 import { ContentEditorPanel } from "./ContentEditorPanel.js";
 import { useDragReorder } from "../../state/useDragReorder.js";
 import { useToast } from "../../state/ToastContext.js";
@@ -32,6 +33,7 @@ export function PostsView() {
   const toast = useToast();
   const [selected, setSelected] = useState<{ type: string; slug: string } | null>(null);
   const [newOpen, setNewOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<"all" | "published" | "draft">("all");
   // Taxonomy-term filter, encoded as "<taxonomy>::<term>" ("" = off).
@@ -142,6 +144,9 @@ export function PostsView() {
         <div className="pcms-listhead">
           <h1 className="pcms-page__title">{t("site.tab.posts")}</h1>
           <div className="pcms-listhead__actions">
+            <button onClick={() => setImportOpen(true)}>
+              <Icon name="folder" size={14} /> {t("contentImport.open")}
+            </button>
             <button className="pcms-primary" onClick={() => setNewOpen(true)}>
               <Icon name="plus" size={14} /> {t("content.new")}
             </button>
@@ -266,6 +271,8 @@ export function PostsView() {
           resolveSlug={(type, slug) => uniqueSlug(doc, type, slug)}
         />
       )}
+
+      {importOpen && <ContentImport onClose={() => setImportOpen(false)} />}
     </div>
   );
 }
