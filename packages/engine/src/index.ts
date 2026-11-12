@@ -117,6 +117,12 @@ export {
   type WpBlock,
   type ThemeModDefaults,
 } from "./import-wp.js";
+export {
+  parseWxr,
+  wxrBodyToHtml,
+  type WxrImportResult,
+  type WxrImportItem,
+} from "./import-wxr.js";
 export { THEME_FILE_TOMBSTONE, isThemeTombstone } from "./theme-files.js";
 export { mediaUsageCounts } from "./media.js";
 export { preflight, validateContent, type PreflightIssue, type SiteFileSet } from "./preflight.js";
