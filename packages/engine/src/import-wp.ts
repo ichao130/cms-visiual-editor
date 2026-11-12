@@ -478,6 +478,119 @@ function neutralizePhpInAttributes(input: string): string {
   return s;
 }
 
+// A single PHP scalar literal: '…' / "…" / number / true / false.
+const PHP_LIT = `'(?:\\\\.|[^'\\\\])*'|"(?:\\\\.|[^"\\\\])*"|-?\\d+(?:\\.\\d+)?|true|false`;
+
+/** A PHP scalar literal → its display string (best-effort), or undefined. */
+function phpLiteral(raw: string): string | undefined {
+  const t = raw.trim();
+  if (t === "true") return "true";
+  if (t === "false") return "";
+  if (/^-?\d+(?:\.\d+)?$/.test(t)) return t;
+  const dq = /^"([\s\S]*)"$/.exec(t);
+  if (dq)
+    return (dq[1] ?? "")
+      .replace(/\\n/g, "\n")
+      .replace(/\\t/g, "\t")
+      .replace(/\\r/g, "")
+      .replace(/\\"/g, '"')
+      .replace(/\\\$/g, "$")
+      .replace(/\\\\/g, "\\");
+  const sq = /^'([\s\S]*)'$/.exec(t);
+  if (sq) return (sq[1] ?? "").replace(/\\'/g, "'").replace(/\\\\/g, "\\");
+  return undefined;
+}
+
+function htmlEscape(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/**
+ * The theme's own default Customizer / theme-mod values, mined statically from
+ * its PHP. A theme ZIP carries DESIGN, not the site's DB content — but the text
+ * a fresh install shows (hero copy, CTA band, …) lives in the theme's own
+ * defaults: `get_theme_mod('k', <default>)`, `add_setting('k', ['default'=>…])`,
+ * or an _s-style field table `'k' => array( __('label'), '<default>', 'type' )`.
+ * Recovering those lets the top page import POPULATED instead of blank.
+ */
+export interface ThemeModDefaults {
+  /** Getter fns that take a mod key (always includes `get_theme_mod`). */
+  wrappers: Set<string>;
+  /** mod key → default display text. */
+  values: Map<string, string>;
+}
+
+export function collectThemeModDefaults(files: WpImportFile[]): ThemeModDefaults {
+  const wrappers = new Set<string>(["get_theme_mod"]);
+  const values = new Map<string, string>();
+  const set = (key: string, raw: string): void => {
+    const v = phpLiteral(raw);
+    if (key && v !== undefined && v !== "" && !values.has(key)) values.set(key, v);
+  };
+  for (const f of files) {
+    if (!/\.php$/i.test(f.path)) continue;
+    const text = f.text;
+    // Wrapper getters: `function foo( $key ) { … get_theme_mod( $key … ) … }`.
+    const fnRe = /function\s+([a-z_]\w*)\s*\(\s*\$[a-z_]\w*\s*\)/gi;
+    let fm: RegExpExecArray | null;
+    while ((fm = fnRe.exec(text)) !== null) {
+      if (/get_theme_mod\s*\(/.test(text.slice(fm.index, fm.index + 800))) wrappers.add(fm[1]!);
+    }
+    // Only mine defaults from files that configure the Customizer.
+    if (!/get_theme_mod|add_setting|customiz/i.test(text)) continue;
+    let m: RegExpExecArray | null;
+    // get_theme_mod('key', <literal>)
+    const gm = new RegExp(`get_theme_mod\\s*\\(\\s*['"]([^'"]+)['"]\\s*,\\s*(${PHP_LIT})`, "gi");
+    while ((m = gm.exec(text)) !== null) set(m[1]!, m[2]!);
+    // add_setting('key', array( … 'default' => <literal> … ))
+    const as = new RegExp(`add_setting\\s*\\(\\s*['"]([^'"]+)['"]\\s*,\\s*array\\(([\\s\\S]*?)\\)`, "gi");
+    while ((m = as.exec(text)) !== null) {
+      const d = new RegExp(`['"]default['"]\\s*=>\\s*(${PHP_LIT})`, "i").exec(m[2] ?? "");
+      if (d) set(m[1]!, d[1]!);
+    }
+    // _s-style field table: 'key' => array( __('label'[, 'domain']) | <lit>, '<default>', … )
+    const firstEl = `__\\(\\s*(?:${PHP_LIT})\\s*(?:,\\s*(?:${PHP_LIT})\\s*)?\\)|${PHP_LIT}`;
+    const pa = new RegExp(`['"]([a-z0-9_]+)['"]\\s*=>\\s*array\\(\\s*(?:${firstEl})\\s*,\\s*(${PHP_LIT})`, "gi");
+    while ((m = pa.exec(text)) !== null) set(m[1]!, m[2]!);
+  }
+  return { wrappers, values };
+}
+
+/**
+ * Replace `<?php echo … ?>` tags that print a theme-mod (directly, or via a
+ * `$var = wrapper('key')` assignment earlier in the same template) with the
+ * theme's own default text, so the editable field imports pre-filled. Only
+ * echoes resolving to a known default are touched; everything else is left for
+ * the normal PHP strip. `nl2br` in the tag → newlines become `<br>`.
+ */
+function resolveThemeModEchoes(input: string, defs: ThemeModDefaults): { html: string; hit: boolean } {
+  if (defs.values.size === 0) return { html: input, hit: false };
+  let hit = false;
+  const wrapperAlt = [...defs.wrappers].map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+  // Local `$var = wrapper('key')` → the mod key it holds.
+  const varKey = new Map<string, string>();
+  const asgn = new RegExp(`\\$([a-z_]\\w*)\\s*=\\s*(?:${wrapperAlt})\\s*\\(\\s*['"]([^'"]+)['"]`, "gi");
+  let a: RegExpExecArray | null;
+  while ((a = asgn.exec(input)) !== null) {
+    if (defs.values.has(a[2]!)) varKey.set(a[1]!, a[2]!);
+  }
+  const render = (key: string, tag: string): string => {
+    const esc = htmlEscape(defs.values.get(key) ?? "");
+    hit = true;
+    return /nl2br/i.test(tag) ? esc.replace(/\r?\n/g, "<br>") : esc.replace(/\r?\n/g, " ");
+  };
+  const direct = new RegExp(`(?:${wrapperAlt})\\s*\\(\\s*['"]([^'"]+)['"]`, "i");
+  const html = input.replace(/<\?php\s+echo\b[\s\S]*?\?>|<\?=[\s\S]*?\?>/gi, (tag) => {
+    const d = direct.exec(tag);
+    if (d && defs.values.has(d[1]!)) return render(d[1]!, tag);
+    for (const [v, key] of varKey) {
+      if (new RegExp(`\\$${v}\\b`).test(tag)) return render(key, tag);
+    }
+    return tag;
+  });
+  return { html, hit };
+}
+
 /**
  * Convert the common WordPress template tags into pcms `data-field` bindings
  * before the PHP is stripped — this is the fidelity core for classic themes.
@@ -486,9 +599,16 @@ function neutralizePhpInAttributes(input: string): string {
  * `data-loop="menu"`. PHP inside an attribute is neutralized first (never turned
  * into an element). Anything left is removed later, so no PHP reaches the output.
  */
-export function mapTemplateTags(html: string): { html: string; notes: string[] } {
+export function mapTemplateTags(html: string, defs?: ThemeModDefaults): { html: string; notes: string[] } {
   const notes: string[] = [];
   let s = html;
+  // Pre-fill editable fields from the theme's own Customizer defaults BEFORE the
+  // tag rules run (so a `$hero_title` echo becomes text, not an empty <span>).
+  if (defs) {
+    const r = resolveThemeModEchoes(s, defs);
+    s = r.html;
+    if (r.hit) notes.push("テーマの初期値（カスタマイザー）を編集欄に取り込みました。");
+  }
   const apply = (re: RegExp, repl: string, note: string): void => {
     if (re.test(s)) {
       s = s.replace(re, repl);
@@ -994,6 +1114,7 @@ function buildLayout(
   files: WpImportFile[],
   byBase: Map<string, string>,
   externalStyles: string[] = [],
+  themeMods?: ThemeModDefaults,
 ): string | null {
   let header = "";
   let footer = "";
@@ -1011,8 +1132,8 @@ function buildLayout(
   } else {
     const php = byBase.get("header.php");
     const pfp = byBase.get("footer.php");
-    if (php) header = cleanWpMarkup(mapTemplateTags(php).html);
-    if (pfp) footer = cleanWpMarkup(mapTemplateTags(pfp).html);
+    if (php) header = cleanWpMarkup(mapTemplateTags(php, themeMods).html);
+    if (pfp) footer = cleanWpMarkup(mapTemplateTags(pfp, themeMods).html);
   }
   if (!header && !footer) return null;
   // Load only the scripts the theme enqueues that aren't already linked inline
@@ -1275,6 +1396,11 @@ export function importWpTheme(files: WpImportFile[]): WpImportResult {
   const notes: string[] = [];
   const byBase = new Map(files.map((f) => [baseName(f.path).toLowerCase(), f.text]));
   const out: WpThemeFiles = { templates: {}, sections: {}, blocks: {}, assets: [], styles: [] };
+  // Theme-mod defaults (classic only): pre-fill editable fields with the text the
+  // theme itself ships, so the top page imports populated rather than blank.
+  const themeMods = useBlockPipeline
+    ? { wrappers: new Set<string>(), values: new Map<string, string>() }
+    : collectThemeModDefaults(files);
 
   // theme.json tokens.
   const themeJson = files.find((f) => /(^|\/)theme\.json$/i.test(f.path.replace(/\\/g, "/")));
@@ -1295,10 +1421,16 @@ export function importWpTheme(files: WpImportFile[]): WpImportResult {
   // into editable sections (headings/paragraphs/images → data-field).
   const sources = useBlockPipeline ? collectBlockTemplates(files) : collectClassicTemplates(files);
   const issues: AiIssue[] = [];
+  let filledFromDefaults = false;
   for (const [name, rawHtml] of sources) {
-    const mapped = useBlockPipeline
-      ? gutenbergToHtml(parseGutenberg(rawHtml), blockCtx())
-      : mapTemplateTags(rawHtml).html;
+    let mapped: string;
+    if (useBlockPipeline) {
+      mapped = gutenbergToHtml(parseGutenberg(rawHtml), blockCtx());
+    } else {
+      const mt = mapTemplateTags(rawHtml, themeMods);
+      mapped = mt.html;
+      if (mt.notes.some((n) => n.includes("初期値"))) filledFromDefaults = true;
+    }
     let r = toTemplateHtml(mapped);
     // A single-entry template (page/post) that composed to nothing — content in
     // an absent template-part, or a loop that yielded no markup — would render a
@@ -1316,6 +1448,9 @@ export function importWpTheme(files: WpImportFile[]): WpImportResult {
     }
     out.templates[name] = r.html;
     issues.push(...r.issues);
+  }
+  if (filledFromDefaults) {
+    notes.push("テーマの初期値（カスタマイザー）を各編集欄に取り込みました。");
   }
   // Ensure a page and a post template always exist, even if the theme shipped
   // none (or only an index) — otherwise non-home content has nothing to render.
@@ -1368,7 +1503,7 @@ export function importWpTheme(files: WpImportFile[]): WpImportResult {
       const slug = isPagePrefixed ? stem.replace(/^page-/, "") : stem;
       if (!slug || seenSlug.has(slug) || out.templates[stem]) continue;
       seenSlug.add(slug);
-      const mapped = mapTemplateTags(composeTemplateBody(stem, php)).html;
+      const mapped = mapTemplateTags(composeTemplateBody(stem, php), themeMods).html;
       let r = toTemplateHtml(mapped);
       if (isEmptyTemplate(r.html)) r = toTemplateHtml(GENERIC_ENTRY);
       out.templates[stem] = r.html;
@@ -1406,7 +1541,7 @@ export function importWpTheme(files: WpImportFile[]): WpImportResult {
   }
 
   // Layout from header/footer.
-  const layout = buildLayout(kind, files, byBase, externalStyles);
+  const layout = buildLayout(kind, files, byBase, externalStyles, themeMods);
   if (layout) {
     out["layout.html"] = layout;
     notes.push("ヘッダー・フッターから共通レイアウト（layout.html）を作成しました。");
@@ -1440,7 +1575,7 @@ export function importWpTheme(files: WpImportFile[]): WpImportResult {
       return f ? toTemplateHtml(gutenbergToHtml(parseGutenberg(f.text), blockCtx())).html : undefined;
     }
     if (!phpMap.has(`${stem}.php`)) return undefined;
-    return toTemplateHtml(mapTemplateTags(composeTemplateBody(stem, phpMap)).html).html;
+    return toTemplateHtml(mapTemplateTags(composeTemplateBody(stem, phpMap), themeMods).html).html;
   };
   const homeCandidates: { stem: string; label: string; html: string }[] = [];
   for (const stem of HOME_STEMS) {

@@ -104,6 +104,7 @@ export {
   wpThemeJsonToKumito,
   parseStyleCssName,
   mapTemplateTags,
+  collectThemeModDefaults,
   composeClassicTemplate,
   localizeCssUrls,
   collectEnqueuedScripts,
@@ -114,6 +115,7 @@ export {
   type WpImportResult,
   type WpImportWizard,
   type WpBlock,
+  type ThemeModDefaults,
 } from "./import-wp.js";
 export { THEME_FILE_TOMBSTONE, isThemeTombstone } from "./theme-files.js";
 export { mediaUsageCounts } from "./media.js";
