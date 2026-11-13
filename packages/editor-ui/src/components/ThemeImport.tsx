@@ -9,9 +9,6 @@ import {
   diagnoseThemeHtml,
   classifyZipEntry,
   inlineThemeAssets,
-  detectWpThemeKind,
-  importWpTheme,
-  synthesizeFseCss,
   localizeCssUrls,
   bytesToDataUrl,
   assetContentType,
@@ -19,9 +16,6 @@ import {
   type RenderedImportResult,
   type DiscoveredPage,
   type ImportSource,
-  type WpImportFile,
-  type WpImportResult,
-  type WpImportWizard,
 } from "@pcms/engine";
 import type { PcmsApi } from "../api/types.js";
 import { useDialog } from "../state/useDialog.js";
@@ -35,18 +29,7 @@ interface Props {
   onImported?: () => void;
 }
 
-/** A complete theme ready to be added as a new, separate theme. */
-interface WpThemeImport {
-  name: string;
-  kind: WpImportResult["kind"];
-  files: Record<string, string>;
-  notes: string[];
-  fallbackBatch: BatchItem[];
-  /** Wizard data: top-page candidates, importable 固定ページ, unresolved content. */
-  wizard: WpImportWizard;
-}
-
-const SOURCES: ImportSource[] = ["auto", "wordpress", "shopify", "figma", "html", "other"];
+const SOURCES: ImportSource[] = ["auto", "figma", "html", "other"];
 
 /** One file in a multi-file (batch) import. */
 interface BatchItem {
@@ -99,56 +82,6 @@ function imageDataUrl(path: string, bytes: Uint8Array): string | null {
   const mime = MIME_BY_EXT[ext];
   if (!mime) return null;
   return `data:${mime};base64,${bytesToBase64(bytes)}`;
-}
-
-/** The theme name a WordPress import recorded in its theme.json, if any. */
-function readWpThemeName(themeJson: string | undefined): string | null {
-  if (!themeJson) return null;
-  try {
-    const name = (JSON.parse(themeJson) as { name?: unknown }).name;
-    return typeof name === "string" && name.trim() !== "" ? name : null;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Flatten a WordPress import into a complete theme file map (path → content):
- * theme.json / layout.html / templates / sections / blocks, every CSS file in
- * the archive folded into assets/style.css (the look is carried verbatim), and
- * each referenced image as assets/<basename> (a data URL). This is what gets
- * written as a new, self-contained theme.
- */
-function buildWpThemeFiles(
-  wp: WpImportResult,
-  cssText: string,
-  imageAssets: Record<string, string>,
-  jsAssets: Record<string, string>,
-): Record<string, string> {
-  const files: Record<string, string> = {};
-  const f = wp.files;
-  if (f["theme.json"]) files["theme.json"] = f["theme.json"];
-  for (const [k, v] of Object.entries(f.templates)) files[`templates/${k}.html`] = v;
-  for (const [k, v] of Object.entries(f.sections)) files[`sections/${k}.html`] = v;
-  for (const [k, v] of Object.entries(f.blocks)) files[`blocks/${k}.html`] = v;
-  // Re-point the stylesheet's local url(...) refs (fonts, background images) to
-  // /assets/ so they resolve once every asset is flattened into that folder.
-  if (cssText.trim() !== "") files["assets/style.css"] = localizeCssUrls(cssText);
-  // Carry EVERY image from the archive (not only referenced ones).
-  for (const [base, url] of Object.entries(imageAssets)) files[`assets/${base}`] = url;
-  // Carry EVERY script file verbatim, but DON'T link them all: the layout the
-  // engine built already loads exactly the theme's enqueued/inline scripts. A WP
-  // theme ships a whole vendor folder (a dozen anime.js versions, duplicate
-  // jQuery, slick.js + slick.min.js); loading all of them breaks the page with
-  // conflicting globals. The unreferenced files stay on disk (so a dynamic load
-  // still resolves) but are never auto-linked (the engine suppresses that for a
-  // theme that manages its own scripts).
-  for (const [base, text] of Object.entries(jsAssets)) files[`assets/${base}`] = text;
-  if (f["layout.html"]) files["layout.html"] = f["layout.html"];
-  // The theme's default page composition (home + each imported 固定ページ). The
-  // backend's presetSettingsFor reads this when the theme becomes active.
-  if (f.preset) files["presets/pages.json"] = f.preset;
-  return files;
 }
 
 /** A generic title+body template for themes that only shipped a home page, so
@@ -237,36 +170,11 @@ function buildRenderedThemeFiles(
 }
 
 /**
- * Apply the import wizard's choices to the theme files before they are saved:
- *  • the chosen top-page template becomes templates/index.html (a theme can ship
- *    front-page / home / index — the operator picks which is the home);
- *  • presets/pages.json is rebuilt to the home plus only the 固定ページ the operator
- *    kept checked, so excluded template-variant pages don't ship as real pages.
- * The theme's own template files are left intact; only index.html and the preset
- * change, so nothing else about the import is disturbed.
- */
-function applyWizardChoices(
-  wp: WpThemeImport,
-  homeChoice: string,
-  includedPages: Record<string, boolean>,
-): Record<string, string> {
-  const files = { ...wp.files };
-  const chosen = wp.wizard.home.candidates.find((c) => c.stem === homeChoice);
-  if (chosen) files["templates/index.html"] = chosen.html;
-  const pages: Record<string, { template: string; title?: string }> = { index: { template: "index" } };
-  for (const p of wp.wizard.pages) {
-    if (includedPages[p.id] === false) continue;
-    pages[p.id] = { template: p.template, title: p.title };
-  }
-  files["presets/pages.json"] = JSON.stringify({ pages, regions: {} }, null, 2);
-  return files;
-}
-
-/**
- * Import an external theme/template (WordPress, Shopify, any HTML) and optimize
- * it into a pcms theme fragment: strip server/template code and scripts, add
- * editable data-* annotations, validate, preview, then save it as a reusable
- * section in the theme working copy. CLAUDE.md: テーマ元ファイルは不変 / 人が適用を選ぶ.
+ * Import a real site or HTML and reproduce it as a pcms theme: the high-fidelity
+ * path folds a rendered page (from a URL, a saved "complete HTML" page, or pasted
+ * source) + its CSS into a theme; a pasted HTML fragment is optimized into an
+ * editable section. KUMITO reproduces HTML — it does not restore other platforms'
+ * themes (a theme ZIP is a program, not a rendered page). CLAUDE.md: 元ファイル不変.
  */
 export function ThemeImport({ api, onClose, onImported }: Props) {
   const ref = useDialog<HTMLDivElement>(onClose);
@@ -278,7 +186,6 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
   const [target, setTarget] = useState<"section" | "template">("section");
   const [saveLayout, setSaveLayout] = useState(true);
   const [batch, setBatch] = useState<BatchItem[] | null>(null);
-  const [wpImport, setWpImport] = useState<WpThemeImport | null>(null);
   // A rendered-page import (the high-fidelity design path): a whole theme built
   // from the live page's HTML + CSS, offered as a new theme.
   const [renderedImport, setRenderedImport] = useState<{
@@ -296,9 +203,6 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
   const [addedPages, setAddedPages] = useState<DiscoveredPage[]>([]);
   const [addUrl, setAddUrl] = useState("");
   const [themeNameInput, setThemeNameInput] = useState("");
-  // Import-wizard choices: which template is the top page, and which 固定ページ to create.
-  const [homeChoice, setHomeChoice] = useState("");
-  const [includedPages, setIncludedPages] = useState<Record<string, boolean>>({});
   const [zipNote, setZipNote] = useState<string | null>(null);
   const [fetchUrl, setFetchUrl] = useState("");
   const [fetchingUrl, setFetchingUrl] = useState(false);
@@ -327,7 +231,6 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
     setResult(null);
     setRaw("");
     setBatch(null);
-    setWpImport(null);
     setZipNote(null);
     setThemeNameInput(suggestedName);
     const incl: Record<string, boolean> = {};
@@ -420,9 +323,11 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
     /\.zip$/i.test(f.name) || f.type === "application/zip" || f.type === "application/x-zip-compressed";
 
   /**
-   * Import a theme archive: unzip in the browser, inline its images into each
-   * HTML/template as data URLs (the theme working copy holds only strings), and
-   * queue the markup as batch items. CLAUDE.md: テーマ元ファイルは不変 / 人が適用を選ぶ.
+   * Import a ZIP made from HTML — a page saved as "complete HTML" (the .html plus
+   * its CSS/images folder), zipped. We unzip in the browser, carry images/fonts as
+   * data URLs, and reproduce the saved page as a theme (the same rendered path as a
+   * URL import). A ZIP with no full HTML page falls back to the per-file section
+   * import. KUMITO does not restore other platforms' themes. CLAUDE.md: 元ファイル不変.
    */
   const importZip = async (file: File) => {
     const entries = unzipSync(new Uint8Array(await file.arrayBuffer()));
@@ -448,44 +353,6 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
     }
 
     const decoder = new TextDecoder();
-    const items: BatchItem[] = [];
-    // Every text file in the archive, for WordPress theme detection/conversion,
-    // all CSS folded together (the single stylesheet layout.html links), and
-    // every script carried verbatim (the theme's own JS).
-    const wpFiles: WpImportFile[] = [];
-    const jsAssets: Record<string, string> = {};
-    // Every CSS in the archive, kept both as one blind concatenation (the fallback
-    // when we can't tell which CSS the theme loads) and keyed by basename (so a WP
-    // import can fold in ONLY the stylesheets it actually references, in order).
-    let cssText = "";
-    const cssByBase: Record<string, string> = {};
-    for (const [path, bytes] of Object.entries(entries)) {
-      if (/\/$/.test(path)) continue;
-      if (/\.(php|html?|json|css|txt|liquid|twig)$/i.test(path)) {
-        const text = decoder.decode(bytes);
-        wpFiles.push({ path, text });
-        if (/\.css$/i.test(path)) {
-          cssText += `${cssText ? "\n\n" : ""}/* ${baseName(path)} */\n${text}`;
-          cssByBase[baseName(path).toLowerCase()] = text;
-        }
-      } else if (/\.m?js$/i.test(path)) {
-        // Keep every script — the theme's own JS (minified or not).
-        jsAssets[baseName(path)] = decoder.decode(bytes);
-      }
-      if (classifyZipEntry(path) !== "markup") continue;
-      const r = importThemeHtml(decoder.decode(bytes));
-      r.html = inlineThemeAssets(r.html, assets).html;
-      if (r.layout) r.layout = inlineThemeAssets(r.layout, assets).html;
-      const s = suggestThemePart(path);
-      items.push({
-        name: baseName(path),
-        result: r,
-        slug: s.slug || slugify(baseName(path)),
-        target: s.target,
-        include: r.issues.every((i) => i.level !== "error"),
-      });
-    }
-
     const notes: string[] = [];
     if (embedded > 0) notes.push(t("themeImport.zipImages").replace("{count}", String(embedded)));
     if (tooLarge > 0) {
@@ -496,57 +363,11 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
       );
     }
 
-    // A recognised WordPress theme (classic PHP and/or block) is converted as a
-    // whole, self-contained theme — the high-fidelity path that keeps CSS and
-    // structure — and offered as a new, separate theme. Anything else falls back
-    // to the per-file section/template batch below.
-    const wpKind = detectWpThemeKind(wpFiles);
-    if (wpKind !== "unknown") {
-      const wp = importWpTheme(wpFiles);
-      // Fold in ONLY the stylesheets the theme actually loads, in load order (the
-      // engine resolved them from <link>/wp_enqueue_style). This drops the dead
-      // vendor/RTL/docs CSS that otherwise overrides the real design — the main
-      // fidelity fix. Fall back to every CSS when the engine found no references.
-      const refced = wp.files.styles
-        .map((b) => ({ b, text: cssByBase[b.toLowerCase()] }))
-        .filter((x): x is { b: string; text: string } => typeof x.text === "string");
-      const themeCss =
-        refced.length > 0
-          ? refced.map((x) => `/* ${x.b} */\n${x.text}`).join("\n\n")
-          : cssText;
-      // A block/FSE theme keeps most of its look in theme.json presets, which WP
-      // turns into --wp--preset--* variables + .has-* utilities + block layout CSS
-      // at runtime; the saved markup references them, so without that layer the
-      // import renders almost unstyled. Synthesize it from the original theme.json
-      // and PREPEND it, so the theme's own CSS still wins the cascade.
-      const rawThemeJson = wpFiles.find((x) =>
-        /(^|\/)theme\.json$/i.test(x.path.replace(/\\/g, "/")),
-      )?.text;
-      const { css: fseCss, notes: fseNotes } = synthesizeFseCss(rawThemeJson);
-      const wpCss = fseCss
-        ? `/* pcms: theme.json presets */\n${fseCss}\n\n${themeCss}`
-        : themeCss;
-      const files = buildWpThemeFiles(wp, wpCss, assets, jsAssets);
-      const name = readWpThemeName(wp.files["theme.json"]) ?? baseName(file.name).replace(/\.zip$/i, "");
-      const wpNotes = [...notes, ...wp.notes, ...fseNotes];
-      const jsCount = Object.keys(jsAssets).length;
-      if (jsCount > 0) wpNotes.push(t("themeImport.wpJs").replace("{count}", String(jsCount)));
-      setResult(null);
-      setRaw("");
-      setBatch(null);
-      setZipNote(notes.join(" "));
-      setThemeNameInput(name);
-      setHomeChoice(wp.wizard.home.chosen);
-      setIncludedPages(Object.fromEntries(wp.wizard.pages.map((p) => [p.id, true])));
-      setWpImport({ name, kind: wpKind, files, notes: wpNotes, fallbackBatch: items, wizard: wp.wizard });
-      return;
-    }
-
-    // Not a WordPress theme: a saved "complete" page (rendered HTML + its CSS
-    // folder) is the high-fidelity design path — fold it into one theme rather
-    // than splitting the archive into disconnected parts.
-    const htmlEntries = Object.entries(entries).filter(([p]) => /\.html?$/i.test(p));
-    const rendered = htmlEntries
+    // A saved "complete" page (rendered HTML + its CSS folder) is the design path —
+    // fold it into one theme rather than splitting the archive into disconnected
+    // parts. Pick the full HTML document (index first, then the largest).
+    const rendered = Object.entries(entries)
+      .filter(([p]) => /\.html?$/i.test(p))
       .map(([p, b]) => ({ p, text: decoder.decode(b) }))
       .filter((x) => looksLikeRenderedPage(x.text))
       .sort(
@@ -564,13 +385,30 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
       return;
     }
 
+    // No full page in the archive: treat each HTML/template file as a section to
+    // import (a plain HTML import, not a theme restore).
+    const items: BatchItem[] = [];
+    for (const [path, bytes] of Object.entries(entries)) {
+      if (/\/$/.test(path) || classifyZipEntry(path) !== "markup") continue;
+      const r = importThemeHtml(decoder.decode(bytes));
+      r.html = inlineThemeAssets(r.html, assets).html;
+      if (r.layout) r.layout = inlineThemeAssets(r.layout, assets).html;
+      const s = suggestThemePart(path);
+      items.push({
+        name: baseName(path),
+        result: r,
+        slug: s.slug || slugify(baseName(path)),
+        target: s.target,
+        include: r.issues.every((i) => i.level !== "error"),
+      });
+    }
+
     if (items.length === 0) {
       toast(t("themeImport.zipNoMarkup"));
       return;
     }
     setResult(null);
     setRaw("");
-    setWpImport(null);
     setZipNote(notes.join(" "));
     setBatch(items);
   };
@@ -595,7 +433,6 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
         return;
       }
       setBatch(null);
-      setWpImport(null);
       setZipNote(null);
       setResult(null);
       setRaw(text);
@@ -635,7 +472,6 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
       });
     }
     setResult(null);
-    setWpImport(null);
     setZipNote(null);
     setBatch(items);
   };
@@ -657,27 +493,6 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
         await api.writeThemeFile(`${dir}/${it.slug}.html`, it.result.html);
       }
       toast(t("themeImport.savedBatch").replace("{count}", String(ready.length)));
-      onClose();
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // Add the converted WordPress theme as a new, separate theme and switch to it.
-  // Switching resets the page layout to the new theme's defaults; content stays.
-  const importAsNewTheme = async () => {
-    if (!wpImport) return;
-    const name = themeNameInput.trim() || wpImport.name;
-    setSaving(true);
-    try {
-      const files = applyWizardChoices(wpImport, homeChoice, includedPages);
-      const summary = await api.createTheme(
-        { name, source: source === "auto" ? "wordpress" : source },
-        files,
-      );
-      await api.setActiveTheme(summary.id);
-      toast(t("themeImport.importedAsTheme").replace("{name}", name));
-      onImported?.();
       onClose();
     } finally {
       setSaving(false);
@@ -758,17 +573,6 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
     }
   };
 
-  // Fall back to adding the WordPress theme's parts to the current theme instead.
-  const wpToBatch = () => {
-    if (!wpImport) return;
-    if (wpImport.fallbackBatch.length === 0) {
-      toast(t("themeImport.zipNoMarkup"));
-      return;
-    }
-    setWpImport(null);
-    setBatch(wpImport.fallbackBatch);
-  };
-
   const aiFinish = async () => {
     if (!result) return;
     setAiBusy(true);
@@ -844,8 +648,7 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
         </header>
 
         <p className="pcms-themeimport__hint">{t("themeImport.hint")}</p>
-        <p className="pcms-themeimport__rendered-hint">{t("themeImport.renderedHint")}</p>
-        {api.fetchRenderedPage && !batch && !wpImport && !renderedImport && (
+        {api.fetchRenderedPage && !batch && !renderedImport && (
           <div className="pcms-themeimport__urlrow">
             <input
               type="url"
@@ -871,6 +674,10 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
           <p className="pcms-themeimport__figmahint">{t("themeImport.figmaHint")}</p>
         )}
 
+        {!batch && !renderedImport && (
+          <p className="pcms-themeimport__rendered-hint">{t("themeImport.renderedHint")}</p>
+        )}
+
         <div className="pcms-themeimport__controls">
           <label className="pcms-themeimport__sourcefield">
             <span>{t("themeImport.source")}</span>
@@ -888,7 +695,7 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
           <input
             ref={fileRef}
             type="file"
-            accept=".html,.htm,.php,.liquid,.twig,.svg,.txt,.zip,text/html,image/svg+xml,application/zip"
+            accept=".html,.htm,.svg,.txt,.zip,text/html,image/svg+xml,application/zip"
             multiple
             hidden
             onChange={(e) => void onFiles(e.target.files)}
@@ -896,7 +703,7 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
           <span className="pcms-themeimport__filehint">{t("themeImport.pickFileHint")}</span>
         </div>
 
-        {!batch && !wpImport && !renderedImport && (
+        {!batch && !renderedImport && (
           <textarea
             className="pcms-themeimport__input"
             value={raw}
@@ -906,7 +713,7 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
           />
         )}
 
-        {!batch && !wpImport && !renderedImport && (
+        {!batch && !renderedImport && (
           <div className="pcms-themeimport__actions">
             <button className="pcms-primary" onClick={convert} disabled={raw.trim() === ""}>
               {t("themeImport.convert")}
@@ -916,105 +723,6 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
                 {aiBusy ? t("ai.generating") : t("themeImport.aiFinish")}
               </button>
             )}
-          </div>
-        )}
-
-        {wpImport && (
-          <div className="pcms-themeimport__wp">
-            <h3>{t("themeImport.wpTitle")}</h3>
-            <p className="pcms-themeimport__hint">
-              {t(`themeImport.wpKind.${wpImport.kind}` as never)}
-            </p>
-            <label className="pcms-themeimport__wpname">
-              <span>{t("themeImport.newThemeName")}</span>
-              <input
-                type="text"
-                value={themeNameInput}
-                onChange={(e) => setThemeNameInput(e.target.value)}
-                placeholder={wpImport.name}
-              />
-            </label>
-            <ul className="pcms-themeimport__wpfiles">
-              <li>{t("themeImport.wpTemplates").replace(
-                "{count}",
-                String(Object.keys(wpImport.files).filter((p) => p.startsWith("templates/")).length),
-              )}</li>
-              <li>{t("themeImport.wpAssets").replace(
-                "{count}",
-                String(Object.keys(wpImport.files).filter((p) => p.startsWith("assets/")).length),
-              )}</li>
-            </ul>
-
-            {wpImport.wizard.home.candidates.length > 1 && (
-              <fieldset className="pcms-themeimport__wiz">
-                <legend>{t("themeImport.wizHome")}</legend>
-                <p className="pcms-themeimport__hint">{t("themeImport.wizHomeHint")}</p>
-                {wpImport.wizard.home.candidates.map((c) => (
-                  <label key={c.stem} className="pcms-themeimport__wizrow">
-                    <input
-                      type="radio"
-                      name="pcms-wiz-home"
-                      checked={homeChoice === c.stem}
-                      onChange={() => setHomeChoice(c.stem)}
-                    />
-                    <span>{c.label}</span>
-                  </label>
-                ))}
-              </fieldset>
-            )}
-
-            {wpImport.wizard.pages.length > 0 && (
-              <fieldset className="pcms-themeimport__wiz">
-                <legend>{t("themeImport.wizPages")}</legend>
-                <p className="pcms-themeimport__hint">{t("themeImport.wizPagesHint")}</p>
-                {wpImport.wizard.pages.map((p) => (
-                  <label key={p.id} className="pcms-themeimport__wizrow">
-                    <input
-                      type="checkbox"
-                      checked={includedPages[p.id] !== false}
-                      onChange={(e) =>
-                        setIncludedPages((prev) => ({ ...prev, [p.id]: e.target.checked }))
-                      }
-                    />
-                    <span>
-                      {p.title} <code>/{p.id}/</code>
-                    </span>
-                  </label>
-                ))}
-              </fieldset>
-            )}
-
-            {wpImport.wizard.unresolved.length > 0 && (
-              <div className="pcms-themeimport__wizwarn" role="note">
-                <strong>{t("themeImport.wizUnresolved")}</strong>
-                <p className="pcms-themeimport__hint">{t("themeImport.wizUnresolvedHint")}</p>
-                <ul>
-                  {wpImport.wizard.unresolved.map((u, i) => (
-                    <li key={i}>{u}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {wpImport.notes.length > 0 && (
-              <ul className="pcms-themeimport__log">
-                {wpImport.notes.map((n, i) => (
-                  <li key={i}>{n}</li>
-                ))}
-              </ul>
-            )}
-            <div className="pcms-themeimport__actions">
-              <button
-                className="pcms-primary"
-                onClick={() => void importAsNewTheme()}
-                disabled={saving || themeNameInput.trim() === ""}
-              >
-                {t("themeImport.asNewTheme")}
-              </button>
-              <button onClick={wpToBatch} disabled={saving}>
-                {t("themeImport.addToCurrent")}
-              </button>
-            </div>
           </div>
         )}
 
