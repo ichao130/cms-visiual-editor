@@ -90,12 +90,14 @@ export {
   cleanImportedHtml,
   importThemeHtml,
   importRenderedPage,
+  collectInternalLinks,
   suggestThemePart,
   classifyZipEntry,
   inlineThemeAssets,
   type ImportSource,
   type ImportResult,
   type RenderedImportResult,
+  type DiscoveredPage,
   type ZipEntryKind,
 } from "./import.js";
 export {

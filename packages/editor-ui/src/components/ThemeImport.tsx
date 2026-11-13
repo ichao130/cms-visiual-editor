@@ -4,6 +4,7 @@ import { Icon } from "./Icon.js";
 import {
   importThemeHtml,
   importRenderedPage,
+  collectInternalLinks,
   suggestThemePart,
   diagnoseThemeHtml,
   classifyZipEntry,
@@ -16,6 +17,7 @@ import {
   assetContentType,
   type ImportResult,
   type RenderedImportResult,
+  type DiscoveredPage,
   type ImportSource,
   type WpImportFile,
   type WpImportResult,
@@ -162,13 +164,36 @@ function looksLikeRenderedPage(html: string): boolean {
   return /<html[\s>]/i.test(html) && /<body[\s>]/i.test(html);
 }
 
+/** A discovered 固定ページ reproduced alongside the home: its main region (from a
+ *  second rendered-page import) becomes a per-slug template pinned to its URL. */
+interface RenderedExtraPage {
+  slug: string;
+  title: string;
+  html: string;
+}
+
+/** A flat, unique template name for a page slug: "about" → "page-about",
+ *  "company/profile" → "page-company-profile" (template files can't nest on the
+ *  page's URL path). */
+function flatTemplateToken(slug: string, used: Set<string>): string {
+  const base = slug.replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-+|-+$/g, "").toLowerCase() || "page";
+  let token = `page-${base}`;
+  for (let n = 2; used.has(token); n++) token = `page-${base}-${n}`;
+  used.add(token);
+  return token;
+}
+
 /** Assemble a saveable theme from a rendered-page import: the folded stylesheet
  *  becomes assets/style.css, the chrome becomes layout.html, the body is the
- *  home template, plus generic page/post templates and every carried image. */
+ *  home template, plus generic page/post templates and every carried image. Any
+ *  discovered 固定ページ (`extraPages`) each become their own template + a
+ *  presets/pages.json entry, so switching to the theme brings the whole site —
+ *  /about/, /service/, … — across, not just the home. */
 function buildRenderedThemeFiles(
   r: RenderedImportResult,
   name: string,
   imageAssets: Record<string, string>,
+  extraPages: RenderedExtraPage[] = [],
 ): Record<string, string> {
   const files: Record<string, string> = {};
   files["theme.json"] = JSON.stringify({ name }, null, 2);
@@ -178,6 +203,18 @@ function buildRenderedThemeFiles(
   files["templates/post.html"] = RENDERED_GENERIC_ENTRY;
   if (r.css.trim() !== "") files["assets/style.css"] = localizeCssUrls(r.css);
   for (const [base, url] of Object.entries(imageAssets)) files[`assets/${base}`] = url;
+  if (extraPages.length > 0) {
+    const pages: Record<string, { template: string; title?: string }> = {
+      index: { template: "index" },
+    };
+    const used = new Set<string>();
+    for (const p of extraPages) {
+      const token = flatTemplateToken(p.slug, used);
+      files[`templates/${token}.html`] = p.html;
+      pages[p.slug] = { template: token, title: p.title };
+    }
+    files["presets/pages.json"] = JSON.stringify({ pages, regions: {} }, null, 2);
+  }
   return files;
 }
 
@@ -226,9 +263,16 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
   const [wpImport, setWpImport] = useState<WpThemeImport | null>(null);
   // A rendered-page import (the high-fidelity design path): a whole theme built
   // from the live page's HTML + CSS, offered as a new theme.
-  const [renderedImport, setRenderedImport] = useState<
-    { name: string; files: Record<string, string>; notes: string[] } | null
-  >(null);
+  const [renderedImport, setRenderedImport] = useState<{
+    name: string;
+    home: RenderedImportResult;
+    imageAssets: Record<string, string>;
+    baseUrl?: string;
+    discovered: DiscoveredPage[];
+    notes: string[];
+  } | null>(null);
+  // Which discovered 固定ページ to also fetch & reproduce (keyed by slug).
+  const [includedLinks, setIncludedLinks] = useState<Record<string, boolean>>({});
   const [themeNameInput, setThemeNameInput] = useState("");
   // Import-wizard choices: which template is the top page, and which 固定ページ to create.
   const [homeChoice, setHomeChoice] = useState("");
@@ -255,16 +299,26 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
     suggestedName: string,
     baseUrl?: string,
     extraNotes: string[] = [],
+    discovered: DiscoveredPage[] = [],
   ): void => {
     const r = importRenderedPage(baseUrl ? { html, css: cssMap, baseUrl } : { html, css: cssMap });
-    const files = buildRenderedThemeFiles(r, suggestedName, imageAssets);
     setResult(null);
     setRaw("");
     setBatch(null);
     setWpImport(null);
     setZipNote(null);
     setThemeNameInput(suggestedName);
-    setRenderedImport({ name: suggestedName, files, notes: [...extraNotes, ...r.notes] });
+    const incl: Record<string, boolean> = {};
+    for (const d of discovered) incl[d.slug] = true;
+    setIncludedLinks(incl);
+    setRenderedImport({
+      name: suggestedName,
+      home: r,
+      imageAssets,
+      baseUrl,
+      discovered,
+      notes: [...extraNotes, ...r.notes],
+    });
   };
 
   // Fetch a live page by URL (desktop backend) and offer it as a theme, with
@@ -281,7 +335,18 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
       } catch {
         /* keep the raw url as the name */
       }
-      offerRenderedPage(html, css, {}, host || t("themeImport.renderedDefaultName"), baseUrl, notes);
+      // Discover the same-origin 固定ページ this page links to, so the operator can
+      // pull them across too (each fetched & reproduced at import time).
+      const discovered = collectInternalLinks(html, baseUrl);
+      offerRenderedPage(
+        html,
+        css,
+        {},
+        host || t("themeImport.renderedDefaultName"),
+        baseUrl,
+        notes,
+        discovered,
+      );
     } catch {
       toast(t("themeImport.fetchFailed"));
     } finally {
@@ -601,10 +666,42 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
     const name = themeNameInput.trim() || renderedImport.name;
     setSaving(true);
     try {
-      const files = { ...renderedImport.files, "theme.json": JSON.stringify({ name }, null, 2) };
+      // Fetch & reproduce each checked 固定ページ, so the whole site comes across.
+      const extraPages: RenderedExtraPage[] = [];
+      const failed: string[] = [];
+      const toFetch = renderedImport.discovered.filter((d) => includedLinks[d.slug] !== false);
+      if (api.fetchRenderedPage && toFetch.length > 0) {
+        for (const p of toFetch) {
+          try {
+            const res = await api.fetchRenderedPage!(p.url);
+            const pr = importRenderedPage({
+              html: res.html,
+              css: res.css,
+              baseUrl: res.baseUrl || p.url,
+            });
+            extraPages.push({ slug: p.slug, title: p.label, html: pr.html });
+          } catch {
+            failed.push(p.label);
+          }
+        }
+      }
+      const files = buildRenderedThemeFiles(
+        renderedImport.home,
+        name,
+        renderedImport.imageAssets,
+        extraPages,
+      );
+      files["theme.json"] = JSON.stringify({ name }, null, 2);
       const summary = await api.createTheme({ name, source: "html" }, files);
       await api.setActiveTheme(summary.id);
-      toast(t("themeImport.importedAsTheme").replace("{name}", name));
+      let msg = t("themeImport.importedAsTheme").replace("{name}", name);
+      if (extraPages.length > 0) {
+        msg += t("themeImport.renderedPagesAdded").replace("{count}", String(extraPages.length));
+      }
+      if (failed.length > 0) {
+        msg += t("themeImport.renderedPagesFailed").replace("{count}", String(failed.length));
+      }
+      toast(msg);
       onImported?.();
       onClose();
     } finally {
@@ -892,13 +989,36 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
                 ))}
               </ul>
             )}
+            {renderedImport.discovered.length > 0 && (
+              <div className="pcms-themeimport__pages">
+                <h4>{t("themeImport.renderedPagesTitle")}</h4>
+                <p className="pcms-themeimport__hint">{t("themeImport.renderedPagesHint")}</p>
+                <ul className="pcms-themeimport__pageslist">
+                  {renderedImport.discovered.map((d) => (
+                    <li key={d.slug}>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={includedLinks[d.slug] !== false}
+                          onChange={(e) =>
+                            setIncludedLinks((m) => ({ ...m, [d.slug]: e.target.checked }))
+                          }
+                        />
+                        <span className="pcms-themeimport__pagelabel">{d.label}</span>
+                        <span className="pcms-themeimport__pageslug">/{d.slug}/</span>
+                      </label>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <div className="pcms-themeimport__actions">
               <button
                 className="pcms-primary"
                 onClick={() => void importRenderedAsNewTheme()}
                 disabled={saving || themeNameInput.trim() === ""}
               >
-                {t("themeImport.asNewTheme")}
+                {saving ? t("themeImport.renderedImporting") : t("themeImport.asNewTheme")}
               </button>
             </div>
           </div>

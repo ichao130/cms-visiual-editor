@@ -813,6 +813,89 @@ export interface RenderedImportResult {
   notes: string[];
 }
 
+/** A same-origin page a rendered site links to — a candidate 固定ページ to also
+ *  reproduce alongside the home. */
+export interface DiscoveredPage {
+  /** Absolute URL to fetch (fragment stripped). */
+  url: string;
+  /** Page id used for the output path and (flattened) template name:
+   *  "/about/" → "about", "/company/profile/" → "company/profile". */
+  slug: string;
+  /** Label for the import checklist — the link text, else the slug. */
+  label: string;
+}
+
+/** "/about/" → "about", "/" → "", "/a/b/index.html" → "a/b". */
+function pagePathOf(pathname: string): string {
+  return pathname.replace(/\/?index\.html?$/i, "").replace(/^\/+|\/+$/g, "");
+}
+
+/** True when a link sits inside the site's global navigation (a nav/header/
+ *  footer, or a menu/nav-named container) — i.e. a 固定ページ link, not a body
+ *  link to a post or an external resource. */
+function inMenuContext(a: HTMLElement): boolean {
+  let cur: HTMLElement | null = a;
+  for (let i = 0; i < 8 && cur; i++) {
+    const tag = tagOf(cur);
+    if (tag === "nav" || tag === "header" || tag === "footer") return true;
+    const cls = `${cur.getAttribute("class") ?? ""} ${cur.getAttribute("id") ?? ""}`;
+    if (/menu|nav|gnav|global/i.test(cls)) return true;
+    cur = cur.parentNode as HTMLElement | null;
+  }
+  return false;
+}
+
+const NON_PAGE_EXT =
+  /\.(?:jpe?g|png|gif|webp|svg|avif|ico|bmp|pdf|zip|rar|docx?|xlsx?|pptx?|mp4|webm|mp3|wav|css|js|mjs|xml|json|rss|txt|csv)$/i;
+
+/**
+ * Discover the same-origin pages a rendered page links to — the candidate 固定
+ * ページ to reproduce alongside the home. Prefers links in the global navigation
+ * (nav/header/footer or menu-named containers), falling back to every same-origin
+ * link when there is no recognizable nav. Drops the home itself, asset files, and
+ * mail/tel/anchor links, dedupes by path, and keeps document order. Pure: HTML +
+ * base URL in, a list out; the caller decides which to fetch.
+ */
+export function collectInternalLinks(html: string, baseUrl: string): DiscoveredPage[] {
+  let base: URL;
+  try {
+    base = new URL(baseUrl);
+  } catch {
+    return [];
+  }
+  const homePath = pagePathOf(base.pathname);
+  const anchors = parse(html).querySelectorAll("a");
+
+  const gather = (menuOnly: boolean): DiscoveredPage[] => {
+    const out: DiscoveredPage[] = [];
+    const seen = new Set<string>([homePath]);
+    for (const a of anchors) {
+      if (menuOnly && !inMenuContext(a)) continue;
+      const href = (a.getAttribute("href") ?? "").trim();
+      if (href === "" || href.startsWith("#") || /^(mailto:|tel:|javascript:)/i.test(href)) continue;
+      let u: URL;
+      try {
+        u = new URL(href, base.href);
+      } catch {
+        continue;
+      }
+      if (u.origin !== base.origin) continue; // same-origin only
+      if (NON_PAGE_EXT.test(u.pathname)) continue; // a file, not a page
+      const slug = pagePathOf(u.pathname);
+      if (slug === "" || seen.has(slug)) continue; // home, or already collected
+      seen.add(slug);
+      u.hash = "";
+      const label = a.text.replace(/\s+/g, " ").trim() || slug;
+      out.push({ url: u.href, slug, label });
+      if (out.length >= 40) break;
+    }
+    return out;
+  };
+
+  const menu = gather(true);
+  return menu.length >= 2 ? menu : gather(false);
+}
+
 /** Find the element that actually holds the page chrome (header / main / footer),
  *  descending through the wrapper `<div>`s a rendered page nests them in
  *  (`<div id="page"><div class="site-content">…`). */
