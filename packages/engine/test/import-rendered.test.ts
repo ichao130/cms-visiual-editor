@@ -101,4 +101,30 @@ describe("importRenderedPage", () => {
     const r2 = importRenderedPage({ html: PAGE }); // no css supplied
     expect(r2.notes.some((n) => n.includes("見つかりませんでした"))).toBe(true);
   });
+
+  it("with a baseUrl, resolves relative images/links to the live origin", () => {
+    const rel = `<!doctype html><html><body>
+      <main>
+        <section class="s"><h1>T</h1>
+          <img src="/wp-content/up/a.jpg" />
+          <img src="img/b.png" />
+          <a href="/about/">About</a>
+          <img src="https://cdn.example.com/c.jpg" />
+        </section>
+      </main>
+    </body></html>`;
+    const r = importRenderedPage({ html: rel, baseUrl: "https://live.example.com/news/" });
+    expect(r.html).toContain("https://live.example.com/wp-content/up/a.jpg");
+    expect(r.html).toContain("https://live.example.com/news/img/b.png");
+    expect(r.html).toContain('href="https://live.example.com/about/"');
+    // an already-absolute URL is left untouched
+    expect(r.html).toContain("https://cdn.example.com/c.jpg");
+  });
+
+  it("with a baseUrl, keeps a same-origin stylesheet it wasn't given as a live link", () => {
+    const r = importRenderedPage({ html: PAGE, baseUrl: "https://live.example.com/" });
+    // style.css wasn't supplied here, so it stays as an absolute <link>, not dropped.
+    expect(r.layout).toContain("https://live.example.com/wp-content/themes/x/style.css");
+    expect(r.notes.some((n) => n.includes("見つかりませんでした"))).toBe(false);
+  });
 });

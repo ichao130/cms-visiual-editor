@@ -264,6 +264,62 @@ function isExternalOrInline(url: string): boolean {
   return /^(https?:)?\/\//i.test(url) || /^data:/i.test(url);
 }
 
+/** Resolve a relative URL against a base (the page's own URL), so a fetched
+ *  page's images/links keep loading from the live origin. Absolute, data:,
+ *  anchor, and mail/tel references are left untouched. */
+function absolutize(url: string, base: string): string {
+  const u = url.trim();
+  if (
+    u === "" ||
+    u.startsWith("#") ||
+    isExternalOrInline(u) ||
+    /^(mailto:|tel:|javascript:)/i.test(u)
+  ) {
+    return url;
+  }
+  try {
+    return new URL(u, base).href;
+  } catch {
+    return url;
+  }
+}
+
+/** Rewrite every relative asset URL in a fragment (img/source src+srcset, a href,
+ *  inline style url()) to absolute, against the page's base URL. */
+function absolutizeAssets(scope: HTMLElement, base: string): void {
+  for (const el of scope.querySelectorAll("img,source")) {
+    const src = el.getAttribute("src");
+    if (src != null && src.trim() !== "") el.setAttribute("src", absolutize(src, base));
+    const srcset = el.getAttribute("srcset");
+    if (srcset != null && srcset.trim() !== "") {
+      el.setAttribute(
+        "srcset",
+        srcset
+          .split(",")
+          .map((part) => {
+            const bits = part.trim().split(/\s+/);
+            if (bits[0]) bits[0] = absolutize(bits[0], base);
+            return bits.join(" ");
+          })
+          .join(", "),
+      );
+    }
+  }
+  for (const a of scope.querySelectorAll("a[href]")) {
+    const href = a.getAttribute("href");
+    if (href != null && href.trim() !== "") a.setAttribute("href", absolutize(href, base));
+  }
+  for (const el of scope.querySelectorAll("[style]")) {
+    const st = el.getAttribute("style") ?? "";
+    if (st.includes("url(")) {
+      el.setAttribute(
+        "style",
+        st.replace(CSS_URL, (_w, q: string, ref: string) => `url(${q}${absolutize(ref, base)}${q})`),
+      );
+    }
+  }
+}
+
 /** Rewrite one asset URL to `assets/<file>`, or leave external/inline ones. */
 function rewriteAssetUrl(url: string): { url: string; localized: boolean; external: boolean } {
   const u = url.trim();
@@ -817,10 +873,14 @@ export function importRenderedPage(input: {
   html: string;
   css?: Record<string, string>;
   lang?: string;
+  /** The page's own URL. When given (a fetched page), relative image/link/url()
+   *  references are resolved to absolute so they keep loading from the origin. */
+  baseUrl?: string;
 }): RenderedImportResult {
   const notes: string[] = [];
   const lang = input.lang ?? "ja";
   const cssMap = input.css ?? {};
+  const baseUrl = input.baseUrl;
 
   // Strip server code and scripts before parsing (a rendered page may still
   // carry inline <script> and, if it was saved from a CMS, stray <?php ?>).
@@ -853,6 +913,12 @@ export function importRenderedPage(input: {
       // Keep the external stylesheet (fonts / CDN) as a head link.
       externalStyleTags.push(`    ${link.toString()}`);
       link.remove();
+    } else if (baseUrl) {
+      // A same-origin stylesheet we weren't given: keep it as an absolute link so
+      // the browser still loads it from the live site.
+      link.setAttribute("href", absolutize(href, baseUrl));
+      externalStyleTags.push(`    ${link.toString()}`);
+      link.remove();
     } else {
       unresolved += 1;
       link.remove();
@@ -874,9 +940,12 @@ export function importRenderedPage(input: {
     }
     st.remove();
   }
+  // A fetched page's folded CSS keeps its url() refs pointing at the live origin;
+  // a saved/pasted page's relative url()s are re-pointed to the flattened assets/.
   let css = cssParts.join("\n\n");
-  const cssUrls = rewriteCssUrls(css);
-  css = cssUrls.css;
+  css = baseUrl
+    ? css.replace(CSS_URL, (_w, q: string, ref: string) => `url(${q}${absolutize(ref, baseUrl)}${q})`)
+    : rewriteCssUrls(css).css;
 
   // 2. The body is what we theme. Sanitize event handlers and javascript: URLs.
   const body = doc.querySelector("body") ?? doc;
@@ -892,6 +961,11 @@ export function importRenderedPage(input: {
       }
     }
   }
+
+  // For a fetched page, resolve relative image/link/url() refs to absolute BEFORE
+  // normalizeAssets, so they stay external (loaded from the origin) instead of
+  // being pointed at an assets/ folder we have no bytes for.
+  if (baseUrl) absolutizeAssets(body, baseUrl);
 
   const menus = detectMenus(body);
   const repeats = markRepeats(body);
