@@ -3,6 +3,7 @@ import { unzipSync } from "fflate";
 import { Icon } from "./Icon.js";
 import {
   importThemeHtml,
+  importRenderedPage,
   suggestThemePart,
   diagnoseThemeHtml,
   classifyZipEntry,
@@ -14,6 +15,7 @@ import {
   bytesToDataUrl,
   assetContentType,
   type ImportResult,
+  type RenderedImportResult,
   type ImportSource,
   type WpImportFile,
   type WpImportResult,
@@ -147,6 +149,38 @@ function buildWpThemeFiles(
   return files;
 }
 
+/** A generic title+body template for themes that only shipped a home page, so
+ *  non-home content (個別の固定ページ・投稿) still renders after a rendered import. */
+const RENDERED_GENERIC_ENTRY =
+  '<article class="entry">\n' +
+  '  <h1 data-field="post.title" data-type="text" data-label="タイトル"></h1>\n' +
+  '  <div data-slot="content" data-field="post.body" data-type="richtext" data-label="本文"></div>\n' +
+  "</article>";
+
+/** A full HTML document (a browser-rendered page), vs. a theme fragment/template. */
+function looksLikeRenderedPage(html: string): boolean {
+  return /<html[\s>]/i.test(html) && /<body[\s>]/i.test(html);
+}
+
+/** Assemble a saveable theme from a rendered-page import: the folded stylesheet
+ *  becomes assets/style.css, the chrome becomes layout.html, the body is the
+ *  home template, plus generic page/post templates and every carried image. */
+function buildRenderedThemeFiles(
+  r: RenderedImportResult,
+  name: string,
+  imageAssets: Record<string, string>,
+): Record<string, string> {
+  const files: Record<string, string> = {};
+  files["theme.json"] = JSON.stringify({ name }, null, 2);
+  files["layout.html"] = r.layout;
+  files["templates/index.html"] = r.html;
+  files["templates/page.html"] = RENDERED_GENERIC_ENTRY;
+  files["templates/post.html"] = RENDERED_GENERIC_ENTRY;
+  if (r.css.trim() !== "") files["assets/style.css"] = localizeCssUrls(r.css);
+  for (const [base, url] of Object.entries(imageAssets)) files[`assets/${base}`] = url;
+  return files;
+}
+
 /**
  * Apply the import wizard's choices to the theme files before they are saved:
  *  • the chosen top-page template becomes templates/index.html (a theme can ship
@@ -190,6 +224,11 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
   const [saveLayout, setSaveLayout] = useState(true);
   const [batch, setBatch] = useState<BatchItem[] | null>(null);
   const [wpImport, setWpImport] = useState<WpThemeImport | null>(null);
+  // A rendered-page import (the high-fidelity design path): a whole theme built
+  // from the live page's HTML + CSS, offered as a new theme.
+  const [renderedImport, setRenderedImport] = useState<
+    { name: string; files: Record<string, string>; notes: string[] } | null
+  >(null);
   const [themeNameInput, setThemeNameInput] = useState("");
   // Import-wizard choices: which template is the top page, and which 固定ページ to create.
   const [homeChoice, setHomeChoice] = useState("");
@@ -205,8 +244,33 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
   const slug = useMemo(() => slugify(partName), [partName]);
   const diagnoses = useMemo(() => (result ? diagnoseThemeHtml(result.html) : []), [result]);
 
+  // Offer a rendered page as a whole new theme: fold its CSS, lift its chrome,
+  // split its body into sections, and stage it for the "new theme" confirm.
+  const offerRenderedPage = (
+    html: string,
+    cssMap: Record<string, string>,
+    imageAssets: Record<string, string>,
+    suggestedName: string,
+  ): void => {
+    const r = importRenderedPage({ html, css: cssMap });
+    const files = buildRenderedThemeFiles(r, suggestedName, imageAssets);
+    setResult(null);
+    setRaw("");
+    setBatch(null);
+    setWpImport(null);
+    setZipNote(null);
+    setThemeNameInput(suggestedName);
+    setRenderedImport({ name: suggestedName, files, notes: r.notes });
+  };
+
   const convert = () => {
     if (raw.trim() === "") return;
+    // A pasted full page (the live site's HTML source) → high-fidelity rendered
+    // import; a fragment/template → the per-section themeify path.
+    if (looksLikeRenderedPage(raw)) {
+      offerRenderedPage(raw, {}, {}, t("themeImport.renderedDefaultName"));
+      return;
+    }
     const r = importThemeHtml(raw);
     if (source !== "auto") {
       r.notes = [`${t(`themeImport.source.${source}` as never)}として取り込みました。`, ...r.notes];
@@ -363,6 +427,28 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
       return;
     }
 
+    // Not a WordPress theme: a saved "complete" page (rendered HTML + its CSS
+    // folder) is the high-fidelity design path — fold it into one theme rather
+    // than splitting the archive into disconnected parts.
+    const htmlEntries = Object.entries(entries).filter(([p]) => /\.html?$/i.test(p));
+    const rendered = htmlEntries
+      .map(([p, b]) => ({ p, text: decoder.decode(b) }))
+      .filter((x) => looksLikeRenderedPage(x.text))
+      .sort(
+        (a, b) =>
+          (/index\.html?$/i.test(b.p) ? 1 : 0) - (/index\.html?$/i.test(a.p) ? 1 : 0) ||
+          b.text.length - a.text.length,
+      )[0];
+    if (rendered) {
+      const cssForRender: Record<string, string> = {};
+      for (const [path, bytes] of Object.entries(entries)) {
+        if (/\.css$/i.test(path)) cssForRender[baseName(path)] = decoder.decode(bytes);
+      }
+      const name = baseName(file.name).replace(/\.zip$/i, "") || t("themeImport.renderedDefaultName");
+      offerRenderedPage(rendered.text, cssForRender, assets, name);
+      return;
+    }
+
     if (items.length === 0) {
       toast(t("themeImport.zipNoMarkup"));
       return;
@@ -383,28 +469,52 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
       await importZip(list[0]);
       return;
     }
-    // A single file falls back to the paste flow (preview + manual save).
+    // A single file: a full rendered page → high-fidelity theme; otherwise the
+    // paste flow (preview + manual save).
     if (list.length === 1 && list[0]) {
+      const only = list[0];
+      const text = await only.text();
+      if (/\.html?$/i.test(only.name) && looksLikeRenderedPage(text)) {
+        const name = baseName(only.name).replace(/\.html?$/i, "") || t("themeImport.renderedDefaultName");
+        offerRenderedPage(text, {}, {}, name);
+        return;
+      }
       setBatch(null);
       setWpImport(null);
       setZipNote(null);
       setResult(null);
-      const only = list[0];
-      setRaw(await only.text());
+      setRaw(text);
       const s = suggestThemePart(only.name);
       if (s.slug) setPartName(s.slug);
       setTarget(s.target);
       return;
     }
-    // Several files: import each and queue them for one batched save.
+    // Several files selected together (a saved page + its CSS): if one is a full
+    // rendered page, fold the sibling CSS into a single theme.
+    const texts = await Promise.all(list.map(async (f) => ({ name: f.name, text: await f.text() })));
+    const page = texts
+      .filter((x) => /\.html?$/i.test(x.name) && looksLikeRenderedPage(x.text))
+      .sort(
+        (a, b) =>
+          (/index\.html?$/i.test(b.name) ? 1 : 0) - (/index\.html?$/i.test(a.name) ? 1 : 0) ||
+          b.text.length - a.text.length,
+      )[0];
+    if (page) {
+      const cssForRender: Record<string, string> = {};
+      for (const x of texts) if (/\.css$/i.test(x.name)) cssForRender[baseName(x.name)] = x.text;
+      const name = baseName(page.name).replace(/\.html?$/i, "") || t("themeImport.renderedDefaultName");
+      offerRenderedPage(page.text, cssForRender, {}, name);
+      return;
+    }
+    // Otherwise import each and queue them for one batched save.
     const items: BatchItem[] = [];
-    for (const file of list) {
-      const r = importThemeHtml(await file.text());
-      const s = suggestThemePart(file.name);
+    for (const x of texts) {
+      const r = importThemeHtml(x.text);
+      const s = suggestThemePart(x.name);
       items.push({
-        name: file.name,
+        name: x.name,
         result: r,
-        slug: s.slug || slugify(file.name),
+        slug: s.slug || slugify(x.name),
         target: s.target,
         include: r.issues.every((i) => i.level !== "error"),
       });
@@ -450,6 +560,23 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
         { name, source: source === "auto" ? "wordpress" : source },
         files,
       );
+      await api.setActiveTheme(summary.id);
+      toast(t("themeImport.importedAsTheme").replace("{name}", name));
+      onImported?.();
+      onClose();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Add the rendered page as a new, separate theme and switch to it.
+  const importRenderedAsNewTheme = async () => {
+    if (!renderedImport) return;
+    const name = themeNameInput.trim() || renderedImport.name;
+    setSaving(true);
+    try {
+      const files = { ...renderedImport.files, "theme.json": JSON.stringify({ name }, null, 2) };
+      const summary = await api.createTheme({ name, source: "html" }, files);
       await api.setActiveTheme(summary.id);
       toast(t("themeImport.importedAsTheme").replace("{name}", name));
       onImported?.();
@@ -545,6 +672,7 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
         </header>
 
         <p className="pcms-themeimport__hint">{t("themeImport.hint")}</p>
+        <p className="pcms-themeimport__rendered-hint">{t("themeImport.renderedHint")}</p>
         {source === "figma" && (
           <p className="pcms-themeimport__figmahint">{t("themeImport.figmaHint")}</p>
         )}
@@ -574,7 +702,7 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
           <span className="pcms-themeimport__filehint">{t("themeImport.pickFileHint")}</span>
         </div>
 
-        {!batch && !wpImport && (
+        {!batch && !wpImport && !renderedImport && (
           <textarea
             className="pcms-themeimport__input"
             value={raw}
@@ -584,7 +712,7 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
           />
         )}
 
-        {!batch && !wpImport && (
+        {!batch && !wpImport && !renderedImport && (
           <div className="pcms-themeimport__actions">
             <button className="pcms-primary" onClick={convert} disabled={raw.trim() === ""}>
               {t("themeImport.convert")}
@@ -691,6 +819,38 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
               </button>
               <button onClick={wpToBatch} disabled={saving}>
                 {t("themeImport.addToCurrent")}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {renderedImport && (
+          <div className="pcms-themeimport__wp">
+            <h3>{t("themeImport.renderedTitle")}</h3>
+            <p className="pcms-themeimport__hint">{t("themeImport.renderedDesc")}</p>
+            <label className="pcms-themeimport__wpname">
+              <span>{t("themeImport.newThemeName")}</span>
+              <input
+                type="text"
+                value={themeNameInput}
+                onChange={(e) => setThemeNameInput(e.target.value)}
+                placeholder={renderedImport.name}
+              />
+            </label>
+            {renderedImport.notes.length > 0 && (
+              <ul className="pcms-themeimport__log">
+                {renderedImport.notes.map((n, i) => (
+                  <li key={i}>{n}</li>
+                ))}
+              </ul>
+            )}
+            <div className="pcms-themeimport__actions">
+              <button
+                className="pcms-primary"
+                onClick={() => void importRenderedAsNewTheme()}
+                disabled={saving || themeNameInput.trim() === ""}
+              >
+                {t("themeImport.asNewTheme")}
               </button>
             </div>
           </div>
