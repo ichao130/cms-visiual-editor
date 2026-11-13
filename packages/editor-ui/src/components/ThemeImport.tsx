@@ -234,6 +234,8 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
   const [homeChoice, setHomeChoice] = useState("");
   const [includedPages, setIncludedPages] = useState<Record<string, boolean>>({});
   const [zipNote, setZipNote] = useState<string | null>(null);
+  const [fetchUrl, setFetchUrl] = useState("");
+  const [fetchingUrl, setFetchingUrl] = useState(false);
   const [aiBusy, setAiBusy] = useState(false);
   const [saving, setSaving] = useState(false);
   const [dragOver, setDragOver] = useState(false);
@@ -251,8 +253,10 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
     cssMap: Record<string, string>,
     imageAssets: Record<string, string>,
     suggestedName: string,
+    baseUrl?: string,
+    extraNotes: string[] = [],
   ): void => {
-    const r = importRenderedPage({ html, css: cssMap });
+    const r = importRenderedPage(baseUrl ? { html, css: cssMap, baseUrl } : { html, css: cssMap });
     const files = buildRenderedThemeFiles(r, suggestedName, imageAssets);
     setResult(null);
     setRaw("");
@@ -260,7 +264,29 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
     setWpImport(null);
     setZipNote(null);
     setThemeNameInput(suggestedName);
-    setRenderedImport({ name: suggestedName, files, notes: r.notes });
+    setRenderedImport({ name: suggestedName, files, notes: [...extraNotes, ...r.notes] });
+  };
+
+  // Fetch a live page by URL (desktop backend) and offer it as a theme, with
+  // its assets kept pointing at the origin via the page's base URL.
+  const fetchFromUrl = async () => {
+    const url = fetchUrl.trim();
+    if (url === "" || !api.fetchRenderedPage) return;
+    setFetchingUrl(true);
+    try {
+      const { html, css, baseUrl, notes } = await api.fetchRenderedPage(url);
+      let host = url;
+      try {
+        host = new URL(baseUrl).hostname.replace(/^www\./, "");
+      } catch {
+        /* keep the raw url as the name */
+      }
+      offerRenderedPage(html, css, {}, host || t("themeImport.renderedDefaultName"), baseUrl, notes);
+    } catch {
+      toast(t("themeImport.fetchFailed"));
+    } finally {
+      setFetchingUrl(false);
+    }
   };
 
   const convert = () => {
@@ -673,6 +699,28 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
 
         <p className="pcms-themeimport__hint">{t("themeImport.hint")}</p>
         <p className="pcms-themeimport__rendered-hint">{t("themeImport.renderedHint")}</p>
+        {api.fetchRenderedPage && !batch && !wpImport && !renderedImport && (
+          <div className="pcms-themeimport__urlrow">
+            <input
+              type="url"
+              className="pcms-themeimport__url"
+              value={fetchUrl}
+              onChange={(e) => setFetchUrl(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void fetchFromUrl();
+              }}
+              placeholder={t("themeImport.urlPlaceholder")}
+            />
+            <button
+              type="button"
+              className="pcms-primary"
+              onClick={() => void fetchFromUrl()}
+              disabled={fetchingUrl || fetchUrl.trim() === ""}
+            >
+              {fetchingUrl ? t("themeImport.urlFetching") : t("themeImport.urlFetch")}
+            </button>
+          </div>
+        )}
         {source === "figma" && (
           <p className="pcms-themeimport__figmahint">{t("themeImport.figmaHint")}</p>
         )}

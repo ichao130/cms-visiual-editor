@@ -70,6 +70,7 @@ import {
   renameSite,
   loadSiteStats,
   fetchVisitStats,
+  fetchRenderedPage,
   listThemes,
   createTheme,
   setActiveTheme,
@@ -247,6 +248,7 @@ function registerIpc(): void {
   ipcMain.handle("pcms:fetchVisitStats", (_event, siteId: string, days?: number) =>
     fetchVisitStats(siteId, days),
   );
+  ipcMain.handle("pcms:fetchRenderedPage", (_event, url: string) => fetchRenderedPage(url));
   ipcMain.handle("pcms:listThemes", () => listThemes());
   ipcMain.handle(
     "pcms:createTheme",

@@ -444,3 +444,105 @@ export async function cloudFormTarget(
     siteId: cloudId,
   };
 }
+
+/** The result of fetching a live page for rendered-page import: the HTML plus
+ *  the same-origin stylesheets it links (keyed by file name, with their url()
+ *  refs absolutized), and the page's own URL for resolving the rest. */
+export interface RenderedPageFetch {
+  html: string;
+  css: Record<string, string>;
+  baseUrl: string;
+  notes: string[];
+}
+
+const IMPORT_UA = "KUMITO/1.0 (site importer)";
+const PAGE_CAP = 8 * 1024 * 1024;
+const CSS_CAP = 4 * 1024 * 1024;
+const MAX_CSS = 30;
+
+/** Fetch one text resource with a timeout and a size cap. No credentials, a
+ *  generic User-Agent (never the operator's identity). */
+async function fetchTextResource(url: string, cap: number, timeoutMs = 15000): Promise<string> {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, {
+      redirect: "follow",
+      signal: ctl.signal,
+      headers: { "User-Agent": IMPORT_UA, Accept: "text/html,text/css,*/*" },
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const buf = await res.arrayBuffer();
+    if (buf.byteLength > cap) throw new Error("resource too large");
+    return new TextDecoder().decode(buf);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Absolutize url() refs inside a fetched stylesheet against its own URL. */
+function absolutizeCssUrls(css: string, cssUrl: string): string {
+  return css.replace(/url\(\s*(['"]?)([^'")]+)\1\s*\)/gi, (whole, q: string, ref: string) => {
+    const t = ref.trim();
+    if (t === "" || /^(https?:)?\/\//i.test(t) || /^data:/i.test(t) || t.startsWith("#")) return whole;
+    try {
+      return `url(${q}${new URL(t, cssUrl).href}${q})`;
+    } catch {
+      return whole;
+    }
+  });
+}
+
+/**
+ * Fetch a live page (user-initiated, from a URL the operator typed) and the
+ * same-origin stylesheets it links, for the high-fidelity rendered-page import.
+ * Cross-origin stylesheets (CDN frameworks, Google Fonts) are left for the
+ * engine to keep as <link>s. Sends no credentials and no operator identity.
+ * CLAUDE.md: サーバー接続情報やフォーム受信データは外部に送らない.
+ */
+export async function fetchRenderedPage(pageUrl: string): Promise<RenderedPageFetch> {
+  const raw = pageUrl.trim();
+  const u = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
+  if (u.protocol !== "http:" && u.protocol !== "https:") {
+    throw new Error("http/https のURLのみ対応しています。");
+  }
+  const html = await fetchTextResource(u.href, PAGE_CAP);
+  const base = u.href;
+
+  const hrefs: string[] = [];
+  for (const tag of html.match(/<link\b[^>]*>/gi) ?? []) {
+    if (!/\brel\s*=\s*(['"])[^'"]*stylesheet[^'"]*\1/i.test(tag)) continue;
+    const m = tag.match(/\bhref\s*=\s*(['"])([^'"]+)\1/i);
+    if (m?.[2]) hrefs.push(m[2]);
+  }
+
+  const css: Record<string, string> = {};
+  let fetched = 0;
+  let skipped = 0;
+  for (const href of hrefs) {
+    if (fetched >= MAX_CSS) break;
+    let abs: URL;
+    try {
+      abs = new URL(href, base);
+    } catch {
+      continue;
+    }
+    if (abs.protocol !== "http:" && abs.protocol !== "https:") continue;
+    if (abs.host !== u.host) {
+      skipped += 1; // cross-origin: the engine keeps it as a <link>
+      continue;
+    }
+    try {
+      const text = absolutizeCssUrls(await fetchTextResource(abs.href, CSS_CAP), abs.href);
+      const name = abs.pathname.split("/").filter(Boolean).pop() ?? `style-${fetched}.css`;
+      css[name] = text;
+      fetched += 1;
+    } catch {
+      skipped += 1;
+    }
+  }
+
+  const notes = [`ページを取得し、同一サイトのCSS ${fetched}件を取り込みました。`];
+  if (skipped > 0) notes.push(`外部または取得できなかったCSS ${skipped}件はリンクのまま残します。`);
+  return { html, css, baseUrl: base, notes };
+}

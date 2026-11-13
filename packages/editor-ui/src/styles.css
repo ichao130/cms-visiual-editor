@@ -1406,6 +1406,9 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline: non
 .pcms-themeimport__hint { font-size: 0.82rem; color: var(--pcms-muted); line-height: 1.6; margin: 0 0 0.8rem; }
 .pcms-themeimport__figmahint { font-size: 0.8rem; color: var(--pcms-accent); background: var(--pcms-accent-weak); border-radius: var(--pcms-radius); padding: 0.5rem 0.7rem; line-height: 1.6; margin: 0 0 0.8rem; }
 .pcms-themeimport__rendered-hint { font-size: 0.82rem; color: var(--pcms-accent); background: var(--pcms-accent-weak); border-left: 3px solid var(--pcms-accent); border-radius: var(--pcms-radius); padding: 0.6rem 0.8rem; line-height: 1.7; margin: 0 0 0.9rem; }
+.pcms-themeimport__urlrow { display: flex; gap: 0.5rem; margin: 0 0 0.9rem; }
+.pcms-themeimport__url { flex: 1; min-width: 0; padding: 0.5rem 0.7rem; border: 1px solid var(--pcms-border); border-radius: var(--pcms-radius); background: var(--pcms-bg); color: var(--pcms-fg); font-size: 0.85rem; }
+.pcms-themeimport__urlrow button { white-space: nowrap; }
 .pcms-themeimport__filehint { font-size: 0.78rem; color: var(--pcms-muted); align-self: center; }
 .pcms-themeimport__controls { display: flex; align-items: flex-end; gap: 0.6rem; margin-bottom: 0.6rem; }
 .pcms-themeimport__sourcefield { display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.78rem; color: var(--pcms-muted); }

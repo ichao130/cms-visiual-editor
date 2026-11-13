@@ -145,6 +145,15 @@ export interface PcmsApi {
    * (source "mock"). `days` is the window size (default 14).
    */
   fetchVisitStats(siteId: string, days?: number): Promise<VisitStats>;
+  /**
+   * Fetch a live page by URL (user-initiated) plus the same-origin stylesheets
+   * it links, for the high-fidelity rendered-page import. Returns the HTML, the
+   * CSS keyed by file name (url() refs absolutized), and the page's base URL.
+   * Optional: only the desktop backend implements it (no network in the mock).
+   */
+  fetchRenderedPage?(
+    url: string,
+  ): Promise<{ html: string; css: Record<string, string>; baseUrl: string; notes: string[] }>;
   listThemes(): Promise<ThemeSummary[]>;
   /**
    * Create a new theme from a complete set of files (e.g. a converted

@@ -76,6 +76,7 @@ const api: PcmsApi = {
   loadSiteStats: (siteId: string) => ipcRenderer.invoke("pcms:loadSiteStats", siteId),
   fetchVisitStats: (siteId: string, days?: number) =>
     ipcRenderer.invoke("pcms:fetchVisitStats", siteId, days),
+  fetchRenderedPage: (url: string) => ipcRenderer.invoke("pcms:fetchRenderedPage", url),
   listThemes: () => ipcRenderer.invoke("pcms:listThemes"),
   createTheme: (meta: { name: string; description?: string; source?: string }, files: Record<string, string>) =>
     ipcRenderer.invoke("pcms:createTheme", meta, files),

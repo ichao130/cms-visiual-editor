@@ -1236,6 +1236,40 @@ export function createMockApi(): PcmsApi {
         days: span,
       };
     },
+    async fetchRenderedPage(
+      url: string,
+    ): Promise<{ html: string; css: Record<string, string>; baseUrl: string; notes: string[] }> {
+      // The mock has no server-side fetcher, so it uses the browser's own fetch —
+      // works for same-origin pages (a localhost dev page), cross-origin is subject
+      // to CORS. The real desktop backend fetches server-side with no such limit.
+      const base = new URL(url, window.location.href).href;
+      const res = await fetch(base);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const html = await res.text();
+      const css: Record<string, string> = {};
+      let fetched = 0;
+      let skipped = 0;
+      for (const tag of html.match(/<link\b[^>]*>/gi) ?? []) {
+        if (!/\brel\s*=\s*(['"])[^'"]*stylesheet[^'"]*\1/i.test(tag)) continue;
+        const m = tag.match(/\bhref\s*=\s*(['"])([^'"]+)\1/i);
+        if (!m?.[2]) continue;
+        const abs = new URL(m[2], base);
+        if (abs.host !== new URL(base).host) {
+          skipped += 1;
+          continue;
+        }
+        try {
+          const text = await (await fetch(abs.href)).text();
+          css[abs.pathname.split("/").filter(Boolean).pop() ?? `style-${fetched}.css`] = text;
+          fetched += 1;
+        } catch {
+          skipped += 1;
+        }
+      }
+      const notes = [`ページを取得し、同一サイトのCSS ${fetched}件を取り込みました。`];
+      if (skipped > 0) notes.push(`外部または取得できなかったCSS ${skipped}件はリンクのまま残します。`);
+      return { html, css, baseUrl: base, notes };
+    },
     async listThemes(): Promise<ThemeSummary[]> {
       const active = activeThemeId();
       const sample: ThemeSummary = {
