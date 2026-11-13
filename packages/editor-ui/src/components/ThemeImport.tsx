@@ -172,6 +172,24 @@ interface RenderedExtraPage {
   html: string;
 }
 
+/** Turn a hand-typed page URL into a candidate page (slug + label), or null if it
+ *  isn't a usable http(s) page URL or points at the site root (the home, which is
+ *  already the index). The slug is the URL path: "/about/" → "about". */
+function pageFromUrl(raw: string): DiscoveredPage | null {
+  let u: URL;
+  try {
+    u = new URL(raw.trim());
+  } catch {
+    return null;
+  }
+  if (u.protocol !== "http:" && u.protocol !== "https:") return null;
+  const slug = u.pathname.replace(/\/?index\.html?$/i, "").replace(/^\/+|\/+$/g, "");
+  if (slug === "") return null; // the site root = the home, not a 固定ページ
+  u.hash = "";
+  const label = decodeURIComponent(slug.split("/").pop() ?? slug) || slug;
+  return { url: u.href, slug, label };
+}
+
 /** A flat, unique template name for a page slug: "about" → "page-about",
  *  "company/profile" → "page-company-profile" (template files can't nest on the
  *  page's URL path). */
@@ -271,8 +289,12 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
     discovered: DiscoveredPage[];
     notes: string[];
   } | null>(null);
-  // Which discovered 固定ページ to also fetch & reproduce (keyed by slug).
+  // Which pages to also fetch & reproduce (keyed by slug). Seeded from the nav,
+  // but the operator can add any page by URL — the nav is only a convenience.
   const [includedLinks, setIncludedLinks] = useState<Record<string, boolean>>({});
+  // Page URLs the operator added by hand (beyond whatever the nav turned up).
+  const [addedPages, setAddedPages] = useState<DiscoveredPage[]>([]);
+  const [addUrl, setAddUrl] = useState("");
   const [themeNameInput, setThemeNameInput] = useState("");
   // Import-wizard choices: which template is the top page, and which 固定ページ to create.
   const [homeChoice, setHomeChoice] = useState("");
@@ -311,6 +333,8 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
     const incl: Record<string, boolean> = {};
     for (const d of discovered) incl[d.slug] = true;
     setIncludedLinks(incl);
+    setAddedPages([]);
+    setAddUrl("");
     setRenderedImport({
       name: suggestedName,
       home: r,
@@ -660,6 +684,31 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
     }
   };
 
+  // The pages the operator can pull across: the nav-discovered ones plus any
+  // added by URL, deduped by slug (a hand-added URL replaces a discovered one of
+  // the same slug, keeping its label). The nav is only a convenience — a whole
+  // site can be assembled from URLs alone.
+  const candidatePages = (): DiscoveredPage[] => {
+    const seen = new Map<string, DiscoveredPage>();
+    for (const p of renderedImport?.discovered ?? []) seen.set(p.slug, p);
+    for (const p of addedPages) seen.set(p.slug, p);
+    return [...seen.values()];
+  };
+
+  const addManualUrl = () => {
+    const p = pageFromUrl(addUrl);
+    if (!p) {
+      toast(t("themeImport.addUrlInvalid"));
+      return;
+    }
+    const exists =
+      (renderedImport?.discovered ?? []).some((d) => d.slug === p.slug) ||
+      addedPages.some((d) => d.slug === p.slug);
+    if (!exists) setAddedPages((prev) => [...prev, p]);
+    setIncludedLinks((m) => ({ ...m, [p.slug]: true }));
+    setAddUrl("");
+  };
+
   // Add the rendered page as a new, separate theme and switch to it.
   const importRenderedAsNewTheme = async () => {
     if (!renderedImport) return;
@@ -669,7 +718,7 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
       // Fetch & reproduce each checked 固定ページ, so the whole site comes across.
       const extraPages: RenderedExtraPage[] = [];
       const failed: string[] = [];
-      const toFetch = renderedImport.discovered.filter((d) => includedLinks[d.slug] !== false);
+      const toFetch = candidatePages().filter((d) => includedLinks[d.slug] !== false);
       if (api.fetchRenderedPage && toFetch.length > 0) {
         for (const p of toFetch) {
           try {
@@ -989,27 +1038,47 @@ export function ThemeImport({ api, onClose, onImported }: Props) {
                 ))}
               </ul>
             )}
-            {renderedImport.discovered.length > 0 && (
+            {api.fetchRenderedPage && renderedImport.baseUrl && (
               <div className="pcms-themeimport__pages">
                 <h4>{t("themeImport.renderedPagesTitle")}</h4>
                 <p className="pcms-themeimport__hint">{t("themeImport.renderedPagesHint")}</p>
-                <ul className="pcms-themeimport__pageslist">
-                  {renderedImport.discovered.map((d) => (
-                    <li key={d.slug}>
-                      <label>
-                        <input
-                          type="checkbox"
-                          checked={includedLinks[d.slug] !== false}
-                          onChange={(e) =>
-                            setIncludedLinks((m) => ({ ...m, [d.slug]: e.target.checked }))
-                          }
-                        />
-                        <span className="pcms-themeimport__pagelabel">{d.label}</span>
-                        <span className="pcms-themeimport__pageslug">/{d.slug}/</span>
-                      </label>
-                    </li>
-                  ))}
-                </ul>
+                {candidatePages().length > 0 && (
+                  <ul className="pcms-themeimport__pageslist">
+                    {candidatePages().map((d) => (
+                      <li key={d.slug}>
+                        <label>
+                          <input
+                            type="checkbox"
+                            checked={includedLinks[d.slug] !== false}
+                            onChange={(e) =>
+                              setIncludedLinks((m) => ({ ...m, [d.slug]: e.target.checked }))
+                            }
+                          />
+                          <span className="pcms-themeimport__pagelabel">{d.label}</span>
+                          <span className="pcms-themeimport__pageslug">/{d.slug}/</span>
+                        </label>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <div className="pcms-themeimport__addurl">
+                  <input
+                    type="url"
+                    className="pcms-themeimport__url"
+                    value={addUrl}
+                    placeholder={t("themeImport.addUrlPlaceholder")}
+                    onChange={(e) => setAddUrl(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        addManualUrl();
+                      }
+                    }}
+                  />
+                  <button type="button" onClick={addManualUrl} disabled={addUrl.trim() === ""}>
+                    {t("themeImport.addUrl")}
+                  </button>
+                </div>
               </div>
             )}
             <div className="pcms-themeimport__actions">
