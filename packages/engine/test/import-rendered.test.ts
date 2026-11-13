@@ -1,0 +1,104 @@
+import { describe, expect, it } from "vitest";
+import { importRenderedPage } from "../src/index.js";
+
+/**
+ * Rendered-page import — the high-fidelity design path. A browser-rendered page
+ * already has every section expanded and every class present, so importing it
+ * (with its linked CSS supplied as text) must: fold all CSS into one stylesheet,
+ * lift the header/footer into a layout, and split the main content into several
+ * editable sections (NOT collapse the whole page into one).
+ */
+
+const PAGE = `<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter" />
+  <link rel="stylesheet" href="/wp-content/themes/x/style.css?ver=1.2" />
+  <style>.hero{color:red;background:url('/img/bg.png')}</style>
+</head>
+<body>
+  <div id="page" class="site">
+    <div class="site-inner">
+      <header class="site-header">
+        <a class="logo" href="/">ロゴ</a>
+        <nav><ul><li><a href="/a">A</a></li><li><a href="/b">B</a></li></ul></nav>
+      </header>
+      <main class="site-main">
+        <section class="hero"><h1>ようこそ</h1><p>リード文</p></section>
+        <section class="news"><h2>お知らせ</h2>
+          <div class="card-grid">
+            <article class="entry-card"><h3>記事1</h3><p>本文1</p></article>
+            <article class="entry-card"><h3>記事2</h3><p>本文2</p></article>
+            <article class="entry-card"><h3>記事3</h3><p>本文3</p></article>
+          </div>
+        </section>
+        <section class="cta"><h2>お問い合わせ</h2><a class="btn" href="/contact">連絡</a></section>
+      </main>
+      <footer class="site-footer"><p>© 会社</p></footer>
+    </div>
+  </div>
+</body>
+</html>`;
+
+describe("importRenderedPage", () => {
+  const r = importRenderedPage({
+    html: PAGE,
+    css: { "style.css": ".site-header{display:flex}.news{padding:40px}" },
+  });
+
+  it("folds inline <style> and the supplied linked CSS into one stylesheet", () => {
+    expect(r.css).toContain(".hero{color:red");
+    expect(r.css).toContain(".site-header{display:flex}");
+    expect(r.css).toContain(".news{padding:40px}");
+    // url() inside folded CSS is rewritten to assets/.
+    expect(r.css).toContain("url('assets/bg.png')");
+  });
+
+  it("keeps the external font/CDN stylesheet as a head link in the layout", () => {
+    expect(r.layout).toContain("fonts.googleapis.com");
+    expect(r.layout).toContain('rel="preconnect"');
+    // and links the folded stylesheet
+    expect(r.layout).toContain('href="/assets/style.css"');
+  });
+
+  it("lifts header and footer into the layout, not the content", () => {
+    expect(r.layout).toContain('data-slot="header"');
+    expect(r.layout).toContain("site-header");
+    expect(r.layout).toContain("site-footer");
+    expect(r.layout).toContain('data-slot="content"');
+    expect(r.html).not.toContain("site-footer");
+  });
+
+  it("splits the main content into several editable sections (not one)", () => {
+    const sections = (r.html.match(/data-section=/g) ?? []).length;
+    expect(sections).toBeGreaterThanOrEqual(3); // hero + news + cta
+  });
+
+  it("preserves the theme's own class names so the folded CSS still binds", () => {
+    expect(r.html).toContain('class="hero"');
+    expect(r.html).toContain('class="news"');
+    expect(r.html).toContain("card-grid");
+    expect(r.html).toContain("entry-card");
+  });
+
+  it("turns the card grid into an increment-able repeat", () => {
+    expect(r.html).toContain("data-repeat");
+  });
+
+  it("makes the nav a dynamic menu", () => {
+    expect(r.layout).toContain('data-loop="menu"');
+  });
+
+  it("produces no validation errors and leaves no script/php", () => {
+    expect(r.issues.filter((i) => i.level === "error")).toEqual([]);
+    expect(r.html + r.layout).not.toContain("<?php");
+    expect(r.html + r.layout).not.toContain("<script");
+  });
+
+  it("flags an unresolved linked stylesheet so the user can supply it", () => {
+    const r2 = importRenderedPage({ html: PAGE }); // no css supplied
+    expect(r2.notes.some((n) => n.includes("見つかりませんでした"))).toBe(true);
+  });
+});

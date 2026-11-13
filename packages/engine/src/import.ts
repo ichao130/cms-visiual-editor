@@ -742,3 +742,223 @@ export function importThemeHtml(raw: string): ImportResult {
   if (sections > 0) notes.push(`${sections}個の編集できるセクションを検出しました。`);
   return { html: content, issues, notes, ...(layout ? { layout } : {}) };
 }
+
+/** Result of importing a rendered page: a full layout + content template + the
+ *  folded stylesheet, ready to save as a theme (parallels WpImportResult). */
+export interface RenderedImportResult {
+  /** The page body as editable sections — goes to templates/index.html. */
+  html: string;
+  /** A full-document layout.html: head links /assets/style.css, body carries the
+   *  page's header/footer chrome around a `data-slot="content"`. */
+  layout: string;
+  /** Every stylesheet the page used, folded into one — goes to assets/style.css. */
+  css: string;
+  issues: AiIssue[];
+  notes: string[];
+}
+
+/** Find the element that actually holds the page chrome (header / main / footer),
+ *  descending through the wrapper `<div>`s a rendered page nests them in
+ *  (`<div id="page"><div class="site-content">…`). */
+function findChromeHost(root: HTMLElement): HTMLElement {
+  let cur = root;
+  for (let depth = 0; depth < 5; depth++) {
+    const kids = elementChildren(cur);
+    if (kids.some((k) => ["header", "footer", "main"].includes(tagOf(k)))) return cur;
+    // Unwrap a single wrapper element, or dive into the one branch that holds the
+    // chrome deeper down; otherwise stop here.
+    if (kids.length === 1 && kids[0] && elementChildren(kids[0]).length > 0) {
+      cur = kids[0];
+      continue;
+    }
+    const branch = kids.find((k) => k.querySelector("header, main, footer"));
+    if (!branch) break;
+    cur = branch;
+  }
+  return cur;
+}
+
+/** The content region of a chrome host: its `<main>` if it has one, else the
+ *  children between the header and the footer. Returns inner HTML to themeify. */
+function contentRegionHtml(host: HTMLElement): string {
+  const kids = elementChildren(host);
+  const main = kids.find((k) => tagOf(k) === "main");
+  if (main) return main.innerHTML;
+  const headerIdx = kids.findIndex((k) => tagOf(k) === "header");
+  let footerIdx = -1;
+  for (let i = kids.length - 1; i >= 0; i--) {
+    if (tagOf(kids[i] as HTMLElement) === "footer") {
+      footerIdx = i;
+      break;
+    }
+  }
+  const from = headerIdx === -1 ? 0 : headerIdx + 1;
+  const to = footerIdx === -1 ? kids.length : footerIdx;
+  return kids
+    .slice(from, to)
+    .map((k) => k.toString())
+    .join("\n");
+}
+
+/**
+ * Import a RENDERED page — the HTML a browser actually received from the live
+ * site, plus the stylesheet files it linked — into a pcms theme. Unlike a WP
+ * ZIP (a program whose design only appears when PHP runs against a database),
+ * a rendered page already has every section expanded and every class present,
+ * so this is the high-fidelity path for reproducing a site's design.
+ *
+ * Pure: the caller (desktop/editor) supplies the linked CSS as text keyed by
+ * file name (from a saved "complete" page or a fetch); the engine folds all CSS
+ * — inline <style> and linked files, in document order — into one
+ * assets/style.css, lifts the header/footer into a shared layout.html, and
+ * splits the main content into editable sections. CLAUDE.md: engine は純粋 TS.
+ */
+export function importRenderedPage(input: {
+  html: string;
+  css?: Record<string, string>;
+  lang?: string;
+}): RenderedImportResult {
+  const notes: string[] = [];
+  const lang = input.lang ?? "ja";
+  const cssMap = input.css ?? {};
+
+  // Strip server code and scripts before parsing (a rendered page may still
+  // carry inline <script> and, if it was saved from a CMS, stray <?php ?>).
+  const s = input.html
+    .replace(/<\?[\s\S]*?\?>/g, "")
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "");
+  const doc = parse(s, { comment: false });
+
+  // 1. Collect CSS in document order: each <link rel="stylesheet"> resolved from
+  //    the supplied files, then the page's inline <style>. External stylesheets
+  //    we were NOT given (CDN frameworks, Google Fonts) stay as <link> tags in
+  //    the layout head so the look is preserved.
+  const cssParts: string[] = [];
+  const externalStyleTags: string[] = [];
+  let linked = 0;
+  let inlineStyles = 0;
+  let unresolved = 0;
+  for (const link of doc.querySelectorAll("link")) {
+    const rel = (link.getAttribute("rel") ?? "").toLowerCase();
+    if (!/\bstylesheet\b/.test(rel)) continue;
+    const href = (link.getAttribute("href") ?? "").trim();
+    if (href === "") continue;
+    const base = assetBasename(href);
+    const text = cssMap[base] ?? cssMap[href];
+    if (text != null) {
+      cssParts.push(`/* ${base} */\n${text}`);
+      linked += 1;
+      link.remove();
+    } else if (isExternalOrInline(href)) {
+      // Keep the external stylesheet (fonts / CDN) as a head link.
+      externalStyleTags.push(`    ${link.toString()}`);
+      link.remove();
+    } else {
+      unresolved += 1;
+      link.remove();
+    }
+  }
+  // Keep font preconnect/preload hints (Google Fonts) in the head too.
+  for (const link of doc.querySelectorAll("link")) {
+    const rel = (link.getAttribute("rel") ?? "").toLowerCase();
+    if (/\b(preconnect|dns-prefetch)\b/.test(rel)) {
+      externalStyleTags.push(`    ${link.toString()}`);
+      link.remove();
+    }
+  }
+  for (const st of doc.querySelectorAll("style")) {
+    const css = st.innerHTML.trim();
+    if (css !== "") {
+      cssParts.push(css);
+      inlineStyles += 1;
+    }
+    st.remove();
+  }
+  let css = cssParts.join("\n\n");
+  const cssUrls = rewriteCssUrls(css);
+  css = cssUrls.css;
+
+  // 2. The body is what we theme. Sanitize event handlers and javascript: URLs.
+  const body = doc.querySelector("body") ?? doc;
+  for (const el of body.querySelectorAll("*")) {
+    for (const name of Object.keys(el.attributes)) {
+      const lower = name.toLowerCase();
+      if (lower.startsWith("on")) el.removeAttribute(name);
+      else if (
+        (lower === "href" || lower === "src") &&
+        /^\s*javascript:/i.test(el.getAttribute(name) ?? "")
+      ) {
+        el.setAttribute(name, "#");
+      }
+    }
+  }
+
+  const menus = detectMenus(body);
+  const repeats = markRepeats(body);
+  const opt = optimizeMedia(body);
+  const assets = normalizeAssets(body);
+  const forms = neutralizeForms(body);
+
+  // 3. Locate the chrome host, lift header/footer into a layout, and split the
+  //    content region into editable sections.
+  const host = findChromeHost(body);
+  const kids = elementChildren(host);
+  const header = kids.find((k) => tagOf(k) === "header");
+  let footer: HTMLElement | undefined;
+  for (let i = kids.length - 1; i >= 0; i--) {
+    if (tagOf(kids[i] as HTMLElement) === "footer") {
+      footer = kids[i];
+      break;
+    }
+  }
+  const regionHtml = header || footer ? contentRegionHtml(host) : body.innerHTML;
+
+  const { html: themed, count: labelled } = relabelSections(themeifyHtml(regionHtml));
+  const { html: content, count: blockSlots } = addBlockSlots(themed);
+
+  const headerMarkup = header ? header.toString() : "";
+  const footerMarkup = footer ? footer.toString() : "";
+  const layout =
+    `<!doctype html>\n<html lang="${lang}">\n  <head>\n` +
+    `    <meta charset="utf-8" />\n` +
+    `    <meta name="viewport" content="width=device-width, initial-scale=1" />\n` +
+    `    <title data-field="site.name"></title>\n` +
+    (externalStyleTags.length ? `${externalStyleTags.join("\n")}\n` : "") +
+    `    <link rel="stylesheet" href="/assets/style.css" />\n` +
+    `  </head>\n  <body>\n` +
+    `    <div data-slot="header">${headerMarkup}</div>\n\n` +
+    `    <main data-slot="content"></main>\n\n` +
+    `    <div data-slot="footer">${footerMarkup}</div>\n` +
+    `  </body>\n</html>\n`;
+
+  const issues = validateThemeHtml(content);
+
+  const foldedCount = linked + inlineStyles;
+  if (foldedCount > 0) {
+    notes.push(`${foldedCount}件のCSS（外部${linked}・インライン${inlineStyles}）を1つにまとめ、assets/style.css にしました。`);
+  }
+  if (externalStyleTags.length > 0) {
+    notes.push(`${externalStyleTags.length}件の外部CSS（Webフォント・CDN）はそのままリンクで残しました。`);
+  }
+  if (unresolved > 0) {
+    notes.push(`${unresolved}件のCSSファイルが見つかりませんでした（ページと一緒に保存すると取り込めます）。`);
+  }
+  if (header || footer) {
+    notes.push("ヘッダー・フッターを共通レイアウト（layout.html）として分離しました。");
+  }
+  if (labelled > 0) notes.push("セクション名を内容から自動で付けました。");
+  if (blockSlots > 0) notes.push("各セクションにブロックを追加できる置き場を用意しました。");
+  if (opt.imgs > 0) notes.push(`${opt.imgs}個の画像を最適化しました（遅延読み込み・alt補完）。`);
+  if (assets.external > 0) {
+    notes.push(`${assets.external}個の外部画像があります（必要に応じて取り込んでください）。`);
+  }
+  if (forms > 0) {
+    notes.push(`${forms}個のフォームを検出しました（送信先を外しました。KUMITOのフォーム機能に接続してください）。`);
+  }
+  if (menus > 0) notes.push(`${menus}個のメニュー（ナビ）を検出しました。`);
+  if (repeats > 0) notes.push(`${repeats}個の繰り返し（リスト）を増減できる項目にしました。`);
+  const sectionCount = (content.match(/data-section=/g) ?? []).length;
+  notes.push(`${sectionCount}個の編集できるセクションに分割しました。`);
+
+  return { html: content, layout, css, issues, notes };
+}

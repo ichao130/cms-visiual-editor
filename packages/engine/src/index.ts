@@ -89,11 +89,13 @@ export {
 export {
   cleanImportedHtml,
   importThemeHtml,
+  importRenderedPage,
   suggestThemePart,
   classifyZipEntry,
   inlineThemeAssets,
   type ImportSource,
   type ImportResult,
+  type RenderedImportResult,
   type ZipEntryKind,
 } from "./import.js";
 export {
