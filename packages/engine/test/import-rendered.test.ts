@@ -83,8 +83,14 @@ describe("importRenderedPage", () => {
     expect(r.html).toContain("entry-card");
   });
 
-  it("turns the card grid into an increment-able repeat", () => {
-    expect(r.html).toContain("data-repeat");
+  it("keeps the real repeated content verbatim (does not collapse it away)", () => {
+    // A rendered page is reproduced faithfully: all three cards stay, so the
+    // design isn't emptied out into a template that renders nothing.
+    expect((r.html.match(/entry-card/g) ?? []).length).toBe(3);
+    expect(r.html).toContain("記事1");
+    expect(r.html).toContain("記事2");
+    expect(r.html).toContain("記事3");
+    expect(r.html).not.toContain("data-repeat");
   });
 
   it("makes the nav a dynamic menu", () => {

@@ -968,7 +968,11 @@ export function importRenderedPage(input: {
   if (baseUrl) absolutizeAssets(body, baseUrl);
 
   const menus = detectMenus(body);
-  const repeats = markRepeats(body);
+  // NB: unlike importThemeHtml, a rendered page is NOT run through markRepeats.
+  // That collapses a repeating group (a card grid, a news list) to one empty
+  // editable template, which then renders as nothing without saved data — it
+  // would delete the very content we fetched this page to reproduce. Here the
+  // real items are kept verbatim; editability can be added per-section later.
   const opt = optimizeMedia(body);
   const assets = normalizeAssets(body);
   const forms = neutralizeForms(body);
@@ -1030,7 +1034,6 @@ export function importRenderedPage(input: {
     notes.push(`${forms}個のフォームを検出しました（送信先を外しました。KUMITOのフォーム機能に接続してください）。`);
   }
   if (menus > 0) notes.push(`${menus}個のメニュー（ナビ）を検出しました。`);
-  if (repeats > 0) notes.push(`${repeats}個の繰り返し（リスト）を増減できる項目にしました。`);
   const sectionCount = (content.match(/data-section=/g) ?? []).length;
   notes.push(`${sectionCount}個の編集できるセクションに分割しました。`);
 
