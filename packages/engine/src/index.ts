@@ -24,7 +24,6 @@ export {
 } from "./asset.js";
 export { cssColor, cssValue } from "./css.js";
 export { themeStyleTag, themeRootCss, mergeThemeConfig } from "./theme-style.js";
-export { synthesizeFseCss } from "./fse-css.js";
 export {
   renderTemplate,
   renderComposedPage,
@@ -94,33 +93,13 @@ export {
   suggestThemePart,
   classifyZipEntry,
   inlineThemeAssets,
+  localizeCssUrls,
   type ImportSource,
   type ImportResult,
   type RenderedImportResult,
   type DiscoveredPage,
   type ZipEntryKind,
 } from "./import.js";
-export {
-  detectWpThemeKind,
-  importWpTheme,
-  parseGutenberg,
-  gutenbergToHtml,
-  wpThemeJsonToKumito,
-  parseStyleCssName,
-  mapTemplateTags,
-  collectThemeModDefaults,
-  composeClassicTemplate,
-  localizeCssUrls,
-  collectEnqueuedScripts,
-  collectEnqueuedStyles,
-  collapsePhpConditionals,
-  type WpImportFile,
-  type WpThemeFiles,
-  type WpImportResult,
-  type WpImportWizard,
-  type WpBlock,
-  type ThemeModDefaults,
-} from "./import-wp.js";
 export {
   parseWxr,
   wxrBodyToHtml,

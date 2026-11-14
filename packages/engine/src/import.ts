@@ -801,6 +801,23 @@ export function importThemeHtml(raw: string): ImportResult {
 
 /** Result of importing a rendered page: a full layout + content template + the
  *  folded stylesheet, ready to save as a theme (parallels WpImportResult). */
+/**
+ * Rewrite local `url(...)` references inside a stylesheet to `/assets/<file>`.
+ * A page's CSS points at fonts and background images with relative paths like
+ * `../fonts/x.woff` or `./ajax-loader.gif`; once every asset is flattened into
+ * `/assets/`, those must be re-pointed or they 404 (missing fonts/backgrounds —
+ * a major fidelity loss). External URLs, data URIs and `url(#id)` SVG refs are
+ * left untouched.
+ */
+export function localizeCssUrls(css: string): string {
+  return css.replace(/url\(\s*(['"]?)([^'")]+)\1\s*\)/gi, (m, _q, raw) => {
+    const u = String(raw).trim();
+    if (u === "" || u.startsWith("#") || u.startsWith("data:") || /^(https?:)?\/\//i.test(u)) return m;
+    const base = u.split("#")[0]?.split("?")[0]?.split("/").filter(Boolean).pop() ?? "";
+    return base ? `url("/assets/${base}")` : m;
+  });
+}
+
 export interface RenderedImportResult {
   /** The page body as editable sections — goes to templates/index.html. */
   html: string;
